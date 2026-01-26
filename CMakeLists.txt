@@ -57,6 +57,9 @@ set(CHESS_CONFIG_PATH "${CMAKE_INSTALL_LIBDIR}/cmake/Chess")
 # Required Core Lib
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Core)
 
+# Required Networking Lib
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/asio)
+
 # Optional Components
 if(CHESS_BUILD_CLIENT)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)
