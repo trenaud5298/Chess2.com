@@ -6,8 +6,7 @@
 
 int main() {
     try {
-        // Create server on localhost:12345 with default thread count
-        Chess::GameServer server("127.0.0.1", 12345, 5);
+        Chess::GameServer server("0.0.0.0", 24377, 5);
 
         std::cout << "Starting server..." << std::endl;
         server.start();
