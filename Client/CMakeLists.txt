@@ -13,7 +13,9 @@ set(CHESS_CLIENT_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include")
 if(NOT TARGET Chess::Core)
     message(FATAL_ERROR "Chess::Client Requires Chess:Core But Chess:Core Target Does Not Exist")
 endif()
-
+if(NOT TARGET asio::asio)
+    message(FATAL_ERROR "Chess::Client Requires asio::asio But asio::asio Target Does Not Exist")
+endif()
 
 #--------------------------------------------------------------------
 # Create Executable
@@ -54,6 +56,7 @@ target_sources(chess_client
 target_link_libraries(chess_client
     PRIVATE
         Chess::Core
+        asio::asio
 )
 
 target_include_directories(chess_client
