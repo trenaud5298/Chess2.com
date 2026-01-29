@@ -60,6 +60,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Core)
 # Required Networking Lib
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/asio)
 
+# Required FTXUI Lib
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/FTXUI)
+
 # Optional Components
 if(CHESS_BUILD_CLIENT)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)

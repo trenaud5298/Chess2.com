@@ -56,6 +56,9 @@ target_link_libraries(chess_server
     PRIVATE
         Chess::Core
         asio::asio
+        ftxui::screen
+        ftxui::dom
+        ftxui::component
 )
 
 target_include_directories(chess_server
