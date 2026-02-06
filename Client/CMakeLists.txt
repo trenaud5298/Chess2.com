@@ -13,9 +13,6 @@ set(CHESS_CLIENT_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include")
 if(NOT TARGET Chess::Core)
     message(FATAL_ERROR "Chess::Client Requires Chess:Core But Chess:Core Target Does Not Exist")
 endif()
-if(NOT TARGET asio::asio)
-    message(FATAL_ERROR "Chess::Client Requires asio::asio But asio::asio Target Does Not Exist")
-endif()
 
 #--------------------------------------------------------------------
 # Create Executable
@@ -56,10 +53,6 @@ target_sources(chess_client
 target_link_libraries(chess_client
     PRIVATE
         Chess::Core
-        asio::asio
-        ftxui::screen
-        ftxui::dom
-        ftxui::component
 )
 
 target_include_directories(chess_client
@@ -76,11 +69,17 @@ set_target_properties(chess_client PROPERTIES
     CXX_EXTENSIONS NO
 )
 
+#RPATH Handles Dynamics Libs On Linux/Mac (See HelperFunctions.cmake For Details)
+if(BUILD_SHARED_LIBS)
+    chess_set_runtime_paths(chess_client chess_core)
+endif()
+
 #--------------------------------------------------------------------
 # Target Install
 #--------------------------------------------------------------------
 install(
     TARGETS chess_client
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT chess_client_component
+    RUNTIME
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT chess_client_component
 )

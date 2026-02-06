@@ -10,7 +10,18 @@ set(CHESS_CORE_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include")
 #--------------------------------------------------------------------
 # Core Dependencies
 #--------------------------------------------------------------------
-
+if(NOT TARGET asio::asio)
+    message(FATAL_ERROR "Chess::Core Requires asio::asio But asio::asio Target Does Not Exist")
+endif()
+if(NOT TARGET ftxui::screen)
+    message(FATAL_ERROR "Chess::Core Requires ftxui::screen But ftxui::screen Target Does Not Exist")
+endif()
+if(NOT TARGET ftxui::dom)
+    message(FATAL_ERROR "Chess::Core Requires ftxui::dom But ftxui::dom Target Does Not Exist")
+endif()
+if(NOT TARGET ftxui::component)
+    message(FATAL_ERROR "Chess::Core Requires ftxui::component But ftxui::component Target Does Not Exist")
+endif()
 
 #--------------------------------------------------------------------
 # File Setup
@@ -39,11 +50,10 @@ source_group("include/Chess/Core" FILES ${_chess_core_generated_export_header})
 #--------------------------------------------------------------------
 # Create Library
 #--------------------------------------------------------------------
-set(CHESS_CORE_TARGETS)
-
 add_library(chess_core)
 add_library(Chess::Core ALIAS chess_core)
 set_target_properties(chess_core PROPERTIES EXPORT_NAME Core)
+
 #--------------------------------------------------------------------
 # Export Header
 #--------------------------------------------------------------------
@@ -74,6 +84,13 @@ target_include_directories(chess_core
         $<INSTALL_INTERFACE:include>
 )
 
+target_link_libraries(chess_core
+    PUBLIC
+        asio::asio
+        ftxui::screen
+        ftxui::dom
+        ftxui::component
+)
 set_target_properties(chess_core PROPERTIES
     # C++ Standard
     CXX_STANDARD 20
@@ -92,19 +109,15 @@ target_compile_features(chess_core PUBLIC cxx_std_20)
 #--------------------------------------------------------------------
 # Target Install
 #--------------------------------------------------------------------
-install(TARGETS chess_core
-    EXPORT ChessCoreTargets
-    RUNTIME
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
-        COMPONENT chess_core_component
-    LIBRARY
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        COMPONENT chess_core_component
-    ARCHIVE
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        COMPONENT chess_core_component
-    FILE_SET HEADERS
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        COMPONENT chess_core_component
-)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS chess_core
+        RUNTIME
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
+            COMPONENT chess_core_component
+        LIBRARY
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
+            COMPONENT chess_core_component
+            NAMELINK_SKIP
+    )
+endif()
 

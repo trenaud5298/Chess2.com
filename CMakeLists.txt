@@ -4,15 +4,17 @@ cmake_minimum_required(VERSION 3.23)
 # Project Configuration
 # ------------------------------------------------------------
 project(Chess
-    VERSION 0.1.0
+    VERSION 0.0.0
     DESCRIPTION "Chess.com The Sequal You Never Knew You Needed"
     HOMEPAGE_URL "https://github.com/trenaud5298/Chess.com"
     LANGUAGES CXX
 )
 
+# Is Chess Top Level Project (Prepared For Potential Future Use)
+string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" CHESS_STANDALONE)
 
-# Is Chess Top Level Project
-string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" CHESS2_STANDALONE)
+# HelperFunctions.cmake File
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/HelperFunctions.cmake)
 
 #--------------------------------------------------------------------
 # Options
@@ -20,69 +22,37 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" CHESS2_
 # Chess Build Options
 option(BUILD_SHARED_LIBS "Build Shared Libs" OFF)
 
-# Chess General Options
-option(CHESS_BUILD_EXAMPLES "Build the Chess example programs" ${CHESS_STANDALONE})
-option(CHESS_BUILD_TESTS "Build the Chess test programs" ${CHESS_STANDALONE})
-option(CHESS_BUILD_DOCS "Build the Chess documentation" ON)
-option(CHESS_INSTALL "Generate installation target" ON)
-option(CHESS_PACKAGING "Generate Packaging Through CPack" OFF)
-
-# Chess Backend Options
-option(CHESS_BUILD_CLIENT "Build the Chess client" ON)
-option(CHESS_BUILD_SERVER "Build the Chess server" ON)
-
 #--------------------------------------------------------------------
-# Create generated files
+# Top-Level Install Setup (Subdirectories Handle Their Own Installation Rules)
 #--------------------------------------------------------------------
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 
-set(CHESS_CONFIG_PATH "${CMAKE_INSTALL_LIBDIR}/cmake/Chess")
-
-#configure_package_config_file(
-#        CMake/ChessConfig.cmake.in
-#        ${CMAKE_CURRENT_BINARY_DIR}/ChessConfig.cmake
-#        INSTALL_DESTINATION "${CHESS_CONFIG_PATH}"
-#)
-#
-#write_basic_package_version_file(
-#        ${CMAKE_CURRENT_BINARY_DIR}/ChessConfigVersion.cmake
-#        VERSION ${PROJECT_VERSION}
-#        COMPATIBILITY SameMajorVersion
-#)
+install(
+    FILES
+        ${PROJECT_SOURCE_DIR}/LICENSE
+        ${PROJECT_SOURCE_DIR}/README.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    COMPONENT chess_required_component
+)
 
 #--------------------------------------------------------------------
 # Sub-Directories
 #--------------------------------------------------------------------
-# Required Core Lib
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Core)
-
-# Required Networking Lib
+# Dependencies
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/asio)
-
-# Required FTXUI Lib
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/FTXUI)
 
-# Optional Components
-if(CHESS_BUILD_CLIENT)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)
-endif()
+# Core Lib
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Core)
 
-if(CHESS_BUILD_SERVER)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Server)
-endif()
+# Client Executable
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)
 
-
-#--------------------------------------------------------------------
-# Install
-#--------------------------------------------------------------------
-if(CHESS_INSTALL)
-#    include(${CMAKE_CURRENT_LIST_DIR}/cmake/ChessInstall.cmake)
-endif()
+# Server Executable
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Server)
 
 #--------------------------------------------------------------------
 # Packaging
 #--------------------------------------------------------------------
-if(CHESS_PACKAGING)
-#    include(${CMAKE_CURRENT_LIST_DIR}/cmake/ChessPackaging.cmake)
-endif()
+# Packaging Rules
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ChessPackaging.cmake)
