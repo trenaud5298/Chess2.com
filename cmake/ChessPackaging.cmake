@@ -18,7 +18,7 @@ set(CPACK_GENERATOR "ZIP")
 
 # Windows Specific Logic
 if(WIN32)
-    # Installer Setup
+    # NSIS Installer Setup
     list(APPEND CPACK_GENERATOR "NSIS")
     set(CPACK_NSIS_DISPLAY_NAME "${PROJECT_NAME} ${PROJECT_VERSION}")
     set(CPACK_NSIS_CONTACT "${CPACK_PACKAGE_CONTACT}")
@@ -32,7 +32,33 @@ endif()
 
 # UNIX (Non Apple) Specific Logic
 if(UNIX AND NOT APPLE)
-    list(APPEND CPACK_GENERATOR "TGZ")
+    list(APPEND CPACK_GENERATOR "TGZ" "DEB")
+
+    # Debian Installer Setup
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+    # Client Package
+    set(CPACK_DEBIAN_CHESS_CLIENT_COMPONENT_PACKAGE_NAME "${PROJECT_NAME}-client")
+    set(CPACK_DEBIAN_CHESS_CLIENT_COMPONENT_PACKAGE_SECTION "games")
+    set(CPACK_DEBIAN_CHESS_CLIENT_COMPONENT_PACKAGE_DEPENDS
+        "${PROJECT_NAME}-core (>= ${PROJECT_VERSION}), ${PROJECT_NAME}-docs (>= ${PROJECT_VERSION})"
+    )
+
+    # Server Package
+    set(CPACK_DEBIAN_CHESS_SERVER_COMPONENT_PACKAGE_NAME "${PROJECT_NAME}-server")
+    set(CPACK_DEBIAN_CHESS_SERVER_COMPONENT_PACKAGE_SECTION "games")
+    set(CPACK_DEBIAN_CHESS_SERVER_COMPONENT_PACKAGE_DEPENDS
+        "${PROJECT_NAME}-core (>= ${PROJECT_VERSION}), ${PROJECT_NAME}-docs (>= ${PROJECT_VERSION})"
+    )
+
+    # Core Package
+    set(CPACK_DEBIAN_CHESS_CORE_COMPONENT_PACKAGE_NAME "${PROJECT_NAME}-core")
+    set(CPACK_DEBIAN_CHESS_CORE_COMPONENT_PACKAGE_SECTION "libs")
+
+    # Docs Package
+    set(CPACK_DEBIAN_CHESS_DOCS_COMPONENT_PACKAGE_NAME "${PROJECT_NAME}-docs")
+    set(CPACK_DEBIAN_CHESS_DOCS_COMPONENT_PACKAGE_SECTION "doc")
 endif()
 
 
@@ -51,9 +77,9 @@ cpack_add_install_type(server_install DISPLAY_NAME "Server Only")
 #--------------------------------------------------------------------
 # Runtime Components
 #--------------------------------------------------------------------
-cpack_add_component(chess_required_component
-    DISPLAY_NAME "Required"
-    DESCRIPTION "Required Components For Chess Application Like LICENSE and README"
+cpack_add_component(chess_docs_component
+    DISPLAY_NAME "Documentation"
+    DESCRIPTION "Required Documentation Components For Chess Application Like LICENSE and README"
     REQUIRED
     HIDDEN
 )

@@ -32,7 +32,7 @@ install(
         ${PROJECT_SOURCE_DIR}/LICENSE
         ${PROJECT_SOURCE_DIR}/README.md
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
-    COMPONENT chess_required_component
+    COMPONENT chess_docs_component
 )
 
 #--------------------------------------------------------------------
