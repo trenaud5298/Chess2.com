@@ -10,18 +10,20 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Target.h>
 
 // ASIO Includes
+#include <asio.hpp>
 
 // C++ Includes
 #include <cstdint>
 #include <vector>
 #include <functional>
 #include <memory>
+#include <shared_mutex>
 
 namespace Chess {
 
+    class Target;
     class Message;
     class Session;
     class SessionInfo;
@@ -34,17 +36,8 @@ namespace Chess {
         SessionPool(const SessionPool&) = delete;
         SessionPool& operator=(const SessionPool&) = delete;
 
-        void addSession(std::shared_ptr<Session> session);
-
-        void removeSession(const Target& target);
-
-        [[nodiscard]] bool hasSession(const Target& target) const;
-        [[nodiscard]] bool empty() const;
-        [[nodiscard]] std::uint32_t sessionCount() const;
-
-        // --------------------------------------------------------
-        // Template methods for all Target types
-        // --------------------------------------------------------
+        std::uint32_t addSession(asio::ip::tcp::socket socket);
+        void removeSession(std::uint32_t sessionId);
 
         void message(const Target& target, const Message& msg);
 
@@ -56,12 +49,18 @@ namespace Chess {
         requires std::invocable<Func&, Session&>
         void visit(const Target& target, Func&& fn);
 
+        [[nodiscard]] bool hasSession(const Target& target) const;
+        [[nodiscard]] bool empty() const;
+        [[nodiscard]] std::uint32_t sessionCount() const;
+
         std::vector<std::uint32_t> idSnapshot(const Target& target) const;
 
         std::vector<SessionInfo> infoSnapshot(const Target& target) const;
 
     private:
-        std::vector<std::uint32_t> m_idToIndex;
+        mutable std::shared_mutex m_sessionMutex;
+        std::uint32_t m_nextSessionId;
+        std::unordered_map<std::uint32_t, std::uint32_t> m_idToIndex;
         std::vector<std::shared_ptr<Session>> m_sessions;
     };
 

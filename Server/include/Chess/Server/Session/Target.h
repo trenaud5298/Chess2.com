@@ -1,11 +1,5 @@
 #ifndef CHESS_SERVER_TARGET_H
 #define CHESS_SERVER_TARGET_H
-#include <cstdint>
-#include <functional>
-#include <variant>
-#include <vector>
-#include <memory>
-
 /*
  * Chess
  * Copyright (c) 2026 Tyler Renaud, Thomas O'Neil
@@ -13,6 +7,19 @@
  * This source code is licensed under the BSD 3-Clause License.
  * See the LICENSE file in the root of the source tree for details.
  */
+
+// Chess Includes
+
+// ASIO Includes
+
+// C++ Includes
+#include <cstdint>
+#include <functional>
+#include <variant>
+#include <vector>
+#include <memory>
+#include <unordered_map>
+
 
 namespace Chess {
 
@@ -28,13 +35,13 @@ class Session;
 
 class Target {
 public:
-    static Target All();
-    static Target Id(std::vector<std::uint32_t> targetIds);
-    static Target Predicate(std::function<bool(const Session&)> predicate);
+    static Target All() {return Target(AllPayload());}
+    static Target Id(std::vector<std::uint32_t> targetIds) {return Target(IdPayload(std::move(targetIds)));}
+    static Target Predicate(std::function<bool(const Session&)> predicate) {return Target(PredicatePayload(std::move(predicate)));}
 
     template <typename Func>
     requires std::invocable<Func&, Session&>
-    void forEach(const std::vector<std::uint32_t>& idToSessionIndex, const std::vector<std::shared_ptr<Session>>& sessions, Func&& func) const {
+    void forEach(const std::unordered_map<std::uint32_t, std::uint32_t>& idToSessionIndex, const std::vector<std::shared_ptr<Session>>& sessions, Func& func) const {
         std::visit(overloaded{
 
             [&](const AllPayload&) {
@@ -44,15 +51,12 @@ public:
             },
 
             [&](const IdPayload& payload) {
-                const std::size_t idMapSize   = idToSessionIndex.size();
-                const std::size_t sessionSize = sessions.size();
                 for (const std::uint32_t targetId : payload.targetIds) {
-                    if (targetId >= idMapSize) continue;
-
-                    const std::uint32_t sessionIndex = idToSessionIndex[targetId];
-                    if (sessionIndex >= sessionSize) continue;
-
-                    std::invoke(func, *sessions[sessionIndex]);
+                    auto sessionIndex = idToSessionIndex.find(targetId);
+                    if (sessionIndex == idToSessionIndex.end()) {
+                        continue;
+                    }
+                    std::invoke(func, *sessions[sessionIndex->second]);
                 }
             },
 
