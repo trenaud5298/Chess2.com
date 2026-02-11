@@ -1,3 +1,6 @@
+#ifndef CHESS_CORE_NETWORKING_MESSAGE_HPP
+#define CHESS_CORE_NETWORKING_MESSAGE_HPP
+
 /*
  * Chess
  * Copyright (c) 2026 Tyler Renaud, Thomas O'Neil
@@ -6,17 +9,16 @@
  * See the LICENSE file in the root of the source tree for details.
  */
 
+
 // Chess Includes
-#include <Chess/Server/Session/Session.hpp>
 
 // ASIO Includes
 
 // C++ Includes
-#include <iostream>
+#include <string>
 
+struct Message {
+    std::string data;
+};
 
-namespace Chess {
-
-
-
-}
+#endif

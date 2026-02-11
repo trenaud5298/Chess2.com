@@ -10,6 +10,7 @@
  */
 
 // Chess Includes
+#include <Chess/Server/Session/Target.hpp>
 
 // ASIO Includes
 #include <asio.hpp>
@@ -43,11 +44,19 @@ namespace Chess {
 
         template <typename Func>
         requires std::invocable<Func&, Session&>
-        void post(const Target& target, Func&& fn);
+        void post(const Target& target, Func&& func) {
+            target.forEach(m_idToIndex, m_sessions, [&](const Session& session) {
+                session.post(std::forward<Func>(func));
+            });
+        }
 
         template <typename Func>
         requires std::invocable<Func&, Session&>
-        void visit(const Target& target, Func&& fn);
+        void visit(const Target& target, Func&& func) {
+            target.forEach(m_idToIndex, m_sessions, [&](const Session& session) {
+                std::invoke(std::forward<Func>(func), session);
+            });
+        }
 
         [[nodiscard]] bool hasSession(const Target& target) const;
         [[nodiscard]] bool empty() const;

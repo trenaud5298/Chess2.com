@@ -7,8 +7,8 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Session/SessionPool.h>
-#include <Chess/Server/Session/Session.h>
+#include <Chess/Server/Session/SessionPool.hpp>
+#include <Chess/Server/Session/Session.hpp>
 
 // ASIO Includes
 
@@ -29,7 +29,7 @@ std::uint32_t SessionPool::addSession(asio::ip::tcp::socket socket) {
     std::unique_lock lock(m_sessionMutex);
     std::uint32_t newSessionId = m_nextSessionId++;
     std::uint32_t newSessionIndex = m_sessions.size();
-    std::shared_ptr<Session> newSession = std::make_shared<Session>(newSessionId);
+    std::shared_ptr<Session> newSession = std::make_shared<Session>(std::move(socket), std::weak_ptr<SessionPool>(this), newSessionId);
     m_idToIndex.emplace(newSessionId, newSessionIndex);
     m_sessions.emplace_back(std::move(newSession));
     return newSessionId;
