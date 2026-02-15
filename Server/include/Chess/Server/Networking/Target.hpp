@@ -15,6 +15,7 @@
 // C++ Includes
 #include <cstdint>
 #include <functional>
+#include <utility>
 #include <variant>
 #include <vector>
 #include <memory>
@@ -41,12 +42,12 @@ public:
 
     template <typename Func>
     requires std::invocable<Func&, Session&>
-    void forEach(const std::unordered_map<std::uint32_t, std::uint32_t>& idToSessionIndex, const std::vector<std::shared_ptr<Session>>& sessions, Func& func) const {
+    void forEach(const std::unordered_map<std::uint32_t, std::uint32_t>& idToSessionIndex, const std::vector<std::shared_ptr<Session>>& sessions, Func&& func) const {
         std::visit(overloaded{
 
             [&](const AllPayload&) {
                 for (const std::shared_ptr<Session>& session : sessions) {
-                    std::invoke(func, *session);
+                    std::invoke(std::forward<Func>(func), *session);
                 }
             },
 
@@ -56,7 +57,7 @@ public:
                     if (sessionIndex == idToSessionIndex.end()) {
                         continue;
                     }
-                    std::invoke(func, *sessions[sessionIndex->second]);
+                    std::invoke(std::forward<Func>(func), *sessions[sessionIndex->second]);
                 }
             },
 
@@ -64,7 +65,7 @@ public:
                 for (const std::shared_ptr<Session>& session : sessions) {
                     Session& sessionRef = *session;
                     if (payload.predicate(sessionRef)) {
-                        std::invoke(func, sessionRef);
+                        std::invoke(std::forward<Func>(func), sessionRef);
                     }
                 }
             }
@@ -76,7 +77,7 @@ private:
     struct IdPayload{std::vector<std::uint32_t> targetIds;};
     struct PredicatePayload{std::function<bool(const Session&)> predicate;};
 
-    explicit Target(std::variant<AllPayload, IdPayload, PredicatePayload>);
+    explicit Target(std::variant<AllPayload, IdPayload, PredicatePayload> impl) : m_impl(std::move(impl)) {}
     std::variant<AllPayload, IdPayload, PredicatePayload> m_impl;
 };
 

@@ -10,7 +10,7 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Session/Target.hpp>
+#include <Chess/Server/Networking/Target.hpp>
 
 // ASIO Includes
 #include <asio.hpp>
@@ -21,9 +21,12 @@
 #include <functional>
 #include <memory>
 #include <shared_mutex>
+#include <unordered_map>
+
 
 namespace Chess {
 
+    class GameServer;
     class Target;
     class Message;
     class Session;
@@ -31,32 +34,24 @@ namespace Chess {
 
     class SessionPool {
     public:
-        SessionPool();
+        SessionPool(GameServer* gameServer);
         ~SessionPool();
 
         SessionPool(const SessionPool&) = delete;
         SessionPool& operator=(const SessionPool&) = delete;
 
         std::uint32_t addSession(asio::ip::tcp::socket socket);
-        void removeSession(std::uint32_t sessionId);
+        void removeSession(const Target& target);
 
         void message(const Target& target, const Message& msg);
 
         template <typename Func>
         requires std::invocable<Func&, Session&>
-        void post(const Target& target, Func&& func) {
-            target.forEach(m_idToIndex, m_sessions, [&](const Session& session) {
-                session.post(std::forward<Func>(func));
-            });
-        }
+        void post(const Target& target, Func&& func);
 
         template <typename Func>
         requires std::invocable<Func&, Session&>
-        void visit(const Target& target, Func&& func) {
-            target.forEach(m_idToIndex, m_sessions, [&](const Session& session) {
-                std::invoke(std::forward<Func>(func), session);
-            });
-        }
+        void visit(const Target& target, Func&& func);
 
         [[nodiscard]] bool hasSession(const Target& target) const;
         [[nodiscard]] bool empty() const;
@@ -71,6 +66,8 @@ namespace Chess {
         std::uint32_t m_nextSessionId;
         std::unordered_map<std::uint32_t, std::uint32_t> m_idToIndex;
         std::vector<std::shared_ptr<Session>> m_sessions;
+
+        GameServer* m_gameServer;
     };
 
 } // namespace Chess
