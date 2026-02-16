@@ -105,7 +105,12 @@ std::vector<std::uint32_t> SessionPool::idSnapshot(const Target& target) const {
 }
 
 std::vector<SessionInfo> SessionPool::infoSnapshot(const Target& target) const {
-    return {};
+    std::shared_lock lock(m_sessionMutex);
+    std::vector<SessionInfo> infos;
+    target.forEach(m_idToIndex, m_sessions, [&](Session& session) {
+        infos.push_back(session.getInfo());
+    });
+    return infos;
 }
 
 

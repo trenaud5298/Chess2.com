@@ -41,6 +41,7 @@ public:
     void stop();
 
     std::uint32_t getId();
+    SessionInfo getInfo();
 
 private:
     void doRead();

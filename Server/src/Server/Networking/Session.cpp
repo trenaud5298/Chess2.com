@@ -53,6 +53,10 @@ namespace Chess {
         return m_sessionInfo.id;
     }
 
+    SessionInfo Session::getInfo() {
+        return m_sessionInfo;
+    }
+
 
     void Session::doRead() {
         std::cout << "Session::doRead() Start" << std::endl;

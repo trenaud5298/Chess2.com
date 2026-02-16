@@ -71,7 +71,7 @@ void GameServer::doAccept() {
         }
 
         m_sessionPool.addSession(std::move(socket));
-
+        doAccept();
     });
 }
 
