@@ -16,9 +16,28 @@
 
 // C++ Includes
 #include <string>
+#include <cstdint>
+#include <vector>
+
+namespace Chess {
+
+
+struct MessageHeader {
+    std::uint32_t validation;
+    std::uint32_t length;
+    std::uint32_t type;
+    std::uint32_t reserved;
+
+    static constexpr std::uint32_t PROTOCOL_VALIDATION = 0x43485353;
+    static constexpr std::uint32_t MAX_MESSAGE_LENGTH = 64*1024;
+};
 
 struct Message {
-    std::string data;
+    MessageHeader header;
+    std::vector<std::uint8_t> data;
 };
+
+
+}
 
 #endif
