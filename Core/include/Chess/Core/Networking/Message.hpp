@@ -14,13 +14,15 @@
 // ASIO Includes
 
 // C++ Includes
-#include <string>
 #include <cstdint>
 #include <vector>
+#include <cstring>
+#include <type_traits>
+#include <stdexcept>
 
 namespace Chess {
 
-enum MessageType : std::uint8_t {
+enum MessageType : std::uint32_t {
     NONE = 0,
     CHAT = 1,
 };
@@ -36,44 +38,64 @@ struct MessageHeader {
 class Message {
 
 public:
-    explicit Message(MessageType type, std::size_t bodySize);
+    explicit Message(MessageType type);
 
-    // Data Access & Info
-    [[nodiscard]] std::uint8_t* data();
-    [[nodiscard]] const std::uint8_t *data() const;
-    [[nodiscard]] std::uint8_t* body();
-    [[nodiscard]] const std::uint8_t* body() const;
+    // Header Access
+    [[nodiscard]] MessageHeader& header() noexcept;
+    [[nodiscard]] const MessageHeader& header() const noexcept;
+    [[nodiscard]] MessageType type() const noexcept;
 
-    // Size Returns Used Bytes
-    [[nodiscard]] std::size_t size() const;
-    [[nodiscard]] std::size_t bodySize() const;
+    // Body Access
+    [[nodiscard]] std::uint8_t* bodyData() noexcept;
+    [[nodiscard]] const std::uint8_t* bodyData() const noexcept;
+    [[nodiscard]] std::size_t bodySize() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
 
-    // Body Capacity Returns Total Body Capacity Including Unused Memory
-    [[nodiscard]] std::size_t bodyCapacity() const;
+    // Size Related Functions
+    void reserve(std::size_t size);
+    void resize(std::size_t size);
+    [[nodiscard]] std::size_t totalSize() const noexcept;     // Total Size
+    [[nodiscard]] std::size_t capacity() const noexcept; // Body Capacity
 
-    // Memory Management
-    void changeCapacity(std::size_t newCapacity);
+    // Clear/Reset
+    void clear() noexcept;
+    void readReset() noexcept;
+    void readSet(std::size_t offset);
 
-    // Data Write
-    void writeHeader(MessageHeader& h);
-    void writeBody(void* src, std::size_t size, std::size_t offset = 0);
+    // Push
     template <typename T>
     requires std::is_trivially_copyable_v<T>
-    void push(T& value) { writeBody(&value, sizeof(value), m_pushOffset); m_pushOffset += sizeof(T); }
+    void push(const T& value) {
+        pushBytes(&value, sizeof(T));
+    }
+    void pushBytes(const void* data, std::size_t size);
+    void pushString(const std::string& str);
 
-    // Data Read
-    [[nodiscard]] MessageHeader readHeader() const;
-    [[nodiscard]] std::uint8_t* safeRead(std::size_t size, std::size_t offset) const;
-
+    // Read
     template <typename T>
     requires std::is_trivially_copyable_v<T>
-    [[nodiscard]] const T& readAs(std::size_t offset = 0) const { return *reinterpret_cast<T*>(safeRead(sizeof(T), offset));}
+    T read() {
+        if (m_readOffset + sizeof(T) > m_body.size()) {
+            throw std::runtime_error("Message read overflow");
+        }
+        T value;
+        std::memcpy(&value, m_body.data() + m_readOffset, sizeof(T));
+        m_readOffset += sizeof(T);
+        return value;
+    }
+
+    void readBytes(void* dest, std::size_t size);
+    std::string readString();
+
 
 
 private:
-    std::uint32_t m_pushOffset;
-    std::vector<std::uint8_t> m_data;
-    constexpr static std::uint32_t MESSAGE_HEADER_SIZE = sizeof(std::uint32_t);
+    MessageHeader m_header;
+    std::vector<std::uint8_t> m_body;
+    std::size_t m_readOffset;
+
+    constexpr static std::uint32_t MAX_BODY_SIZE = 64 * 1024;
+    constexpr static std::uint32_t PROTOCOL_VALIDATION = 0x43485353;
 };
 
 
