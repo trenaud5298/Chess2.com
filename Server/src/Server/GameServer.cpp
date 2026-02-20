@@ -42,6 +42,7 @@ GameServer::GameServer(GameServerConfig config)
     }
     std::cout << "[GameServer] Starting GameServer On Port: "<<config.port << std::endl;
 }
+
 GameServer::~GameServer() {
     asio::error_code ec;
     m_acceptor.close(ec);
@@ -54,26 +55,22 @@ GameServer::~GameServer() {
     std::cout << "[GameServer] Shutdown complete" << std::endl;
 }
 
-void GameServer::removeSession(const Target &target) {
+    void GameServer::removeSession(const Target &target) {
     m_sessionPool.removeSession(target);
 }
 
+    void GameServer::doAccept() {
+        m_acceptor.async_accept([this](asio::error_code ec, asio::ip::tcp::socket socket) {
+            if (ec==asio::error::operation_aborted) {
+                return;
+            }
+            if (ec) {
+                std::cout<<"Error On Accpet()"<<ec.message()<<std::endl;
+                doAccept();
+            }
 
-
-void GameServer::doAccept() {
-    m_acceptor.async_accept([this](asio::error_code ec, asio::ip::tcp::socket socket) {
-        if (ec==asio::error::operation_aborted) {
-            return;
-        }
-        if (ec) {
-            std::cout<<"Error On Accpet()"<<ec.message()<<std::endl;
+            m_sessionPool.addSession(std::move(socket));
             doAccept();
-        }
-
-        m_sessionPool.addSession(std::move(socket));
-        doAccept();
-    });
-}
-
-
+        });
+    }
 }
