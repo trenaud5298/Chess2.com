@@ -7,6 +7,7 @@
  */
 
 // Chess Includes
+#include <iostream>
 #include <Chess/Core/Networking/Message.hpp>
 
 // ASIO Includes
@@ -29,7 +30,11 @@ Message::Message(MessageType type)
 // Header Access
 MessageHeader& Message::header() noexcept { return m_header; }
 const MessageHeader& Message::header() const noexcept { return m_header; }
+MessageHeader* Message::headerData() noexcept { return &m_header; }
+const MessageHeader* Message::headerData() const noexcept { return &m_header; }
+std::size_t Message::headerSize() noexcept { return sizeof(MessageHeader); }
 MessageType Message::type() const noexcept { return static_cast<MessageType>(m_header.type); }
+bool Message::validateHeader() const noexcept { return m_header.validation == PROTOCOL_VALIDATION && m_header.bodyLength <= MAX_BODY_SIZE; }
 
 // Body
 std::uint8_t* Message::bodyData() noexcept { return m_body.data(); }
@@ -45,6 +50,7 @@ void Message::resize(std::size_t size) {
     }
     m_body.resize(size);
     m_header.bodyLength = static_cast<std::uint32_t>(size);
+    m_readOffset = 0;
 }
 std::size_t Message::capacity() const noexcept { return m_body.capacity(); }
 std::size_t Message::totalSize() const noexcept { return sizeof(MessageHeader) + m_body.size(); }
@@ -63,12 +69,32 @@ void Message::readSet(std::size_t offset) {
     m_readOffset = offset;
 }
 
+// Buffers
+asio::mutable_buffer Message::headerBuffer() noexcept {
+    return asio::buffer(&m_header, sizeof(MessageHeader));
+}
+asio::const_buffer Message::headerBuffer() const noexcept {
+    return asio::buffer(&m_header, sizeof(MessageHeader));
+}
+asio::mutable_buffer Message::bodyBuffer() noexcept {
+    return asio::buffer(m_body.data(), m_body.size());
+}
+asio::const_buffer Message::bodyBuffer() const noexcept {
+    return asio::buffer(m_body.data(), m_body.size());
+}
+std::array<asio::mutable_buffer, 2> Message::buffers() noexcept {
+    return {headerBuffer(), bodyBuffer()};
+}
+std::array<asio::const_buffer, 2> Message::buffers() const noexcept {
+    return {headerBuffer(), bodyBuffer()};
+}
+
 // Push
 void Message::pushBytes(const void* data, std::size_t size) {
     if (size == 0) { return; }
 
     const std::size_t oldSize = m_body.size();
-    m_body.resize(oldSize + size);
+    resize(oldSize + size);
     std::memcpy(m_body.data() + oldSize, data, size);
 }
 

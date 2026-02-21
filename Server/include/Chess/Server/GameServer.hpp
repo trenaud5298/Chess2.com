@@ -39,6 +39,7 @@ public:
     GameServer& operator=(GameServer&&) = delete;
 
     // Session management interface (for Sessions to call back)
+    void messageSession(const Target& target, std::shared_ptr<const Message> message);
     void removeSession(const Target& target);
 
 

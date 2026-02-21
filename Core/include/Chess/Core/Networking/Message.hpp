@@ -12,6 +12,7 @@
 // Chess Includes
 
 // ASIO Includes
+#include <asio/buffer.hpp>
 
 // C++ Includes
 #include <cstdint>
@@ -33,7 +34,7 @@ struct MessageHeader {
     std::uint32_t type;
     std::uint32_t reserved;
 };
-
+static_assert(sizeof(MessageHeader) == 16);
 
 class Message {
 
@@ -43,7 +44,11 @@ public:
     // Header Access
     [[nodiscard]] MessageHeader& header() noexcept;
     [[nodiscard]] const MessageHeader& header() const noexcept;
+    [[nodiscard]] MessageHeader* headerData() noexcept;
+    [[nodiscard]] const MessageHeader* headerData() const noexcept;
+    [[nodiscard]] static std::size_t headerSize() noexcept;
     [[nodiscard]] MessageType type() const noexcept;
+    [[nodiscard]] bool validateHeader() const noexcept;
 
     // Body Access
     [[nodiscard]] std::uint8_t* bodyData() noexcept;
@@ -54,13 +59,21 @@ public:
     // Size Related Functions
     void reserve(std::size_t size);
     void resize(std::size_t size);
-    [[nodiscard]] std::size_t totalSize() const noexcept;     // Total Size
-    [[nodiscard]] std::size_t capacity() const noexcept; // Body Capacity
+    [[nodiscard]] std::size_t capacity() const noexcept;  // Body Capacity
+    [[nodiscard]] std::size_t totalSize() const noexcept; // Total Size
 
     // Clear/Reset
     void clear() noexcept;
     void readReset() noexcept;
     void readSet(std::size_t offset);
+
+    // Buffers
+    [[nodiscard]] asio::mutable_buffer headerBuffer() noexcept;
+    [[nodiscard]] asio::const_buffer headerBuffer() const noexcept;
+    [[nodiscard]] asio::mutable_buffer bodyBuffer() noexcept;
+    [[nodiscard]] asio::const_buffer bodyBuffer() const noexcept;
+    [[nodiscard]] std::array<asio::mutable_buffer, 2> buffers() noexcept;
+    [[nodiscard]] std::array<asio::const_buffer, 2> buffers() const noexcept;
 
     // Push
     template <typename T>

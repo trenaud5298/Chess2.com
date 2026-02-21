@@ -16,7 +16,9 @@
 #include <asio.hpp>
 
 // C++ Includes
-#include <array>
+#include <deque>
+#include <vector>
+#include <memory>
 
 namespace Chess {
 
@@ -40,20 +42,30 @@ public:
     void start();
     void stop();
 
+    void send(std::shared_ptr<const Message> message);
+
     std::uint32_t getId();
     SessionInfo getInfo();
 
 private:
-    void doRead();
+    void doReadHeader();
+    void doReadBody();
+    void doWrite();
+    void processMessage();
     void handleError();
 
 private:
     asio::ip::tcp::socket m_socket;
+    asio::strand<asio::any_io_executor> m_strand;
     SessionInfo m_sessionInfo;
-    bool m_stopping;
-    std::array<std::uint8_t, 4096> m_readBuffer{};
-
     GameServer* m_gameServer;
+    bool m_stopping;
+
+    // Reading
+    Message m_incomingMessage;
+    // Writing
+    std::deque<std::shared_ptr<const Message>> m_writeQueue;
+    constexpr static std::uint8_t MAX_WRITE_QUEUE_LENGTH = 128;
 };
 
 

@@ -13,6 +13,7 @@
 
 // C++ Includes
 #include <iostream>
+#include <utility>
 
 
 namespace Chess {
@@ -55,22 +56,26 @@ GameServer::~GameServer() {
     std::cout << "[GameServer] Shutdown complete" << std::endl;
 }
 
-    void GameServer::removeSession(const Target &target) {
+void GameServer::messageSession(const Target& target, std::shared_ptr<const Message> message) {
+    m_sessionPool.message(target, std::move(message));
+}
+
+void GameServer::removeSession(const Target &target) {
     m_sessionPool.removeSession(target);
 }
 
-    void GameServer::doAccept() {
-        m_acceptor.async_accept([this](asio::error_code ec, asio::ip::tcp::socket socket) {
-            if (ec==asio::error::operation_aborted) {
-                return;
-            }
-            if (ec) {
-                std::cout<<"Error On Accpet()"<<ec.message()<<std::endl;
-                doAccept();
-            }
-
-            m_sessionPool.addSession(std::move(socket));
+void GameServer::doAccept() {
+    m_acceptor.async_accept([this](asio::error_code ec, asio::ip::tcp::socket socket) {
+        if (ec==asio::error::operation_aborted) {
+            return;
+        }
+        if (ec) {
+            std::cout<<"Error On Accpet()"<<ec.message()<<std::endl;
             doAccept();
-        });
-    }
+        }
+
+        m_sessionPool.addSession(std::move(socket));
+        doAccept();
+    });
+}
 }

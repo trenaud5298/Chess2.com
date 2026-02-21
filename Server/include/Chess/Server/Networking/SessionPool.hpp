@@ -18,7 +18,6 @@
 // C++ Includes
 #include <cstdint>
 #include <vector>
-#include <functional>
 #include <memory>
 #include <shared_mutex>
 #include <unordered_map>
@@ -43,15 +42,7 @@ namespace Chess {
         std::uint32_t addSession(asio::ip::tcp::socket socket);
         void removeSession(const Target& target);
 
-        void message(const Target& target, const Message& msg);
-
-        template <typename Func>
-        requires std::invocable<Func&, Session&>
-        void post(const Target& target, Func&& func);
-
-        template <typename Func>
-        requires std::invocable<Func&, Session&>
-        void visit(const Target& target, Func&& func);
+        void message(const Target& target, std::shared_ptr<const Message> message);
 
         [[nodiscard]] bool hasSession(const Target& target) const;
         [[nodiscard]] bool empty() const;

@@ -74,10 +74,10 @@ std::uint32_t SessionPool::sessionCount() const {
     return m_sessions.size();
 }
 
-void SessionPool::message(const Target& target, const Message& msg) {
+void SessionPool::message(const Target& target, std::shared_ptr<const Message> message) {
     std::shared_lock lock(m_sessionMutex);
     target.forEach(m_idToIndex, m_sessions, [&](Session& session) {
-        // TODO: session.message(msg)
+        session.send(message);
     });
 }
 
