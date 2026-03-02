@@ -29,7 +29,7 @@ namespace Chess {
     class Target;
     class Message;
     class Session;
-    class SessionInfo;
+    struct SessionInfo;
 
     class SessionPool {
     public:

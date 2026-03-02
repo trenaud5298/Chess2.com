@@ -16,6 +16,11 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" CHESS_S
 # HelperFunctions.cmake File
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/HelperFunctions.cmake)
 
+# MinGW Static Linking Required
+if (MINGW)
+    add_link_options(-static)
+endif()
+
 #--------------------------------------------------------------------
 # Options
 #--------------------------------------------------------------------
@@ -26,7 +31,6 @@ option(BUILD_SHARED_LIBS "Build Shared Libs" OFF)
 # Top-Level Install Setup (Subdirectories Handle Their Own Installation Rules)
 #--------------------------------------------------------------------
 include(GNUInstallDirs)
-
 install(
     FILES
         ${PROJECT_SOURCE_DIR}/LICENSE
@@ -56,3 +60,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Server)
 #--------------------------------------------------------------------
 # Packaging Rules
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/ChessPackaging.cmake)
+
+message(STATUS "C++ compiler id: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "C++ compiler:    ${CMAKE_CXX_COMPILER}")
+message(STATUS "Host system:     ${CMAKE_HOST_SYSTEM_NAME}")

@@ -70,8 +70,9 @@ void GameServer::doAccept() {
             return;
         }
         if (ec) {
-            std::cout<<"Error On Accpet()"<<ec.message()<<std::endl;
+            std::cout<<"Error On Accept()"<<ec.message()<<std::endl;
             doAccept();
+            return;
         }
 
         m_sessionPool.addSession(std::move(socket));
