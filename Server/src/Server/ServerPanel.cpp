@@ -18,7 +18,9 @@
 
 
 namespace Chess {
-ServerPanel::ServerPanel() : m_screen(ftxui::ScreenInteractive::FullscreenAlternateScreen()), m_selectedTab(0) {
+ServerPanel::ServerPanel()
+: m_screen(ftxui::ScreenInteractive::FullscreenAlternateScreen()), m_gameServer(std::make_unique<GameServer>(GameServerConfig())),
+m_statusTab(m_gameServer.get()), m_logTab(m_gameServer.get()) {
     initializeUI();
 }
 
@@ -83,11 +85,17 @@ void ServerPanel::initializeUI() {
         return false;
     });
     m_mainComponent = ftxui::Renderer(m_mainEventCatcher, [&]() {
-        return ftxui::vbox({
+        auto start = std::chrono::high_resolution_clock::now();
+        ftxui::Element result = ftxui::vbox({
             ftxui::text("Server Control Panel") | ftxui::bold | ftxui::center,
             m_tabRenderer->Render() | ftxui::flex,
             m_commandRenderer->Render()
         }) | ftxui::border;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
+        std::string timeLog = std::to_string(elapsed.count());
+        m_logTab.log(timeLog);
+        return result;
     });
 }
 

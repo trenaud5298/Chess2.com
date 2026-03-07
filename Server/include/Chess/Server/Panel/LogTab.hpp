@@ -23,17 +23,21 @@
 
 namespace Chess {
 
+class GameServer;
 class ScrollableTextWindow;
 
 class LogTab {
 
 public:
-    explicit LogTab();
+    explicit LogTab(GameServer* gameServer);
     ftxui::Component getComponent();
     void log(const std::string& log);
 
 private:
     void build();
+
+    // GameServer
+    GameServer* m_gameServer;
 
     // UI Components
     std::shared_ptr<ScrollableTextWindow> m_logWindow;

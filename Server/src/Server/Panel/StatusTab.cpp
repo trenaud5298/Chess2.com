@@ -9,6 +9,9 @@
 // Chess Includes
 #include <Chess/Server/Panel/StatusTab.hpp>
 
+// FTXUI Includes
+#include <ftxui/dom/elements.hpp>
+
 // ASIO Includes
 
 // C++ Includes
@@ -18,7 +21,7 @@
 
 namespace Chess {
 
-StatusTab::StatusTab() {
+StatusTab::StatusTab(GameServer* gameServer) : m_gameServer(gameServer) {
     build();
 }
 
@@ -27,6 +30,18 @@ ftxui::Component StatusTab::getComponent() {
 }
 
 void StatusTab::build() {
+    m_infoComponent = ftxui::Renderer([&]() {
+        std::string serverStatus = "Unknown";
+        std::size_t serverSessions = 0;
+        std::size_t serverUptime = 0;
+        return ftxui::vbox({
+            ftxui::text("Server Info") | ftxui::bold | ftxui::center,
+            ftxui::text("Status: " + serverStatus) | ftxui::bold | ftxui::center,
+            ftxui::text("Sessions: " + std::to_string(serverSessions)) | ftxui::bold | ftxui::center,
+            ftxui::text("Uptime: " + std::to_string(serverUptime)) | ftxui::bold | ftxui::center
+        });
+    });
+
     m_startButton = ftxui::Button("Start", [&] {
         std::cout<<"Super simple start button"<<std::endl;
     });
@@ -34,11 +49,18 @@ void StatusTab::build() {
         std::cout<<"Super simple stop button"<<std::endl;
     });
     m_buttons = ftxui::Container::Horizontal({m_startButton, m_stopButton});
-
-    m_component = ftxui::Renderer(m_buttons, [&] {
+    m_controlComponent = ftxui::Renderer(m_buttons, [&]() {
         return ftxui::vbox({
-            ftxui::text("This is a test") | ftxui::bold ,
-            m_buttons->Render()
+            ftxui::text("Server Control") | ftxui::bold | ftxui::center,
+            m_buttons->Render(),
+        }) | ftxui::flex;
+    });
+
+    m_component = ftxui::Renderer(m_controlComponent, [&](){
+        return ftxui::hbox({
+            m_infoComponent->Render() | ftxui::flex_grow,
+            ftxui::separator() | ftxui::yflex_grow,
+            m_controlComponent->Render() | ftxui::flex_grow
         });
     });
 }

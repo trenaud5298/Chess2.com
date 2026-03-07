@@ -22,7 +22,7 @@ namespace Chess {
 
 
 // Log Tab
-LogTab::LogTab() {
+LogTab::LogTab(GameServer* gameServer) : m_gameServer(gameServer){
     build();
 }
 

@@ -22,20 +22,31 @@
 
 namespace Chess {
 
+class GameServer;
 
 class StatusTab {
 
 public:
-    explicit StatusTab();
+    explicit StatusTab(GameServer* gameServer);
     ftxui::Component getComponent();
 
 private:
     void build();
 
+    // Game Server
+    GameServer* m_gameServer;
+
+    // Left Hand Side Component With General Info
+    ftxui::Component m_infoComponent;
+
+    // Right Hand Side Component With Control Buttons
+    ftxui::Component m_controlComponent;
+        ftxui::Component m_startButton;
+        ftxui::Component m_stopButton;
+        ftxui::Component m_buttons;
+
+    // Overall Component
     ftxui::Component m_component;
-    ftxui::Component m_startButton;
-    ftxui::Component m_stopButton;
-    ftxui::Component m_buttons;
 };
 
 }

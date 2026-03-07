@@ -42,8 +42,6 @@ public:
     void messageSession(const Target& target, std::shared_ptr<const Message> message);
     void removeSession(const Target& target);
 
-
-
 private:
     void doAccept();
 
@@ -53,6 +51,5 @@ private:
     std::vector<std::thread> m_threads;
     SessionPool m_sessionPool;
 };
-
 }
 #endif

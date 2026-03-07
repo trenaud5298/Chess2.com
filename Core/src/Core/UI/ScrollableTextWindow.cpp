@@ -23,7 +23,9 @@ namespace Chess {
 
 
 ftxui::Element ScrollableTextWindow::OnRender() {
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<ftxui::Element> elements;
+    elements.push_back(ftxui::filler() | ftxui::yflex_grow);
     {
         std::lock_guard<std::mutex> textLock(m_textMutex);
         for (const std::string& m_text : m_texts) {
