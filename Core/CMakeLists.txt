@@ -22,7 +22,9 @@ endif()
 if(NOT TARGET ftxui::component)
     message(FATAL_ERROR "Chess::Core Requires ftxui::component But ftxui::component Target Does Not Exist")
 endif()
-
+if(NOT TARGET tomlplusplus::tomlplusplus)
+    message(FATAL_ERROR "Chess::Core Requires tomlplusplus::tomlplusplus But tomlplusplus::tomlplusplus Target Does Not Exist")
+endif()
 #--------------------------------------------------------------------
 # File Setup
 #--------------------------------------------------------------------
@@ -90,7 +92,26 @@ target_link_libraries(chess_core
         ftxui::screen
         ftxui::dom
         ftxui::component
+        tomlplusplus::tomlplusplus
 )
+target_compile_definitions(chess_core
+    PUBLIC
+        TOML_EXCEPTIONS=0
+        TOML_HEADER_ONLY=0
+)
+
+set(TOML_IMPLEMENTATION_FILE ${CMAKE_BINARY_DIR}/tomlplusplus_impl.cpp)
+
+file(GENERATE
+    OUTPUT ${TOML_IMPLEMENTATION_FILE}
+    CONTENT
+"#define TOML_IMPLEMENTATION
+#include <toml++/toml.hpp>
+"
+)
+
+target_sources(chess_core PRIVATE ${TOML_IMPLEMENTATION_FILE})
+
 set_target_properties(chess_core PROPERTIES
     # C++ Standard
     CXX_STANDARD 20

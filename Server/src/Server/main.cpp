@@ -1,7 +1,8 @@
-#include <Chess/Server/ServerPanel.hpp>
+#include <Chess/Server/ServerApplication.hpp>
 
 int main() {
-    Chess::ServerPanel serverPanel;
-    serverPanel.run();
+    Chess::ServerApplication app;
+    app.run();
+
     return 0;
 }

@@ -45,6 +45,7 @@ install(
 # Dependencies
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/asio)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/FTXUI)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Deps/tomlplusplus)
 
 # Core Lib
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Core)
