@@ -23,28 +23,28 @@
 namespace Chess {
 
 enum LogType : std::uint64_t {
-    TRACE   = 1 << 0,
-    DEBUG   = 1 << 1,
-    INFO    = 1 << 2,
-    MESSAGE = 1 << 3,
-    COMMAND = 1 << 4,
-    WARNING = 1 << 5,
-    ERROR   = 1 << 6,
-    FATAL   = 1 << 7,
-    ALL     = 0xFFFFFFFFFFFFFFFF,
+    LOG_TRACE   = 1 << 0,
+    LOG_DEBUG   = 1 << 1,
+    LOG_INFO    = 1 << 2,
+    LOG_MESSAGE = 1 << 3,
+    LOG_COMMAND = 1 << 4,
+    LOG_WARNING = 1 << 5,
+    LOG_ERROR   = 1 << 6,
+    LOG_FATAL   = 1 << 7,
+    LOG_ALL     = 0xFFFFFFFFFFFFFFFF
 };
 
 inline std::string logTypeAsString(LogType type) {
     switch (type) {
-        case LogType::TRACE:   return "TRACE";
-        case LogType::DEBUG:   return "DEBUG";
-        case LogType::INFO:    return "INFO ";
-        case LogType::MESSAGE: return "MSG  ";
-        case LogType::COMMAND: return "CMD  ";
-        case LogType::WARNING: return "WARN ";
-        case LogType::ERROR:   return "ERROR";
-        case LogType::FATAL:   return "FATAL";
-        case LogType::ALL:     return "ALL  ";
+        case LogType::LOG_TRACE:   return "TRACE";
+        case LogType::LOG_DEBUG:   return "DEBUG";
+        case LogType::LOG_INFO:    return "INFO ";
+        case LogType::LOG_MESSAGE: return "MSG  ";
+        case LogType::LOG_COMMAND: return "CMD  ";
+        case LogType::LOG_WARNING: return "WARN ";
+        case LogType::LOG_ERROR:   return "ERROR";
+        case LogType::LOG_FATAL:   return "FATAL";
+        case LogType::LOG_ALL:     return "ALL  ";
         default:               return "UNKWN";
     }
 }
@@ -57,14 +57,14 @@ struct LogEntry {
     explicit LogEntry(LogType type_, const std::string& msg)
     : type(type_), message(std::move(msg)), timestamp(std::chrono::steady_clock::now()) {}
 
-    static LogEntry Trace(const std::string& msg) {return LogEntry(LogType::TRACE, std::move(msg));}
-    static LogEntry Debug(const std::string& msg) {return LogEntry(LogType::DEBUG, std::move(msg));}
-    static LogEntry Info(const std::string& msg) {return LogEntry(LogType::INFO, std::move(msg));}
-    static LogEntry Message(const std::string& msg) {return LogEntry(LogType::MESSAGE, std::move(msg));}
-    static LogEntry Command(const std::string& msg) {return LogEntry(LogType::COMMAND, std::move(msg));}
-    static LogEntry Warning(const std::string& msg) {return LogEntry(LogType::WARNING, std::move(msg));}
-    static LogEntry Error(const std::string& msg) {return LogEntry(LogType::ERROR, std::move(msg));}
-    static LogEntry Fatal(const std::string& msg) {return LogEntry(LogType::FATAL, std::move(msg));}
+    static LogEntry Trace(const std::string& msg) {return LogEntry(LogType::LOG_TRACE, std::move(msg));}
+    static LogEntry Debug(const std::string& msg) {return LogEntry(LogType::LOG_DEBUG, std::move(msg));}
+    static LogEntry Info(const std::string& msg) {return LogEntry(LogType::LOG_INFO, std::move(msg));}
+    static LogEntry Message(const std::string& msg) {return LogEntry(LogType::LOG_MESSAGE, std::move(msg));}
+    static LogEntry Command(const std::string& msg) {return LogEntry(LogType::LOG_COMMAND, std::move(msg));}
+    static LogEntry Warning(const std::string& msg) {return LogEntry(LogType::LOG_WARNING, std::move(msg));}
+    static LogEntry Error(const std::string& msg) {return LogEntry(LogType::LOG_ERROR, std::move(msg));}
+    static LogEntry Fatal(const std::string& msg) {return LogEntry(LogType::LOG_FATAL, std::move(msg));}
 };
 
 

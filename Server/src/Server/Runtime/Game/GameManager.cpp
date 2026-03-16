@@ -30,6 +30,7 @@ void GameManager::start() {
         return;
     }
 
+    m_gameServer.loggingManager().log(LogEntry::Info("Game Manager Started"));
 
 
     m_state = LifecycleState::RUNNING;
@@ -42,9 +43,11 @@ void GameManager::stop() {
     }
 
 
-
     m_state = LifecycleState::STOPPED;
+    m_gameServer.loggingManager().log(LogEntry::Info("Game Manager Stopped"));
 }
 
 
 }
+
+

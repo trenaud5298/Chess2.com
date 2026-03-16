@@ -24,7 +24,7 @@ namespace Chess {
 // Log Tab
 LogTab::LogTab(GameServer& gameServer) : m_gameServer(gameServer){
     build();
-    m_handlerID = m_gameServer.loggingManager().addHandler(LogType::ALL, std::bind_front(&LogTab::log, this));
+    m_handlerID = m_gameServer.loggingManager().addHandler(LogType::LOG_ALL, std::bind_front(&LogTab::log, this));
 }
 
 ftxui::Component LogTab::getComponent() {

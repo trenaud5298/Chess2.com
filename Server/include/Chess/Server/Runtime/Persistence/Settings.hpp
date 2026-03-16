@@ -64,8 +64,15 @@ public:
         // Defaults
         General(Settings& owner)
         : serverName(owner, "Chess Server"),
-        serverPassword(owner, "") {};
+        serverPassword(owner, "") {}
     }; General general;
+
+    struct Network {
+        Setting<std::uint16_t> port;
+
+        Network(Settings& owner)
+        : port(owner, 24377) {}
+    }; Network network;
 
 private:
     void load();

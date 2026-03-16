@@ -34,8 +34,8 @@ public:
     PersistenceManager& operator=(PersistenceManager&&) = delete;
 
 
-    Settings& settings();
-    LogFile& logFile();
+    Settings& settings() { return m_settings; };
+    LogFile& logFile() { return m_logFile; };
 
 private:
     GameServer& m_gameServer;

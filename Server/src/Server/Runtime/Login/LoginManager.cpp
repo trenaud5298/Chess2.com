@@ -30,7 +30,7 @@ void LoginManager::start() {
         return;
     }
 
-
+    m_gameServer.loggingManager().log(LogEntry::Info("Login Manager Started"));
 
     m_state = LifecycleState::RUNNING;
 }
@@ -44,6 +44,7 @@ void LoginManager::stop() {
 
 
     m_state = LifecycleState::STOPPED;
+    m_gameServer.loggingManager().log(LogEntry::Info("Login Manager Stopped"));
 }
 
 

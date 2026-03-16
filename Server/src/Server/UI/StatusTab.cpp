@@ -34,7 +34,21 @@ ftxui::Component StatusTab::getComponent() {
 void StatusTab::build() {
     m_infoComponent = ftxui::Renderer([&]() {
         std::string serverStatus = "Unknown";
-        std::size_t serverSessions = 0;
+        switch (m_gameServer.state()) {
+            case LifecycleState::STOPPED:
+                serverStatus = "Stopped";
+                break;
+            case LifecycleState::STARTING:
+                serverStatus = "Starting";
+                break;
+            case LifecycleState::RUNNING:
+                serverStatus = "Running";
+                break;
+            case LifecycleState::STOPPING:
+                serverStatus = "Stopping";
+                break;
+        }
+        std::size_t serverSessions = m_gameServer.sessionManager().sessionCount();
         std::string serverUptime = formatHHMMSS(m_gameServer.uptime());
         return ftxui::vbox({
             ftxui::text("Server Info") | ftxui::bold | ftxui::center,
