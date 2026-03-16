@@ -1,5 +1,5 @@
-#ifndef CHESS_SERVER_RUNTIME_GAME_GAMEROOM_HPP
-#define CHESS_SERVER_RUNTIME_GAME_GAMEROOM_HPP
+#ifndef CHESS_SERVER_RUNTIME_GAME_GAMEMANAGER_HPP
+#define CHESS_SERVER_RUNTIME_GAME_GAMEMANAGER_HPP
 
 /*
  * Chess
@@ -10,6 +10,8 @@
  */
 
 // Chess Includes
+#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
+#include <Chess/Server/Runtime/Game/GameRoom.hpp>
 
 // ASIO Includes
 
@@ -22,21 +24,16 @@ namespace Chess {
 
 class GameServer;
 class Move;
-enum GameState {
-    WAITING_FOR_PLAYERS,
-    RUNNING,
-    DONE
-};
 
-class GameRoom {
+class GameManager {
 public:
-    explicit GameRoom(GameServer& gameServer);
-    ~GameRoom() = default;
+    explicit GameManager(GameServer& gameServer);
+    ~GameManager();
 
-    GameRoom(const GameRoom&) = delete;
-    GameRoom& operator=(const GameRoom&) = delete;
-    GameRoom(GameRoom&&) = delete;
-    GameRoom& operator=(GameRoom&&) = delete;
+    GameManager(const GameManager&) = delete;
+    GameManager& operator=(const GameManager&) = delete;
+    GameManager(GameManager&&) = delete;
+    GameManager& operator=(GameManager&&) = delete;
 
     // Lifetime Control
     void start();
@@ -50,6 +47,7 @@ public:
     void onMove(std::uint64_t sessionID, Move& move); //TODO: Sync With Board Move Function
 private:
     GameServer& m_gameServer;
+    std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
 
     std::unordered_map<std::uint64_t, GameRoom> m_roomIDToRoomMap;
     std::unordered_map<std::uint64_t, std::uint64_t> m_sessionIDToRoomIDMap;

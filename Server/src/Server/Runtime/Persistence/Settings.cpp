@@ -19,7 +19,7 @@
 
 namespace Chess {
 
-Settings::Settings() : general(*this), m_path(std::filesystem::current_path() / "Server" / "Settings.toml") {
+Settings::Settings() : general(*this), network(*this), m_path(std::filesystem::current_path() / "Server" / "Settings.toml") {
     load();
     save();
 }
@@ -42,6 +42,9 @@ void Settings::load() {
     if (auto v = table["General"]["server_password"].value<std::string>())
         general.serverPassword.setUnsafe(*v);
 
+    if (auto v = table["Network"]["port"].value<std::uint16_t>())
+        network.port.setUnsafe(*v);
+
 }
 
 void Settings::save() {
@@ -55,6 +58,12 @@ void Settings::save() {
     generalTable.insert_or_assign("server_password", general.serverPassword.getUnsafe());
 
     table.insert_or_assign("General", std::move(generalTable));
+
+    // Network Settings
+    toml::table networkTable;
+    networkTable.insert_or_assign("port", network.port.getUnsafe());
+
+    table.insert_or_assign("Network", std::move(networkTable));
 
     std::filesystem::create_directories(m_path.parent_path());
     std::ofstream file(m_path);

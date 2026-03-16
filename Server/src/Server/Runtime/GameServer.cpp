@@ -37,6 +37,15 @@ void GameServer::start() {
 
     m_startTime = std::chrono::steady_clock::now();
     ++m_startCount;
+
+    std::size_t threadCount = std::thread::hardware_concurrency();
+    threadCount = threadCount > 0 ? threadCount : 1;
+    for (std::size_t i = 0; i < threadCount; ++i) {
+        m_threads.emplace_back([this]() {
+            m_context.run();
+        });
+    }
+
     m_loggingManager.log(LogEntry::Info("Server Started"));
     m_state = LifecycleState::RUNNING;
 }

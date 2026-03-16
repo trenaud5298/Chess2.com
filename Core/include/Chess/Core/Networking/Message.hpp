@@ -25,7 +25,8 @@ namespace Chess {
 
 enum MessageType : std::uint32_t {
     NONE = 0,
-    CHAT = 1,
+    LOGIN = 1,
+    CHAT = 2,
 };
 
 struct MessageHeader {

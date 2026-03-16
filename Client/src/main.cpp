@@ -3,6 +3,8 @@
 #include <string>
 #include <optional>
 #include <thread>
+#include <vector>
+#include <cctype>
 
 // Chess
 #include <Chess/Core/Networking/Message.hpp>
@@ -75,6 +77,65 @@ void doReadBody(
         });
 }
 
+// Parse tokens from `s` where tokens are separated by spaces, but double-quoted
+// substrings are treated as single tokens. Example:
+//   connect 127.0.0.1 "my pass" "John Doe"
+static std::vector<std::string> splitArgsRespectQuotes(const std::string& s)
+{
+    std::vector<std::string> out;
+    std::size_t i = 0;
+    const std::size_t n = s.size();
+
+    while (i < n)
+    {
+        // skip spaces
+        while (i < n && std::isspace(static_cast<unsigned char>(s[i])))
+            ++i;
+        if (i >= n) break;
+
+        if (s[i] == '"')
+        {
+            // quoted token
+            ++i; // skip opening quote
+            std::string token;
+            while (i < n)
+            {
+                if (s[i] == '"')
+                {
+                    ++i; // skip closing quote
+                    break;
+                }
+                // allow simple backslash escaping of quotes/backslash if desired
+                if (s[i] == '\\' && i + 1 < n)
+                {
+                    ++i;
+                    token.push_back(s[i]);
+                    ++i;
+                }
+                else
+                {
+                    token.push_back(s[i]);
+                    ++i;
+                }
+            }
+            out.push_back(std::move(token));
+        }
+        else
+        {
+            // unquoted token
+            std::string token;
+            while (i < n && !std::isspace(static_cast<unsigned char>(s[i])))
+            {
+                token.push_back(s[i]);
+                ++i;
+            }
+            out.push_back(std::move(token));
+        }
+    }
+
+    return out;
+}
+
 int main()
 {
     try
@@ -92,10 +153,10 @@ int main()
 
         std::cout << "Client ready.\n";
         std::cout << "Commands:\n";
-        std::cout << "  connect <ip>\n";
+        std::cout << "  connect <ip> <password> <name>   (password/name may be quoted)\n";
         std::cout << "  disconnect\n";
         std::cout << "  quit\n";
-        std::cout << "  <any other text sends a message>\n";
+        std::cout << "  <any other text sends a chat message>\n";
 
         while (true)
         {
@@ -124,7 +185,20 @@ int main()
                     continue;
                 }
 
-                std::string ip = input.substr(8);
+                // parse arguments after "connect "
+                const std::string rest = input.substr(8);
+                auto tokens = splitArgsRespectQuotes(rest);
+
+                if (tokens.size() < 3)
+                {
+                    std::cout << "Usage: connect <ip> <password> <name>\n";
+                    std::cout << "  Use quotes to include spaces, e.g. connect 127.0.0.1 \"p@ss word\" \"John Doe\"\n";
+                    continue;
+                }
+
+                std::string ip = tokens[0];
+                std::string password = tokens[1];
+                std::string name = tokens[2];
 
                 try
                 {
@@ -139,7 +213,26 @@ int main()
                     std::cout << "Connected to "
                               << ip << ":" << SERVER_PORT << "\n";
 
+                    // start async read loop
                     doReadHeader(*socket, incoming);
+
+                    // Immediately send LOGIN message: first message must be login
+                    try
+                    {
+                        Chess::Message loginMsg(Chess::LOGIN);
+                        loginMsg.pushString(password);
+                        loginMsg.pushString(name);
+
+                        asio::write(*socket, loginMsg.buffers());
+
+                        std::cout << "Sent LOGIN (name: " << name << ")\n";
+                    }
+                    catch (const std::exception& e)
+                    {
+                        std::cout << "Failed to send LOGIN: " << e.what() << "\n";
+                        socket->close();
+                        socket.reset();
+                    }
                 }
                 catch (const std::exception& e)
                 {
@@ -166,7 +259,7 @@ int main()
                 continue;
             }
 
-            // -------- send --------
+            // -------- send chat --------
             if (!socket || !socket->is_open())
             {
                 std::cout << "Not connected.\n";
@@ -204,4 +297,3 @@ int main()
 
     return 0;
 }
-

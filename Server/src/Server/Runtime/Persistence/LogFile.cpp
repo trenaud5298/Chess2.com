@@ -49,7 +49,7 @@ LogFile::LogFile(GameServer &gameServer) : m_gameServer(gameServer) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_file << "Start of Log\n";
 
-    m_handlerID = m_gameServer.loggingManager().addHandler(LogType::ALL, [this](const LogEntry& entry) {
+    m_handlerID = m_gameServer.loggingManager().addHandler(LogType::LOG_ALL, [this](const LogEntry& entry) {
         std::string formatted = std::format("[{}][{}] {}", formatHHMMSS(m_gameServer.totalUptimeAtPoint(entry.timestamp)), logTypeAsString(entry.type), entry.message);
         std::lock_guard<std::mutex> lock(m_mutex);
         m_file << formatted << std::endl;
