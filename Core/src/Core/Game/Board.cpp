@@ -371,6 +371,59 @@ namespace Chess {
     }
 
     void Board::genPinned() {
+        using enum Direction;
+        const ID kingId = getKingId();
+        const Pos kingPos = getPos(kingId);
+        const COLOR kingColor = getColor(kingId);
+        const Pos pos = kingPos;
+        ID tempId;
+        Direction direction;
+        int piecesOnLane;
+        Pos temp;
+        COLOR tempColor;
+        for(int i = 1; i < 5; i++) {
+            direction = directionCast(i);
+            std::pair<int,int> mod = getMod(direction);
+            temp = kingPos;
+            temp[ROW] += mod.first;
+            temp[COL] += mod.second;
+            tempColor = getColor(tempId);
+            tempId = getIdAt(temp);
+            while( isInBoard(pos) ) {
+                if( kingColor != tempColor ) {
+                    if( tempColor != COLOR::EMPTY ) {
+                        setChecked(tempId, directionCast(-i));
+                        return;
+                    }
+                    temp[ROW] += mod.first;
+                    temp[COL] += mod.second;
+                    tempId = getIdAt(pos);
+                    tempColor = getColor(tempId);
+                } else {
+                    break;
+                }
+            }
+            direction = directionCast(-i);
+            temp = kingPos;
+            temp[ROW] += mod.first;
+            temp[COL] += mod.second;
+            tempColor = getColor(tempId);
+            tempId = getIdAt(temp);
+            while( isInBoard(pos) ) {
+                if( kingColor != tempColor ) {
+                    if( tempColor != COLOR::EMPTY ) { 
+                        setChecked(tempId, directionCast(-i));
+                        return;
+                    }
+                    temp[ROW] += mod.first;
+                    temp[COL] += mod.second;
+                    tempId = getIdAt(pos);
+                    tempColor = getColor(tempId);
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
