@@ -239,6 +239,17 @@ namespace Chess {
         return res;
     }
 
+    const std::set<Type>* Board::getMatchingSet(const Direction& direction) {
+        using enum Direction;
+        const std::set<Type>* res;
+        if( direction == NORTH || direction == SOUTH || direction == EAST || direction == WEST ) {
+            res = &m_cardinalSet;
+        } else {
+            res = &m_diagonalSet;
+        }
+        return res;
+    }
+
     void Board::genChecked() {
         using enum Direction;
         const ID kingId = getKingId();
@@ -311,17 +322,18 @@ namespace Chess {
                     return;
                 }
             }
-            //Diagonal, Cardinal squares
+            //Diagonal & Cardinal squares
             for(int i = 1; i < 5; i++) {
                 direction = directionCast(i);
-                if( i < 3 ) {
-                    set = &m_cardinalSet;
-                } else {
-                    set = &m_diagonalSet;
-                }
+                set = getMatchingSet(direction);
 
+                direction = directionCast(-i);
             }
         }
+    }
+
+    void Board::genPinned() {
+
     }
 
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
