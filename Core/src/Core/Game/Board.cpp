@@ -255,10 +255,10 @@ namespace Chess {
         const ID kingId = getKingId();
         const Pos kingPos = getPos(kingId);
         const COLOR kingColor = getColor(kingId);
+        const std::set<Type>* set;
         Pos pos = kingPos;
         ID tempId;
         Direction direction;
-        const std::set<Type>* set;
         m_checked.direction = NORTH; //default direction
 
         //Knight squares
@@ -325,15 +325,52 @@ namespace Chess {
             //Diagonal & Cardinal squares
             for(int i = 1; i < 5; i++) {
                 direction = directionCast(i);
+                std::pair<int,int> mod = getMod(direction);
                 set = getMatchingSet(direction);
-
+                temp = kingPos;
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+                tempColor = getColor(tempId);
+                tempId = getIdAt(temp);
+                while( isInBoard(pos) ) {
+                    if( kingColor != tempColor ) {
+                        if( tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
+                            setChecked(tempId, directionCast(-i));
+                            return;
+                        }
+                        temp[ROW] += mod.first;
+                        temp[COL] += mod.second;
+                        tempId = getIdAt(pos);
+                        tempColor = getColor(tempId);
+                    } else {
+                        break;
+                    }
+                }
                 direction = directionCast(-i);
+                temp = kingPos;
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+                tempColor = getColor(tempId);
+                tempId = getIdAt(temp);
+                while( isInBoard(pos) ) {
+                    if( kingColor != tempColor ) {
+                        if( tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
+                            setChecked(tempId, directionCast(-i));
+                            return;
+                        }
+                        temp[ROW] += mod.first;
+                        temp[COL] += mod.second;
+                        tempId = getIdAt(pos);
+                        tempColor = getColor(tempId);
+                    } else {
+                        break;
+                    }
+                }
             }
         }
     }
 
     void Board::genPinned() {
-
     }
 
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
