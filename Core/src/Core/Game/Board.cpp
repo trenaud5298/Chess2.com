@@ -28,45 +28,53 @@ namespace Chess {
             B_PAWN1, B_PAWN2, B_PAWN3, B_PAWN4, B_PAWN5, B_PAWN6, B_PAWN7, B_PAWN8, 
             B_ROOK1, B_KNIGHT1, B_BISHOP1, B_QUEEN, B_KING, B_BISHOP2, B_KNIGHT2, B_ROOK2
         }),
-        m_pieces({
-                {Pos({0,0}), Type::W_ROOK},
-                {Pos({0,7}), Type::W_ROOK},
-                {Pos({0,1}), Type::W_KNIGHT},
-                {Pos({0,6}), Type::W_KNIGHT},
-                {Pos({0,2}), Type::W_BISHOP},
-                {Pos({0,5}), Type::W_BISHOP},
-                {Pos({0,3}), Type::W_QUEEN},
-                {Pos({0,4}), Type::W_KING},
+        m_pieceArr({
+                {Pos({0,0}), Type::W_ROOK, MAX_MOVES, 0},
+                {Pos({0,7}), Type::W_ROOK, MAX_MOVES, 0},
+                {Pos({0,1}), Type::W_KNIGHT, MAX_MOVES, 0},
+                {Pos({0,6}), Type::W_KNIGHT, MAX_MOVES, 0},
+                {Pos({0,2}), Type::W_BISHOP, MAX_MOVES, 0},
+                {Pos({0,5}), Type::W_BISHOP, MAX_MOVES, 0},
+                {Pos({0,3}), Type::W_QUEEN, MAX_MOVES, 0},
+                {Pos({0,4}), Type::W_KING, MAX_MOVES, 0},
 
-                {Pos({1,0}), Type::W_PAWN},
-                {Pos({1,1}), Type::W_PAWN},
-                {Pos({1,2}), Type::W_PAWN},
-                {Pos({1,3}), Type::W_PAWN},
-                {Pos({1,4}), Type::W_PAWN},
-                {Pos({1,5}), Type::W_PAWN},
-                {Pos({1,6}), Type::W_PAWN},
-                {Pos({1,7}), Type::W_PAWN},
+                {Pos({1,0}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,1}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,2}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,3}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,4}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,5}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,6}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,7}), Type::W_PAWN, MAX_MOVES, 0},
 
-                {Pos({7,0}), Type::B_ROOK},
-                {Pos({7,7}), Type::B_ROOK},
-                {Pos({7,1}), Type::B_KNIGHT},
-                {Pos({7,6}), Type::B_KNIGHT},
-                {Pos({7,2}), Type::B_BISHOP},
-                {Pos({7,5}), Type::B_BISHOP},
-                {Pos({7,3}), Type::B_QUEEN},
-                {Pos({7,4}), Type::B_KING},
+                {Pos({7,0}), Type::B_ROOK, MAX_MOVES, 0},
+                {Pos({7,7}), Type::B_ROOK, MAX_MOVES, 0},
+                {Pos({7,1}), Type::B_KNIGHT, MAX_MOVES, 0},
+                {Pos({7,6}), Type::B_KNIGHT, MAX_MOVES, 0},
+                {Pos({7,2}), Type::B_BISHOP, MAX_MOVES, 0},
+                {Pos({7,5}), Type::B_BISHOP, MAX_MOVES, 0},
+                {Pos({7,3}), Type::B_QUEEN, MAX_MOVES, 0},
+                {Pos({7,4}), Type::B_KING, MAX_MOVES, 0},
 
-                {Pos({6,0}), Type::B_PAWN},
-                {Pos({6,1}), Type::B_PAWN},
-                {Pos({6,2}), Type::B_PAWN},
-                {Pos({6,3}), Type::B_PAWN},
-                {Pos({6,4}), Type::B_PAWN},
-                {Pos({6,5}), Type::B_PAWN},
-                {Pos({6,6}), Type::B_PAWN},
-                {Pos({6,7}), Type::B_PAWN},
-        }) {}
+                {Pos({6,0}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,1}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,2}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,3}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,4}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,5}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,6}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,7}), Type::B_PAWN, MAX_MOVES, 0},
+        }),
+        m_moves({8,8}),
+        m_moveOffset({0})
+        {
+            m_moveOffset[0] = m_pieceArr[0].reserved;
+            for(int i = 1; i < m_pieceArr.size(); i++) {
+                m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
+            }
+        }
 
-    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieces(pieces) {}
+    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieceArr(pieces) {}
 
     Board::~Board() {}
 
@@ -75,12 +83,12 @@ namespace Chess {
             return *this;
         }
         m_board = other.m_board;
-        m_pieces = other.m_pieces;
+        m_pieceArr = other.m_pieceArr;
         return *this;
     }
 
     Pos& Board::getPos(const ID& id) {
-        return m_pieces[((int) id)].position;
+        return m_pieceArr[((int) id)].position;
     }
 
     void Board::setIdAt(const Pos& pos, const ID& id){
@@ -90,7 +98,7 @@ namespace Chess {
     void Board::move(const ID& id, const Pos& pos) {
         int castedId = (int) id;
         Pos old = pos;
-        m_pieces[castedId].position = pos;
+        m_pieceArr[castedId].position = pos;
         setIdAt(pos, id);
         setIdAt(old, ID::EMPTY);
     }
@@ -122,7 +130,23 @@ namespace Chess {
         return color;
     }
 
-    void Board::diagonalHelper(std::vector<Pos>& moves, const Pos& initial, const Direction& direction) {
+    ID Board::getKingId() {
+        if( isWhiteTurn ) {
+            return W_KING;
+        } else {
+            return B_KING;
+        }
+    }
+
+    std::vector<bool>& Board::getAttackedVec() {
+        if( isWhiteTurn ) {
+            return m_attackedBlack;
+        } else {
+            return m_attackedWhite;
+        }
+    }
+
+    void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
         using enum Direction;
         Pos pos = initial;
         COLOR color = getColor(getIdAt(initial));
@@ -170,15 +194,16 @@ namespace Chess {
             } 
     }
 
-    void Board::addDiagonalMoves(std::vector<Pos>& moves, const Pos& initial) {
+    void Board::addDiagonalMoves(const Pos& initial) {
         using enum Direction;
-        diagonalHelper(moves, initial, NORTHEAST);
-        diagonalHelper(moves, initial, SOUTHWEST);
-        diagonalHelper(moves, initial, NORTHWEST);
-        diagonalHelper(moves, initial, SOUTHEAST);
+        int i = 0;
+        diagonalHelper(initial, NORTHEAST, i);
+        diagonalHelper(initial, SOUTHWEST, i);
+        diagonalHelper(initial, NORTHWEST, i);
+        diagonalHelper(initial, SOUTHEAST, i);
     }
 
-    void Board::cardinalHelper(std::vector<Pos>& moves, const Pos& initial, const Direction direction) {
+    void Board::cardinalHelper(const Pos& initial, const Direction direction, int& i) {
         using enum Direction;
         Pos pos = initial;
         int card, dim, inc;
@@ -276,8 +301,8 @@ namespace Chess {
     std::vector<Pos> Board::getPossibleMoves(const ID& id) {
         using enum Type;
         std::vector<Pos> temp;
-        const Type type = m_pieces[(int) id].type;
-        const Pos& initial = m_pieces[(int) id].position;
+        const Type type = m_pieceArr[(int) id].type;
+        const Pos& initial = m_pieceArr[(int) id].position;
 
         switch(type) {
             case W_BISHOP:
