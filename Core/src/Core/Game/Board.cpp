@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <set>
 
 // TODO 
 //      * implement "piece collision" in addMoves methods
@@ -29,49 +30,68 @@ namespace Chess {
             B_ROOK1, B_KNIGHT1, B_BISHOP1, B_QUEEN, B_KING, B_BISHOP2, B_KNIGHT2, B_ROOK2
         }),
         m_pieceArr({
-                {Pos({0,0}), Type::W_ROOK, MAX_MOVES, 0},
-                {Pos({0,7}), Type::W_ROOK, MAX_MOVES, 0},
-                {Pos({0,1}), Type::W_KNIGHT, MAX_MOVES, 0},
-                {Pos({0,6}), Type::W_KNIGHT, MAX_MOVES, 0},
-                {Pos({0,2}), Type::W_BISHOP, MAX_MOVES, 0},
-                {Pos({0,5}), Type::W_BISHOP, MAX_MOVES, 0},
-                {Pos({0,3}), Type::W_QUEEN, MAX_MOVES, 0},
-                {Pos({0,4}), Type::W_KING, MAX_MOVES, 0},
+                {Pos({0,0}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,7}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,1}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,6}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,2}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,5}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,3}), Type::W_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({0,4}), Type::W_KING, MAX_MOVES_KING, 0},
 
-                {Pos({1,0}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,1}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,2}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,3}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,4}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,5}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,6}), Type::W_PAWN, MAX_MOVES, 0},
-                {Pos({1,7}), Type::W_PAWN, MAX_MOVES, 0},
+                {Pos({1,0}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,1}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,2}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,3}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,4}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,5}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,6}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,7}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
 
-                {Pos({7,0}), Type::B_ROOK, MAX_MOVES, 0},
-                {Pos({7,7}), Type::B_ROOK, MAX_MOVES, 0},
-                {Pos({7,1}), Type::B_KNIGHT, MAX_MOVES, 0},
-                {Pos({7,6}), Type::B_KNIGHT, MAX_MOVES, 0},
-                {Pos({7,2}), Type::B_BISHOP, MAX_MOVES, 0},
-                {Pos({7,5}), Type::B_BISHOP, MAX_MOVES, 0},
-                {Pos({7,3}), Type::B_QUEEN, MAX_MOVES, 0},
-                {Pos({7,4}), Type::B_KING, MAX_MOVES, 0},
+                {Pos({7,0}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,7}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,1}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,6}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,2}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,5}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,3}), Type::B_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({7,4}), Type::B_KING, MAX_MOVES_KING, 0},
 
-                {Pos({6,0}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,1}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,2}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,3}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,4}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,5}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,6}), Type::B_PAWN, MAX_MOVES, 0},
-                {Pos({6,7}), Type::B_PAWN, MAX_MOVES, 0},
+                {Pos({6,0}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,1}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,2}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,3}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,4}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,5}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         }),
         m_moves({8,8}),
-        m_moveOffset({0})
+        m_moveOffset({0}),
+        m_defended(64, false),
+        m_attackedWhite(64, false),
+        m_attackedBlack(64, false),
+        m_pinnedVec(),
+        m_pinnedIdSet(),
+        m_mods({
+                std::pair(1,0),
+                std::pair(0,1),
+                std::pair(-1,0),
+                std::pair(0,-1),
+                std::pair(1,1),
+                std::pair(1,-1),
+                std::pair(-1,1),
+                std::pair(-1,-1),
+                })
         {
             m_moveOffset[0] = m_pieceArr[0].reserved;
             for(int i = 1; i < m_pieceArr.size(); i++) {
                 m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
             }
+            m_pinnedVec.reserve(MAX_PINNED);
+            m_isWhiteTurn = true;
+            m_isWhiteChecked = false;
+            m_isBlackChecked = false;
         }
 
     Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieceArr(pieces) {}
@@ -93,6 +113,10 @@ namespace Chess {
 
     void Board::setIdAt(const Pos& pos, const ID& id){
          m_board[posTranslate(pos)] = id;
+    }
+
+    Type Board::getTypeAt(const Pos& pos) {
+        return m_pieceArr[(int)getIdAt(pos)-1].type;
     }
 
     void Board::move(const ID& id, const Pos& pos) {
@@ -131,25 +155,80 @@ namespace Chess {
     }
 
     ID Board::getKingId() {
-        if( isWhiteTurn ) {
+        if( m_isWhiteTurn ) {
             return W_KING;
         } else {
             return B_KING;
         }
     }
 
+    std::uint8_t Board::castHelper(const std::uint8_t dim, const int& mod) {
+        return static_cast<std::uint8_t>((int)dim + mod);
+    }
+
     std::vector<bool>& Board::getAttackedVec() {
-        if( isWhiteTurn ) {
+        if( m_isWhiteTurn ) {
             return m_attackedBlack;
         } else {
             return m_attackedWhite;
         }
     }
 
+    void Board::setAttackedAt(const Pos& pos) {
+        getAttackedVec()[posTranslate(pos)] = true;
+    }
+
+    void Board::setDefendedAt(const Pos& pos) {
+        m_defended[posTranslate(pos)] = true;
+    }
+
+    void Board::setMovesIdx(const ID& id, const int& i) {
+        const int castedId = (int) id-1;
+        m_pieceArr[castedId].movesIdx = i;
+    }
+
+    void Board::setMoveAt(const ID& id, const Pos& pos, const int& i) {
+        const int castedId = (int) id-1,
+              idx = m_moveOffset[castedId] + i - 1;
+        m_moves[idx] = pos;
+    }
+
+    void Board::genChecked() {
+        const ID kingId = getKingId();
+        const Pos kingPos = getPos(kingId);
+        const COLOR kingColor = getColor(kingId);
+        Pos pos = kingPos;
+
+        //Knight squares
+        int x, y;
+        Pos temp;
+        COLOR tempColor;
+        for(int i = 0b00; i < 4; i++) {
+            x = 2, y = 1;
+            if( (i>>1) == 1 ) {
+                x = -x;
+            }
+            if( ((i<<1)>>1) == 1 ) {
+                y = -y;
+            }
+            temp = Pos({castHelper(kingPos[ROW], x), castHelper(kingPos[COL], y)});
+            tempColor = getColor(getIdAt(temp));
+            if( isInBoard(temp) ) {
+                if( kingColor != tempColor && getTypeAt(temp) == Type::W_KNIGHT && getTypeAt(temp) == Type::B_KNIGHT) {
+                }
+            }
+        //King squares
+        //Pawn squares
+        //Cardinal squares
+        //Diagonal sqaures
+
+    }
+
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
         using enum Direction;
         Pos pos = initial;
-        COLOR color = getColor(getIdAt(initial));
+        const ID initialId = getIdAt(initial);
+        const COLOR color = getColor(initialId);
         ID& posId = getIdAt(pos);
         int card, x, y;
         COLOR posColor;
@@ -170,28 +249,35 @@ namespace Chess {
                 std::cout << "default in diagonalDirHelper switch" << std::endl;
                 break;
         }
-            x = y = 1;
-            // check first bit
-            if( (card>>1) == 1 ) {
-                x = -x;
-            }
-            // check second bit
-            if( ((card<<1)>>1) == 1 ) {
-                y = -y;
-            }
-            pos[ROW] += x;
-            pos[COL] += y;
-            posColor = getColor(posId);
-            while(isInBoard(pos) && color != posColor) {
-                moves.push_back(pos);
-                if(posColor != COLOR::EMPTY) {
+        x = y = 1;
+        // check first bit
+        if( (card>>1) == 1 ) {
+            x = -x;
+        }
+        // check second bit
+        if( ((card<<1)>>1) == 1 ) {
+            y = -y;
+        }
+        pos[ROW] += x;
+        pos[COL] += y;
+        posColor = getColor(posId);
+        while( isInBoard(pos) ) {
+            if( color != posColor ) {
+                setMoveAt(initialId, pos, i);
+                setAttackedAt(pos);
+                i++;
+                if( posColor != COLOR::EMPTY ) {
                     return;
                 }
                 pos[ROW] += x;
                 pos[COL] += y;
                 posId = getIdAt(pos);
                 posColor = getColor(posId);
-            } 
+            } else {
+                setDefendedAt(pos);
+                return;
+            }
+        }
     }
 
     void Board::addDiagonalMoves(const Pos& initial) {
@@ -201,6 +287,7 @@ namespace Chess {
         diagonalHelper(initial, SOUTHWEST, i);
         diagonalHelper(initial, NORTHWEST, i);
         diagonalHelper(initial, SOUTHEAST, i);
+        setMovesIdx(getIdAt(initial), i);
     }
 
     void Board::cardinalHelper(const Pos& initial, const Direction direction, int& i) {
@@ -268,12 +355,12 @@ namespace Chess {
             if( ((i<<1)>>1) == 1 ) {
                 y = -y;
             }
-            temp = Pos({static_cast<std::uint8_t>(initial[ROW] + x), static_cast<std::uint8_t>(initial[COL] + y)});
+            temp = Pos({castHelper(initial[ROW], x), castHelper(initial[COL], y)});
             tempColor = getColor(getIdAt(temp));
             if( isInBoard(temp) && color != tempColor ) {
                 moves.push_back(temp);
             }
-            temp = Pos({static_cast<std::uint8_t>(initial[ROW] + y), static_cast<std::uint8_t>(initial[COL] + x)});
+            temp = Pos({castHelper(initial[ROW], y), castHelper(initial[COL], x)});
             tempColor = getColor(getIdAt(temp));
             if( isInBoard(temp) ){
                 moves.push_back(temp);
