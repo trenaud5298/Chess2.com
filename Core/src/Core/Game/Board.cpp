@@ -378,7 +378,7 @@ namespace Chess {
         const Pos pos = kingPos;
         ID tempId;
         Direction direction;
-        int piecesOnLane;
+        int matchingOnLane; // counts the pieces matching king color on lane
         Pos temp;
         COLOR tempColor;
         for(int i = 1; i < 5; i++) {
