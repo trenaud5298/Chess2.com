@@ -200,8 +200,43 @@ namespace Chess {
         m_checked.direction = direction;
     }
 
-    Direction directionCast(const int& i) {
+    Direction Board::directionCast(const int& i) {
         return static_cast<Direction>(i);
+    }
+
+    std::pair<int,int> Board::getMod(const Direction& direction) {
+        using enum Direction;
+        std::pair<int,int> res;
+        const int inc = 1, 
+              dec = -1, 
+              z = 0;
+        switch(direction) {
+            case(NORTH):
+                res = std::pair(dec, z);
+                break;
+            case(SOUTH):
+                res = std::pair(inc, z);
+                break;
+            case(EAST):
+                res = std::pair(z, inc);
+                break;
+            case(WEST):
+                res = std::pair(z, dec);
+                break;
+            case(NORTHEAST):
+                res = std::pair(dec, inc);
+                break;
+            case(SOUTHEAST):
+                res = std::pair(inc, inc);
+                break;
+            case(NORTHWEST):
+                res = std::pair(dec, dec);
+                break;
+            case(SOUTHWEST):
+                res = std::pair(inc, dec);
+                break;
+        }
+        return res;
     }
 
     void Board::genChecked() {
