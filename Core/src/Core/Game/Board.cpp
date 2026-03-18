@@ -193,11 +193,19 @@ namespace Chess {
         m_moves[idx] = pos;
     }
 
+    void Board::setChecked(const ID& id, const Direction direction) {
+        m_checked.id = id;
+        m_checked.direction = direction;
+    }
+
     void Board::genChecked() {
+        using enum Direction;
         const ID kingId = getKingId();
         const Pos kingPos = getPos(kingId);
         const COLOR kingColor = getColor(kingId);
         Pos pos = kingPos;
+        ID tempId;
+        m_checked.direction = NORTH; //default direction
 
         //Knight squares
         int x, y;
@@ -213,14 +221,31 @@ namespace Chess {
             }
             temp = Pos({castHelper(kingPos[ROW], x), castHelper(kingPos[COL], y)});
             tempColor = getColor(getIdAt(temp));
+            tempId = getIdAt(temp);
             if( isInBoard(temp) ) {
                 if( kingColor != tempColor && getTypeAt(temp) == Type::W_KNIGHT && getTypeAt(temp) == Type::B_KNIGHT) {
+                    setChecked(tempId, m_checked.direction);
                 }
             }
+            temp = Pos({castHelper(kingPos[ROW], y), castHelper(kingPos[COL], x)});
+            tempColor = getColor(getIdAt(temp));
+            tempId = getIdAt(temp);
+            if( isInBoard(temp) ) {
+                if( kingColor != tempColor && getTypeAt(temp) == Type::W_KNIGHT && getTypeAt(temp) == Type::B_KNIGHT) {
+                    setChecked(tempId, m_checked.direction);
+                }
+            }
+        }
         //King squares
+        for(const std::pair<int,int>& mod : m_mods) {
+            temp = Pos({castHelper(kingPos[ROW], mod.first), castHelper(kingPos[COL], mod.second)});
+            if( isInBoard(temp) ) {
+
+            }
+        }
         //Pawn squares
-        //Cardinal squares
         //Diagonal sqaures
+        //Cardinal squares
 
     }
 
