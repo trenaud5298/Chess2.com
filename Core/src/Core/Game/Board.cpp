@@ -503,11 +503,12 @@ namespace Chess {
         setMovesIdx(getIdAt(initial), i);
     }
 
-    void Board::cardinalHelper(const Pos& initial, const Direction direction, int& i) {
+    void Board::cardinalHelper(const Pos& initial, const Direction& direction, int& i) {
         using enum Direction;
+        const ID initialId = getIdAt(initial);
+        const COLOR color = getColor(initialId);
         Pos pos = initial;
         int card, dim, inc;
-        COLOR color = getColor(getIdAt(initial));
         ID& posId = getIdAt(pos);
         COLOR posColor;
         switch (direction) {
@@ -528,31 +529,41 @@ namespace Chess {
                 break;
         };
         dim = inc = COL; // NOTE: COL = 1
-        if( !((card>>1) == 1) ) {
+        if( !((card>>1) == 1) ) { //determine the dimension of the initial pos we are increasing
             dim = ROW;
         }
-        if( ((card<<1)>>1) == 1 ) {
+        if( ((card<<1)>>1) == 1 ) { //determine the direction we are incrementing the dimension in
             inc = -1;
         }
         pos[dim] += inc;
         posColor = getColor(posId);
-        while(isInBoard(pos) && color != posColor) {
-            moves.push_back(pos);
-            if(posColor != COLOR::EMPTY) {
-                return;
+        while(isInBoard(pos)) {
+            if( color != posColor ) {
+                setAttackedAt(pos);
+                setMoveAt(initialId, pos, i);
+                i++;
+                if(posColor != COLOR::EMPTY) {
+                    return;
+                }
+                pos[dim] += inc;
+                posId = getIdAt(pos);
+                posColor = getColor(posId);
+            } else {
+                setDefendedAt(pos);
+                break;
             }
-            pos[dim] += inc;
-            posId = getIdAt(pos);
-            posColor = getColor(posId);
-        }
+        } 
     }
+    
 
-    void Board::addCardinalMoves(std::vector<Pos>& moves, const Pos& initial) {
+    void Board::addCardinalMoves(const Pos& initial) {
         using enum Direction;
-        cardinalHelper(moves, initial, NORTH);
-        cardinalHelper(moves, initial, SOUTH);
-        cardinalHelper(moves, initial, EAST);
-        cardinalHelper(moves, initial, WEST);
+        int i = 0;
+        cardinalHelper(initial, NORTH, i);
+        cardinalHelper(initial, SOUTH, i);
+        cardinalHelper(initial, EAST, i);
+        cardinalHelper(initial, WEST, i);
+        setMovesIdx(getIdAt(initial), i);
     }
 
     void Board::addKnightMoves(std::vector<Pos>& moves, const Pos& initial) {
