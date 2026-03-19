@@ -376,30 +376,37 @@ namespace Chess {
         const Pos kingPos = getPos(kingId);
         const COLOR kingColor = getColor(kingId);
         const Pos pos = kingPos;
+        const std::set<Type>* set;
         ID tempId;
         Direction direction;
         int matchingOnLane; // counts the pieces matching king color on lane
         Pos temp;
         COLOR tempColor;
+
         for(int i = 1; i < 5; i++) {
             direction = directionCast(i);
             std::pair<int,int> mod = getMod(direction);
+            set = getMatchingSet(direction); // only needs to be called once since -Direction is still the same axis
             temp = kingPos;
             temp[ROW] += mod.first;
             temp[COL] += mod.second;
             tempColor = getColor(tempId);
             tempId = getIdAt(temp);
-            while( isInBoard(pos) ) {
+            while( isInBoard(pos) && matchingOnLane < 2) {
                 if( kingColor != tempColor ) {
-                    if( tempColor != COLOR::EMPTY ) {
-                        setChecked(tempId, directionCast(-i));
-                        return;
+                    if( tempColor != COLOR::EMPTY && matchingOnLane == 0 ) {
+                        break;
+                    } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp))) {
+                        m_pinnedIdSet.emplace(tempId);
+                        m_pinnedVec.push_back({tempId, directionCast(-i)});
+                        break;
                     }
                     temp[ROW] += mod.first;
                     temp[COL] += mod.second;
                     tempId = getIdAt(pos);
                     tempColor = getColor(tempId);
                 } else {
+                    matchingOnLane++;
                     break;
                 }
             }
@@ -409,17 +416,21 @@ namespace Chess {
             temp[COL] += mod.second;
             tempColor = getColor(tempId);
             tempId = getIdAt(temp);
-            while( isInBoard(pos) ) {
+            while( isInBoard(pos) && matchingOnLane < 2) {
                 if( kingColor != tempColor ) {
-                    if( tempColor != COLOR::EMPTY ) { 
-                        setChecked(tempId, directionCast(-i));
-                        return;
+                    if( tempColor != COLOR::EMPTY && matchingOnLane == 0 ) {
+                        break;
+                    } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp))) {
+                        m_pinnedIdSet.emplace(tempId);
+                        m_pinnedVec.push_back({tempId, directionCast(-i)});
+                        break;
                     }
                     temp[ROW] += mod.first;
                     temp[COL] += mod.second;
                     tempId = getIdAt(pos);
                     tempColor = getColor(tempId);
                 } else {
+                    matchingOnLane++;
                     break;
                 }
             }
