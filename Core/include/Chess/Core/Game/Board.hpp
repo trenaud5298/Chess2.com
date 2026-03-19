@@ -17,7 +17,6 @@ namespace Chess {
             Board& operator=(const Board& rhs);
 
             Pos& getPos(const ID& id);
-            std::vector<Pos> getPossibleMoves(const ID& piece);
 
             void move(const ID& id, const Pos& pos);
         private:
