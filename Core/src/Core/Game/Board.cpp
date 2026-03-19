@@ -204,6 +204,14 @@ namespace Chess {
         return static_cast<Direction>(i);
     }
 
+    int Board::getPawnRow() {
+        if( m_isWhiteTurn ) {
+            return WHITE_PAWN_ROW;
+        } else {
+            return BLACK_PAWN_ROW;
+        }
+    }
+
     std::pair<int,int> Board::getMod(const Direction& direction) {
         using enum Direction;
         std::pair<int,int> res;
@@ -628,50 +636,68 @@ namespace Chess {
         }
     }
 
-    void Board::addPawnMoves(std::vector<Pos>& moves, const Pos& initial, const ID& id) {
-        bool isWhite = (int) id > 0 && (int) id < BLACK_BOUND;
-        // TODO
+    void Board::addPawnMoves(const Pos& initial) {
+        const ID initialId = getIdAt(initial);
+        const COLOR color = getColor(initialId);
+        const int pawnRow = getPawnRow();
+        int i = 0;
+        Pos temp;
+        ID tempId;
+        COLOR tempColor;
+
+        if( m_isWhiteTurn ) {
+            m_pawnMods[0] = m_mods[6];
+            m_pawnMods[1] = m_mods[7];
+        } else {
+            m_pawnMods[0] = m_mods[4];
+            m_pawnMods[1] = m_mods[5];
+        }
+        if( initial[ROW] == pawnRow) {
+            temp = {castHelper(initial[ROW], 2*m_pawnMods[0].first), initial[COL]};
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( isInBoard(temp) ) {
+                if( color == COLOR::EMPTY ) {
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                }
+            }
+            temp = {castHelper(initial[ROW], m_pawnMods[0].first), initial[COL]};
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( isInBoard(temp) ) {
+                if( color == COLOR::EMPTY ) {
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                }
+            }
+            temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( isInBoard(temp) ) {
+                if( color != tempColor ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
+            }
+            temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( isInBoard(temp) ) {
+                if( color != tempColor ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
+            }
+        }
     }
 
-    std::vector<Pos> Board::getPossibleMoves(const ID& id) {
-        using enum Type;
-        std::vector<Pos> temp;
-        const Type type = m_pieceArr[(int) id].type;
-        const Pos& initial = m_pieceArr[(int) id].position;
-
-        switch(type) {
-            case W_BISHOP:
-            case B_BISHOP:
-                temp.reserve(MAX_MOVES_BISHOP);
-                addDiagonalMoves(temp, initial);
-                break;
-            case W_ROOK:
-            case B_ROOK:
-                temp.reserve(MAX_MOVES_ROOK);
-                addCardinalMoves(temp, initial);
-                break;
-            case W_KNIGHT:
-            case B_KNIGHT:
-                temp.reserve(MAX_MOVES_KNIGHT);
-                addKnightMoves(temp, initial);
-                break;
-            case Type::W_QUEEN:
-            case Type::B_QUEEN:
-                addDiagonalMoves(temp, initial);
-                addCardinalMoves(temp, initial);
-                temp.reserve(MAX_MOVES_QUEEN);
-                break;
-            case Type::W_KING:
-            case Type::B_KING:
-                temp.reserve(MAX_MOVES_KING);
-                addKingMoves(temp, initial);
-                break;
-            case W_PAWN:
-            case B_PAWN:
-                temp.reserve(MAX_MOVES_PAWN);
-                addPawnMoves(temp, initial, id);
-                break;
-        }
-        return std::move(temp);
+    void Board::genMoves() {
     }
 }

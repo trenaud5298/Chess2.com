@@ -50,6 +50,7 @@ namespace Chess {
             ID getKingId();
             Type getTypeAt(const Pos& pos);
             COLOR getColor(const ID& id);
+            int getPawnRow();
             std::pair<int,int> getMod(const Direction& direction);
             Direction directionCast(const int& i);
             std::vector<bool>& getAttackedVec();
@@ -74,7 +75,7 @@ namespace Chess {
             void addKnightMoves(const Pos& initial);
             void addKingMoves(const Pos& initial);
             void addQueenMoves(const Pos& initial);
-            void addPawnMoves(std::vector<Pos>& moves, const Pos& initial, const ID& id);
+            void addPawnMoves(const Pos& initial);
             void genMoves();
 
             char32_t getGlyph(const Type& type);
