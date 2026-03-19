@@ -10,6 +10,7 @@
  */
 
 // Chess Includes
+#include <Chess/Core/Game/Board.hpp>
 
 // ASIO Includes
 
@@ -24,8 +25,9 @@ class GameServer;
 class Move;
 enum GameState {
     WAITING_FOR_PLAYERS,
-    RUNNING,
-    DONE
+    PLAYER1_TURN,
+    PLAYER2_TURN,
+    GAME_OVER
 };
 
 class GameRoom {
@@ -42,17 +44,14 @@ public:
     void start();
     void stop();
 
-    // Room Controls
-    std::uint64_t createRoom(std::uint64_t sessionID);
-    bool joinRoom(std::uint64_t sessionID, std::uint64_t roomID);
-    bool spectateRoom(std::uint64_t sessionID, std::uint64_t roomID);
+    bool joinRoom(std::uint64_t sessionID);
+    bool spectateRoom(std::uint64_t sessionID);
     void leaveRoom(std::uint64_t sessionID);
     void onMove(std::uint64_t sessionID, Move& move); //TODO: Sync With Board Move Function
 private:
     GameServer& m_gameServer;
 
-    std::unordered_map<std::uint64_t, GameRoom> m_roomIDToRoomMap;
-    std::unordered_map<std::uint64_t, std::uint64_t> m_sessionIDToRoomIDMap;
+
 };
 }
 
