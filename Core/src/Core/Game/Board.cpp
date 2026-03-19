@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <string>
 
 // TODO 
 //      * implement "piece collision" in addMoves methods
@@ -802,4 +803,16 @@ namespace Chess {
         }
         return res;
     }
+
+    void Board::displayBoard() {
+        std::u32string str;
+        str.append(U"-----------------\n");
+        for(int i = 1; i < m_board.size()+1; i++) {
+            str += U'|';
+            str += getGlyph(m_board[i-1]);
+            str += U'|';
+            if( i%8 == 0 )
+                str.append(U"\n-----------------\n");
+        }
+        std::cout << std::string(str.begin(), str.end()) << std::endl; }
 }
