@@ -574,6 +574,20 @@ namespace Chess {
         setMovesIdx(getIdAt(initial), i);
     }
 
+    void Board::addQueenMoves(const Pos& initial) {
+        using enum Direction;
+        int i = 0;
+        cardinalHelper(initial, NORTH, i);
+        cardinalHelper(initial, SOUTH, i);
+        cardinalHelper(initial, EAST, i);
+        cardinalHelper(initial, WEST, i);
+        diagonalHelper(initial, NORTHEAST, i);
+        diagonalHelper(initial, SOUTHWEST, i);
+        diagonalHelper(initial, NORTHWEST, i);
+        diagonalHelper(initial, SOUTHEAST, i);
+        setMovesIdx(getIdAt(initial), i);
+    }
+
     void Board::addKnightMoves(const Pos& initial) {
         int x, y, i = 0;
         const ID initialId = getIdAt(initial);
@@ -699,5 +713,40 @@ namespace Chess {
     }
 
     void Board::genMoves() {
+        addCardinalMoves(getPos(W_ROOK1));
+        addCardinalMoves(getPos(W_ROOK1));
+        addDiagonalMoves(getPos(W_BISHOP1));
+        addDiagonalMoves(getPos(W_BISHOP2));
+        addKnightMoves(getPos(W_KNIGHT1));
+        addKnightMoves(getPos(W_KNIGHT2));
+        addKingMoves(getPos(W_KING));
+        addQueenMoves(getPos(W_QUEEN));
+
+        addPawnMoves(getPos(W_PAWN1));
+        addPawnMoves(getPos(W_PAWN2));
+        addPawnMoves(getPos(W_PAWN3));
+        addPawnMoves(getPos(W_PAWN4));
+        addPawnMoves(getPos(W_PAWN5));
+        addPawnMoves(getPos(W_PAWN6));
+        addPawnMoves(getPos(W_PAWN7));
+        addPawnMoves(getPos(W_PAWN8));
+
+        addCardinalMoves(getPos(B_ROOK2));
+        addCardinalMoves(getPos(B_ROOK2));
+        addDiagonalMoves(getPos(B_BISHOP1));
+        addDiagonalMoves(getPos(B_BISHOP2));
+        addKnightMoves(getPos(B_KNIGHT1));
+        addKnightMoves(getPos(B_KNIGHT2));
+        addKingMoves(getPos(B_KING));
+        addQueenMoves(getPos(B_QUEEN));
+
+        addPawnMoves(getPos(B_PAWN1));
+        addPawnMoves(getPos(B_PAWN2));
+        addPawnMoves(getPos(B_PAWN3));
+        addPawnMoves(getPos(B_PAWN4));
+        addPawnMoves(getPos(B_PAWN5));
+        addPawnMoves(getPos(B_PAWN6));
+        addPawnMoves(getPos(B_PAWN7));
+        addPawnMoves(getPos(B_PAWN8));
     }
 }
