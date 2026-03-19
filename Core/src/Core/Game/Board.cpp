@@ -569,7 +569,7 @@ namespace Chess {
     void Board::addKnightMoves(const Pos& initial) {
         int x, y, i = 0;
         const ID initialId = getIdAt(initial);
-        COLOR color = getColor(initialId);
+        const COLOR color = getColor(initialId);
         Pos temp;
         COLOR tempColor;
         for(int i = 0b00; i < 4; i++) {
@@ -604,16 +604,28 @@ namespace Chess {
         }
     }
 
-    // TODO FIX
-    void Board::addKingMoves(std::vector<Pos>& moves, const Pos& initial) {
-        moves.push_back(Pos({static_cast<std::uint8_t>((int) initial[0] + 1), initial[1]}));
-        moves.push_back(Pos({static_cast<std::uint8_t>((int) initial[0] - 1), initial[1]}));
-        moves.push_back(Pos({initial[0], static_cast<std::uint8_t>((int) initial[1] + 1)}));
-        moves.push_back(Pos({initial[0], static_cast<std::uint8_t>((int) initial[1] - 1)}));
-        moves.push_back(Pos({ static_cast<std::uint8_t>((int) initial[0] + 1), static_cast<std::uint8_t>((int) initial[1] + 1)}));
-        moves.push_back(Pos({ static_cast<std::uint8_t>((int) initial[0] - 1), static_cast<std::uint8_t>((int) initial[1] + 1)}));
-        moves.push_back(Pos({ static_cast<std::uint8_t>((int) initial[0] + 1), static_cast<std::uint8_t>((int) initial[1] - 1)}));
-        moves.push_back(Pos({ static_cast<std::uint8_t>((int) initial[0] - 1), static_cast<std::uint8_t>((int) initial[1] - 1)}));
+    void Board::addKingMoves(const Pos& initial) {
+        const ID initialId = getIdAt(initial);
+        const COLOR color = getColor(initialId);
+        int i = 0;
+        Pos temp;
+        ID tempId;
+        COLOR tempColor;
+
+        for(const std::pair<int,int>& mod : m_mods) {
+            temp = {castHelper(initial[ROW], mod.first), castHelper(initial[COL], mod.second)};
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( isInBoard(temp) ) {
+                if( color != tempColor ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
+            }
+        }
     }
 
     void Board::addPawnMoves(std::vector<Pos>& moves, const Pos& initial, const ID& id) {
