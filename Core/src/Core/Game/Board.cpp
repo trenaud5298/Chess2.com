@@ -677,38 +677,38 @@ namespace Chess {
                     i++;
                 }
             }
-            temp = {castHelper(initial[ROW], m_pawnMods[0].first), initial[COL]};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
-            if( isInBoard(temp) ) {
-                if( color == COLOR::EMPTY ) {
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                }
+        }
+        temp = {castHelper(initial[ROW], m_pawnMods[0].first), initial[COL]};
+        tempId = getIdAt(temp);
+        tempColor = getColor(tempId);
+        if( isInBoard(temp) ) {
+            if( color == COLOR::EMPTY ) {
+                setMoveAt(initialId, temp, i);
+                i++;
             }
-            temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
-            if( isInBoard(temp) ) {
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                } else {
-                    setDefendedAt(temp);
-                }
+        }
+        temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
+        tempId = getIdAt(temp);
+        tempColor = getColor(tempId);
+        if( isInBoard(temp) ) {
+            if( color != tempColor ) {
+                setAttackedAt(temp);
+                setMoveAt(initialId, temp, i);
+                i++;
+            } else {
+                setDefendedAt(temp);
             }
-            temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
-            if( isInBoard(temp) ) {
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                } else {
-                    setDefendedAt(temp);
-                }
+        }
+        temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
+        tempId = getIdAt(temp);
+        tempColor = getColor(tempId);
+        if( isInBoard(temp) ) {
+            if( color != tempColor ) {
+                setAttackedAt(temp);
+                setMoveAt(initialId, temp, i);
+                i++;
+            } else {
+                setDefendedAt(temp);
             }
         }
     }
