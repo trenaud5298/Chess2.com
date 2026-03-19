@@ -13,6 +13,10 @@
 #define ROW_UPPER_BOUND 8
 #define COL_LOWER_BOUND -1
 #define COL_UPPER_BOUND 8
+#define RIGHT 1
+#define LEFT -1
+#define WHITE_PAWN_ROW 1
+#define BLACK_PAWN_ROW 6
 
 #define MAX_MOVES_PAWN 3
 #define MAX_MOVES_KNIGHT 8
@@ -20,6 +24,8 @@
 #define MAX_MOVES_ROOK 14
 #define MAX_MOVES_QUEEN 27
 #define MAX_MOVES_KING 8
+#define MAX_PINNED 8
+#define MAX_MOVES (3 + 8 + 13 + 14 + 27 + 8)
 
 // Pos is {row, col} or {a-f(0-7), 0-7}
 using Pos = std::array<std::uint8_t, 2>;
@@ -81,7 +87,8 @@ enum class ID : std::uint8_t {
     B_PAWN8 = 32
 };
 
-/*NOTE: since the m_board is flipped vertically, NORTH and SOUTH are inverted*/
+/* NOTE: since the m_board is flipped vertically, NORTH and SOUTH are inverted
+ * NOTE: any time you see cardinal, it means the 4 cardinal directions */
 enum class Direction {
     NORTH = 1,
     EAST = 2,
