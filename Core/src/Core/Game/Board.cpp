@@ -749,4 +749,57 @@ namespace Chess {
         addPawnMoves(getPos(B_PAWN7));
         addPawnMoves(getPos(B_PAWN8));
     }
+
+// ♔♕♖♗♘♙♚♛♜♝♞♟
+//\u2654 \u2655 \u2656 \u2657 \u2658 \u2659 \u265a \u265b \u265c \u265d \u265e \u265f 
+    char32_t Board::getGlyph(const ID& id) {
+        char32_t res;
+        switch(id) {
+            case(EMPTY): {
+                res =  U' ';
+                break;
+            }
+            default:
+                const Type type = getTypeAt(getPos(id));
+                switch(type) {
+                case(Type::W_KING):
+                    res = U'\u2654';
+                    break;
+                case(Type::W_QUEEN):
+                    res = U'\u2655';
+                    break;
+                case(Type::W_ROOK):
+                    res = U'\u2656';
+                    break;
+                case(Type::W_BISHOP):
+                    res = U'\u2657';
+                    break;
+                case(Type::W_KNIGHT):
+                    res = U'\u2658';
+                    break;
+                case(Type::W_PAWN):
+                    res = U'\u2659';
+                    break;
+                case(Type::B_KING):
+                    res = U'\u265a';
+                    break;
+                case(Type::B_QUEEN):
+                    res = U'\u265b';
+                    break;
+                case(Type::B_ROOK):
+                    res = U'\u265c';
+                    break;
+                case(Type::B_BISHOP):
+                    res = U'\u265d';
+                    break;
+                case(Type::B_KNIGHT):
+                    res = U'\u265e';
+                    break;
+                case(Type::B_PAWN):
+                    res = U'\u265f';
+                    break;
+                }
+        }
+        return res;
+    }
 }

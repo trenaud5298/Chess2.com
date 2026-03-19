@@ -78,7 +78,7 @@ namespace Chess {
             void addPawnMoves(const Pos& initial);
             void genMoves();
 
-            char32_t getGlyph(const Type& type);
+            char32_t getGlyph(const ID& id);
             void displayBoard();
     };
 }
