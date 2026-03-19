@@ -355,7 +355,7 @@ namespace Chess {
                 while( isInBoard(pos) ) {
                     if( kingColor != tempColor ) {
                         if( tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
-                            setChecked(tempId, directionCast(-i));
+                            setChecked(tempId, directionCast(i));
                             return;
                         }
                         temp[ROW] += mod.first;
@@ -550,7 +550,7 @@ namespace Chess {
                 posColor = getColor(posId);
             } else {
                 setDefendedAt(pos);
-                break;
+                return;
             }
         } 
     }
@@ -566,9 +566,10 @@ namespace Chess {
         setMovesIdx(getIdAt(initial), i);
     }
 
-    void Board::addKnightMoves(std::vector<Pos>& moves, const Pos& initial) {
-        int x, y;
-        COLOR color = getColor(getIdAt(initial));
+    void Board::addKnightMoves(const Pos& initial) {
+        int x, y, i = 0;
+        const ID initialId = getIdAt(initial);
+        COLOR color = getColor(initialId);
         Pos temp;
         COLOR tempColor;
         for(int i = 0b00; i < 4; i++) {
@@ -579,15 +580,26 @@ namespace Chess {
             if( ((i<<1)>>1) == 1 ) {
                 y = -y;
             }
-            temp = Pos({castHelper(initial[ROW], x), castHelper(initial[COL], y)});
+            temp = {castHelper(initial[ROW], x), castHelper(initial[COL], y)};
             tempColor = getColor(getIdAt(temp));
-            if( isInBoard(temp) && color != tempColor ) {
-                moves.push_back(temp);
+            if( isInBoard(temp) ) {
+                if( color != tempColor ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
-            temp = Pos({castHelper(initial[ROW], y), castHelper(initial[COL], x)});
-            tempColor = getColor(getIdAt(temp));
-            if( isInBoard(temp) ){
-                moves.push_back(temp);
+            temp = {castHelper(initial[ROW], y), castHelper(initial[COL], x)};
+            if( isInBoard(temp) ) {
+                if( color != tempColor ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
         }
     }
