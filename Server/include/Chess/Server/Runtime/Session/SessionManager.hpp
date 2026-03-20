@@ -10,8 +10,8 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
-#include <Chess/Server/Runtime/Common/Types.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/Types.hpp>
 
 // ASIO Includes
 #include <asio/ip/tcp.hpp>

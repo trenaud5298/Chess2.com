@@ -25,57 +25,95 @@ namespace Chess {
 
 /**
  * @enum MessageType
- * @brief Defines all message types that can be sent between client and server.
+ * @brief Defines all message types exchanged between client and server.
  *
- * Each message type has an associated payload. The payload must be serialized
- * in the exact order specified below. All fields are required unless stated otherwise.
- *
- * Payload Conventions:
- * - std::string is serialized as: [uint32_t length][char data...]
- * - Integer types are sent in their raw byte form (Little-Endian Expected)
- * - All fields are ordered and contiguous (no padding)
+ * Each message type has a strictly defined payload schema. The payload must be
+ * serialized and deserialized in the exact order specified below. All fields
+ * are required unless explicitly stated otherwise.
  *
  * ---------------------------------------------------------------------------
- * NONE (0)
+ * Payload Conventions:
+ * ---------------------------------------------------------------------------
+ * - std::string  -> [uint32_t length][char data...]
+ * - Integers     -> Raw byte form (Little-Endian)
+ * - All fields   -> Tightly packed and ordered (no padding)
+ *
+ * ---------------------------------------------------------------------------
+ * Message Definitions:
+ * ---------------------------------------------------------------------------
+ *
+ * @c MessageType::None                 (0)  | Direction: Both
  *   - No payload
  *
- * LOGIN (1)
+ * @c MessageType::LoginRequest         (1)  | Direction: Client -> Server
  *   - std::string username
  *   - std::string serverPassword
  *
- * CHAT (2)
+ * @c MessageType::LoginResponse        (2)  | Direction: Server -> Client
+ *   - bool accepted
+ *   - std::string reason
+ *
+ * @c MessageType::Chat                 (3)  | Direction: Both
  *   - std::string message
  *
- * CREATE_ROOM (3)
+ * @c MessageType::Command              (4)  | Direction: Client -> Server
+ *   - std::string command
+ *
+ * @c MessageType::CreateRoomRequest    (5)  | Direction: Client -> Server
  *   - std::uint64_t roomID
  *   - std::string roomPassword
  *
- * JOIN_ROOM (4)
+ * @c MessageType::CreateRoomResponse   (6)  | Direction: Server -> Client
+ *   - bool success
+ *   - std::uint64_t roomID
+ *   - std::string reason
+ *
+ * @c MessageType::JoinRoomRequest      (7)  | Direction: Client -> Server
  *   - std::uint64_t roomID
  *   - std::string roomPassword
  *
- * LEAVE_ROOM (5)
+ * @c MessageType::JoinRoomResponse     (8)  | Direction: Server -> Client
+ *   - bool success
+ *   - std::string reason
+ *
+ * @c MessageType::LeaveRoom            (9)  | Direction: Both
  *   - No payload
  *
- * MAKE_MOVE (6)
- *   - std::uint8_t from   // (row*8 + col)
- *   - std::uint8_t to     // (row*8 + col)
+ * @c MessageType::MakeMove            (10)  | Direction: Both
+ *   - std::uint8_t from  // (row * 8 + col)
+ *   - std::uint8_t to    // (row * 8 + col)
+ *
+ * @c MessageType::GameUpdate          (11)  | Direction: Server -> Client (typically)
+ *   - Implementation-defined (board state, turn, clocks, etc.)
+ *
+ * @c MessageType::ErrorMessage        (12)  | Direction: Both
+ *   - std::uint32_t errorCode
+ *   - std::string message
  *
  * ---------------------------------------------------------------------------
  *
- * Notes:
- * - The receiver must deserialize fields in the exact order listed.
- * - Any mismatch in ordering or type will result in undefined behavior.
- * - This enum is tightly coupled with the message serialization/deserialization logic.
+ * @warning Any mismatch in ordering or type will result in undefined behavior.
+ *
+ * @remark - The receiver MUST deserialize fields in the exact order listed.
+ *
+ * @remark - This enum is tightly coupled with the serialization/deserialization logic.
+ *
+ * @remark - Request/Response pairs should be handled together at the application level.
  */
-enum MessageType : std::uint32_t {
-    NONE = 0,
-    LOGIN = 1,
-    CHAT = 2,
-    CREATE_ROOM = 3,
-    JOIN_ROOM = 4,
-    LEAVE_ROOM = 5,
-    MAKE_MOVE = 6
+enum class MessageType : std::uint16_t {
+    None,
+    LoginRequest,
+    LoginResponse,
+    Chat,
+    Command,
+    CreateRoomRequest,
+    CreateRoomResponse,
+    JoinRoomRequest,
+    JoinRoomResponse,
+    LeaveRoom,
+    MakeMove,
+    GameUpdate,
+    ErrorMessage
 };
 
 
@@ -116,7 +154,6 @@ public:
     // Clear/Reset
     void clear() noexcept;
     void readReset() noexcept;
-    void readSet(std::size_t offset);
 
     // Buffers
     [[nodiscard]] asio::mutable_buffer headerBuffer() noexcept;
@@ -136,6 +173,9 @@ public:
     void pushString(const std::string& str);
 
     // Read
+    std::size_t getReadOffset() const noexcept;
+    void setReadOffset(std::size_t offset) noexcept;
+
     template <typename T>
     requires std::is_trivially_copyable_v<T>
     T read() {
@@ -150,6 +190,19 @@ public:
 
     void readBytes(void* dest, std::size_t size);
     std::string readString();
+
+    template <typename T>
+    requires std::is_trivially_copyable_v<T>
+    bool tryRead(T& value) noexcept {
+        if (m_readOffset + sizeof(T) > m_body.size()) {
+            return false;
+        }
+        std::memcpy(&value, m_body.data() + m_readOffset, sizeof(T));
+        m_readOffset += sizeof(T);
+        return true;
+    }
+
+    bool tryReadString(std::string& str) noexcept;
 
 
 

@@ -10,7 +10,7 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
 #include <Chess/Server/Runtime/Logging/LoggingManager.hpp>
 #include <Chess/Server/Runtime/Persistence/PersistenceManager.hpp>
 #include <Chess/Server/Runtime/Login/LoginManager.hpp>

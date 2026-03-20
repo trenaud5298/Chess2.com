@@ -11,8 +11,9 @@
 
 // Chess Includes
 #include <Chess/Core/Networking/Message.hpp>
-#include <Chess/Server/Runtime/Common/Types.hpp>
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/Types.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
+#include <Chess/Core/Networking/MessagePayloads.hpp>
 
 // ASIO Includes
 #include <asio.hpp>
@@ -63,14 +64,27 @@ private:
     void doReadHeader();
     void doReadBody();
     void doWrite();
-    void handleError();
-    void processMessage();
-        void handleLogin();
-        void handleChat();
-        void handleCreateRoom();
-        void handleJoinRoom();
-        void handleLeaveRoom();
-        void handleMakeMove();
+    void abortSession();
+    void dispatchIncomingMessage();
+    template <typename T>
+    bool dispatchAs() {
+        if (auto payload = T::fromMessage(m_incomingMessage)) {
+            handle(*payload);
+            return true;
+        }
+        abortSession();
+        return false;
+    }
+
+    void handle(const LoginRequest& payload);
+    void handle(const Chat& payload);
+    void handle(const Command& payload);
+    void handle(const CreateRoomRequest& payload);
+    void handle(const JoinRoomRequest& payload);
+    void handle(const LeaveRoom& payload);
+    void handle(const MakeMove& payload);
+    void handle(const ErrorMessage& payload);
+
 private:
     // Server
     GameServer& m_gameServer;
@@ -87,7 +101,7 @@ private:
     SessionInfo m_sessionInfo;
 
     // Reading
-    Message m_incomingMessage{MessageType::NONE};
+    Message m_incomingMessage{MessageType::None};
 
     // Writing
     std::deque<std::shared_ptr<const Message>> m_writeQueue;

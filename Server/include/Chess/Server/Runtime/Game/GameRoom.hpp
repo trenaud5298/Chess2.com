@@ -11,7 +11,7 @@
 
 // Chess Includes
 #include <Chess/Core/Game/Board.hpp>
-#include <Chess/Server/Runtime/Common/Types.hpp>
+#include <Chess/Core/Common/Types.hpp>
 
 // ASIO Includes
 
