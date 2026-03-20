@@ -146,27 +146,50 @@ void Session::processMessage() {
         case CHAT:
             handleChat();
             break;
+        case CREATE_ROOM:
+            handleCreateRoom();
+            break;
+        case JOIN_ROOM:
+            handleJoinRoom();
+            break;
+        case LEAVE_ROOM:
+            handleLeaveRoom();
+            break;
+        case MAKE_MOVE:
+            handleMakeMove();
+            break;
     }
 }
 
 void Session::handleLogin() {
-    if (m_sessionState != SessionState::LOGIN_REQUIRED) {
-        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Tried to login when already logged in."));
+    std::string serverPasswordInput = "";
+    std::string playerNameInput = "";
+    try {
+        serverPasswordInput = m_incomingMessage.readString();
+        playerNameInput = m_incomingMessage.readString();
+    } catch (const std::exception& e) {
         handleError();
         return;
     }
 
-    std::string loginServerPassword = m_incomingMessage.readString();
     std::string serverPassword = m_gameServer.persistenceManager().settings().general.serverPassword;
-    if (loginServerPassword != serverPassword) {
-        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Bad Password: " + loginServerPassword));
-        handleError();
-        return;
+    switch (m_sessionState) {
+        case LOGIN_REQUIRED:
+            if (serverPasswordInput != serverPassword) {
+                m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Bad Password: " + serverPasswordInput));
+                handleError();
+                return;
+            }
+            m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt passed."));
+            m_sessionInfo.name = playerNameInput;
+            m_sessionState = SessionState::IDLE;
+            break;
+        case IDLE:
+        case IN_MATCH:
+        default:
+            handleError();
+            break;
     }
-    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt passed."));
-    std::string playerName = m_incomingMessage.readString();
-    m_sessionInfo.name = playerName;
-    m_sessionState = SessionState::IDLE;
 }
 
 void Session::handleChat() {
@@ -181,6 +204,23 @@ void Session::handleChat() {
     message->pushString("Server received your message");
     send(message);
 }
+
+void Session::handleCreateRoom() {
+
+}
+
+void Session::handleJoinRoom() {
+
+}
+
+void Session::handleLeaveRoom() {
+
+}
+
+void Session::handleMakeMove() {
+
+}
+
 
 
 }

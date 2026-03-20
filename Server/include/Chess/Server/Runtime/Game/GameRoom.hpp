@@ -11,6 +11,7 @@
 
 // Chess Includes
 #include <Chess/Core/Game/Board.hpp>
+#include <Chess/Server/Runtime/Common/Types.hpp>
 
 // ASIO Includes
 
@@ -47,11 +48,12 @@ public:
     bool joinRoom(std::uint64_t sessionID);
     bool spectateRoom(std::uint64_t sessionID);
     void leaveRoom(std::uint64_t sessionID);
-    void onMove(std::uint64_t sessionID, Move& move); //TODO: Sync With Board Move Function
+    void onMove(std::uint64_t sessionID, Move& move);
 private:
     GameServer& m_gameServer;
-
-
+    SessionID player1;
+    SessionID player2;
+    std::vector<SessionID> spectators;
 };
 }
 

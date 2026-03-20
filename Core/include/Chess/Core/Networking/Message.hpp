@@ -23,11 +23,61 @@
 
 namespace Chess {
 
+/**
+ * @enum MessageType
+ * @brief Defines all message types that can be sent between client and server.
+ *
+ * Each message type has an associated payload. The payload must be serialized
+ * in the exact order specified below. All fields are required unless stated otherwise.
+ *
+ * Payload Conventions:
+ * - std::string is serialized as: [uint32_t length][char data...]
+ * - Integer types are sent in their raw byte form (Little-Endian Expected)
+ * - All fields are ordered and contiguous (no padding)
+ *
+ * ---------------------------------------------------------------------------
+ * NONE (0)
+ *   - No payload
+ *
+ * LOGIN (1)
+ *   - std::string username
+ *   - std::string serverPassword
+ *
+ * CHAT (2)
+ *   - std::string message
+ *
+ * CREATE_ROOM (3)
+ *   - std::uint64_t roomID
+ *   - std::string roomPassword
+ *
+ * JOIN_ROOM (4)
+ *   - std::uint64_t roomID
+ *   - std::string roomPassword
+ *
+ * LEAVE_ROOM (5)
+ *   - No payload
+ *
+ * MAKE_MOVE (6)
+ *   - std::uint8_t from   // (row*8 + col)
+ *   - std::uint8_t to     // (row*8 + col)
+ *
+ * ---------------------------------------------------------------------------
+ *
+ * Notes:
+ * - The receiver must deserialize fields in the exact order listed.
+ * - Any mismatch in ordering or type will result in undefined behavior.
+ * - This enum is tightly coupled with the message serialization/deserialization logic.
+ */
 enum MessageType : std::uint32_t {
     NONE = 0,
     LOGIN = 1,
     CHAT = 2,
+    CREATE_ROOM = 3,
+    JOIN_ROOM = 4,
+    LEAVE_ROOM = 5,
+    MAKE_MOVE = 6
 };
+
 
 struct MessageHeader {
     std::uint32_t validation;

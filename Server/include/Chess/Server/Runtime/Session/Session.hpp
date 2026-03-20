@@ -67,6 +67,10 @@ private:
     void processMessage();
         void handleLogin();
         void handleChat();
+        void handleCreateRoom();
+        void handleJoinRoom();
+        void handleLeaveRoom();
+        void handleMakeMove();
 private:
     // Server
     GameServer& m_gameServer;

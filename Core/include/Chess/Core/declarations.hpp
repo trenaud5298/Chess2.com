@@ -30,6 +30,7 @@
 // Pos is {row, col} or {a-f(0-7), 0-7}
 using Pos = std::array<std::uint8_t, 2>;
 
+
 enum class Type : std::uint8_t{
     W_ROOK = 1,
     W_KNIGHT = 2,

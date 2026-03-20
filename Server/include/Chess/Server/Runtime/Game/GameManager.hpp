@@ -44,7 +44,7 @@ public:
     bool joinRoom(std::uint64_t sessionID, std::uint64_t roomID);
     bool spectateRoom(std::uint64_t sessionID, std::uint64_t roomID);
     void leaveRoom(std::uint64_t sessionID);
-    void onMove(std::uint64_t sessionID, Move& move); //TODO: Sync With Board Move Function
+    void onMove(std::uint64_t sessionID, Move& move);
 private:
     GameServer& m_gameServer;
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
