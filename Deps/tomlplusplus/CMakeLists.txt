@@ -11,6 +11,3 @@ FetchContent_Declare(tomlplusplus
 )
 
 FetchContent_MakeAvailable(tomlplusplus)
-
-get_property(allTargets GLOBAL PROPERTY TARGETS)
-message(STATUS "Targets: ${allTargets}")

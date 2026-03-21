@@ -30,10 +30,11 @@ ServerPanel::~ServerPanel() {
 }
 
 void ServerPanel::run() {
-    try {
-        m_screen.Loop(m_mainComponent);
-    } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
+    ftxui::Loop loop(&m_screen, m_mainComponent);
+    while (!loop.HasQuitted()) {
+        loop.RunOnce();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        m_screen.PostEvent(ftxui::Event::Custom);
     }
 }
 
@@ -84,13 +85,15 @@ void ServerPanel::initializeUI() {
     m_mainEventCatcher = ftxui::CatchEvent(ftxui::Container::Vertical({m_tabRenderer, m_commandRenderer}), [&](ftxui::Event event) {
         return false;
     });
+
+
     m_mainComponent = ftxui::Renderer(m_mainEventCatcher, [&]() {
-        ftxui::Element result = ftxui::vbox({
-            ftxui::text("Server Control Panel") | ftxui::bold | ftxui::center,
-            m_tabRenderer->Render() | ftxui::flex,
-            m_commandRenderer->Render()
-        }) | ftxui::border;
-        return result;
+        return ftxui::window(ftxui::text("Server Control Panel ") | ftxui::bold | ftxui::center,
+            ftxui::vbox({
+                m_tabRenderer->Render() | ftxui::flex,
+                m_commandRenderer->Render()
+            })
+        );
     });
 }
 
