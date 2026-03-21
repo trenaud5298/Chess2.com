@@ -28,7 +28,7 @@ namespace Chess {
 
 ClientPanel::ClientPanel(GameClient& gameClient) : m_gameClient(gameClient), m_screen(ftxui::ScreenInteractive::FullscreenAlternateScreen()) {
     m_screens[Screen::MainMenu] = std::make_unique<MainMenuScreen>(*this);
-    m_screens[Screen::Singleplayer] = std::make_unique<SinglePlayerScreen>(*this);
+    m_screens[Screen::Singleplayer] = std::make_unique<SingleplayerScreen>(*this);
     m_screens[Screen::Multiplayer] = std::make_unique<MultiplayerScreen>(*this);
     m_screens[Screen::Settings] = std::make_unique<SettingsScreen>(*this);
 

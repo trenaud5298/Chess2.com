@@ -11,6 +11,8 @@
 
 // Chess Includes
 #include <Chess/Client/UI/ScreenInterface.hpp>
+#include <Chess/Core/Game/Board.hpp>
+#include <Chess/Core/UI/ChessBoardDisplay.hpp>
 
 // ASIO Includes
 
@@ -24,10 +26,10 @@ namespace Chess {
 
 class ClientPanel;
 
-class SinglePlayerScreen : public ScreenInterface {
+class SingleplayerScreen : public ScreenInterface {
 public:
-    explicit SinglePlayerScreen(ClientPanel& clientPanel);
-    ~SinglePlayerScreen();
+    explicit SingleplayerScreen(ClientPanel& clientPanel);
+    ~SingleplayerScreen();
     ftxui::Component getComponent() override;
     void onEnter() override;
     void onLeave() override;
@@ -35,6 +37,7 @@ public:
 private:
     ClientPanel& m_clientPanel;
     ftxui::Component m_component;
+
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer;
 };
 

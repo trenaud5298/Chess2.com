@@ -130,6 +130,10 @@ namespace Chess {
         setIdAt(old, ID::EMPTY);
     }
 
+    const std::array<ID, 64> &Board::getBoard() {
+        return m_board;
+    }
+
     bool Board::isInBoard(const Pos& pos) {
         int castedRow = (int) pos[ROW];
         int castedCol = (int) pos[COL];

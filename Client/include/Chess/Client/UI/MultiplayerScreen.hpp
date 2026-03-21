@@ -11,6 +11,8 @@
 
 // Chess Includes
 #include <Chess/Client/UI/ScreenInterface.hpp>
+#include <Chess/Core/UI/ChessBoardDisplay.hpp>
+#include <CHess/Core/Game/Board.hpp>
 
 // ASIO Includes
 
@@ -35,6 +37,10 @@ public:
 private:
     ClientPanel& m_clientPanel;
     ftxui::Component m_component;
+
+    Board m_testBoard;
+    std::shared_ptr<ChessBoardDisplay> m_boardDisplay;
+
     static constexpr Screen SCREEN_TYPE = Screen::Multiplayer;
 };
 

@@ -19,6 +19,7 @@ namespace Chess {
             Pos& getPos(const ID& id);
 
             void move(const ID& id, const Pos& pos);
+            const std::array<ID, 64>& getBoard();
         private:
             std::array<ID, 64> m_board;
             //Piece position is indexed at m_pieces[Piece-1]

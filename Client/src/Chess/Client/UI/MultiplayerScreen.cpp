@@ -18,32 +18,68 @@
 
 namespace Chess {
 
-    MultiplayerScreen::MultiplayerScreen(ClientPanel& clientPanel)
-    : m_clientPanel(clientPanel) {
-        auto backButton = ftxui::Button("  Back  ", [&] {
-            m_clientPanel.navigateBack();
-        }, ftxui::ButtonOption::Animated());
+MultiplayerScreen::MultiplayerScreen(ClientPanel& clientPanel)
+: m_clientPanel(clientPanel) {
+    auto boardComponent = ftxui::Make<ChessBoardDisplay>();
+    m_boardDisplay = boardComponent;
 
-        m_component = ftxui::Renderer(backButton, [&, backButton] {
-            return ftxui::vbox({
+    m_boardDisplay->onMove = [&](Pos from, Pos to) {
+        const auto& raw = m_testBoard.getBoard();
+        ID id = raw[from[ROW] * 8 + from[COL]];
+
+        // Guard: don't call move with an empty square
+        // (shouldn't happen given handleSelect's guard, but be safe)
+        if (id == ID::EMPTY) return;
+
+        m_testBoard.move(id, to);
+        m_boardDisplay->updateBoard(m_testBoard.getBoard());
+    };
+
+    m_boardDisplay->updateBoard(m_testBoard.getBoard());
+    auto backButton = ftxui::Button("  Back  ", [&] {
+        m_clientPanel.navigateBack();
+    }, ftxui::ButtonOption::Animated());
+
+    auto layout = ftxui::Container::Vertical({
+        boardComponent,
+        backButton,
+    });
+
+    m_component = ftxui::Renderer(layout, [&, boardComponent, backButton] {
+        return ftxui::vbox({
+            // Title bar
+            ftxui::text("Single Player") | ftxui::bold | ftxui::center,
+            ftxui::separator(),
+
+            // Board centered in remaining space
+            ftxui::vbox({
                 ftxui::filler(),
-                ftxui::text("Multiplayer") | ftxui::bold | ftxui::center,
-                ftxui::text("Not yet implemented") | ftxui::dim | ftxui::center,
-                ftxui::separatorEmpty(),
-                backButton->Render() | ftxui::center,
+                ftxui::hbox({
+                    ftxui::filler(),
+                    boardComponent->Render(),
+                    ftxui::filler(),
+                }),
                 ftxui::filler(),
-            });
+            }) | ftxui::flex,
+
+            // Footer
+            ftxui::separator(),
+            ftxui::hbox({
+                ftxui::filler(),
+                backButton->Render(),
+            }),
         });
-    }
+    });
+}
 
-    MultiplayerScreen::~MultiplayerScreen() {}
+MultiplayerScreen::~MultiplayerScreen() {}
 
-    ftxui::Component MultiplayerScreen::getComponent() {
-        return m_component;
-    }
+ftxui::Component MultiplayerScreen::getComponent() {
+    return m_component;
+}
 
-    void MultiplayerScreen::onEnter() {}
+void MultiplayerScreen::onEnter() {}
 
-    void MultiplayerScreen::onLeave() {}
+void MultiplayerScreen::onLeave() {}
 
 } // namespace Chess
