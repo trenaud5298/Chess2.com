@@ -8,21 +8,17 @@
 
 
 // Chess Includes
-#include <Chess/Client/Runtime/Persistence/PersistenceManager.hpp>
+#include <Chess/Client/Runtime/MultiplayerClient.hpp>
+#include <Chess/Client/Runtime/GameClient.hpp>
 
 // ASIO Includes
 
 // C++ Includes
 
+
 namespace Chess {
 
-
-PersistenceManager::PersistenceManager(GameClient &gameClient) : m_gameClient(gameClient), m_logFile(gameClient), m_settings() {
-
-}
-
-
-PersistenceManager::~PersistenceManager() {
+MultiplayerClient::MultiplayerClient(GameClient& gameClient) : m_gameClient(gameClient) {
 
 }
 

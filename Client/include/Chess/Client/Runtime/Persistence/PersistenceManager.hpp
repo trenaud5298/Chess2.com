@@ -34,16 +34,15 @@ public:
     PersistenceManager& operator=(PersistenceManager&&) = delete;
 
 
-    // Settings& settings() { return m_settings; };
-    // LogFile& logFile() { return m_logFile; };
+    Settings& settings() { return m_settings; };
+    LogFile& logFile() { return m_logFile; };
 
 private:
     GameClient& m_gameClient;
 
     // Seperate Persistent Systems
-
-    // LogFile m_logFile;
-    // Settings m_settings;
+    LogFile m_logFile;
+    Settings m_settings;
 };
 
 }

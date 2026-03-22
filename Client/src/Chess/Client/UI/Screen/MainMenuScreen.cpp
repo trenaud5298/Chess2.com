@@ -7,7 +7,7 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/MainMenuScreen.hpp>
+#include <Chess/Client/UI/Screen/MainMenuScreen.hpp>
 #include <Chess/Client/UI/ClientPanel.hpp>
 
 // FTXUI Includes
@@ -19,7 +19,7 @@
 namespace Chess {
 
 
-MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : m_clientPanel(clientPanel) {
+MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : ScreenInterface(clientPanel) {
     auto buttonOption = ftxui::ButtonOption::Animated();
     buttonOption.transform = [](const ftxui::EntryState& s) {
         auto label = ftxui::text(s.label) | ftxui::center | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20) | ftxui::borderEmpty;
@@ -30,13 +30,10 @@ MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : m_clientPanel(clientP
 
     auto buttons = ftxui::Container::Vertical({
         ftxui::Button("  Singleplayer  ", [&] {
-            // m_clientPanel.navigateTo(Screen::Singleplayer);
+            m_clientPanel.navigateTo(Screen::Singleplayer_Setup);
         }, buttonOption),
         ftxui::Button("  Multiplayer   ", [&] {
-            m_clientPanel.navigateTo(Screen::Multiplayer);
-        }, buttonOption),
-        ftxui::Button("    Settings    ", [&] {
-            m_clientPanel.navigateTo(Screen::Settings);
+            m_clientPanel.navigateTo(Screen::Multiplayer_Select);
         }, buttonOption),
         ftxui::Button("      Quit      ", [&] {
             m_clientPanel.quit();
@@ -44,19 +41,12 @@ MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : m_clientPanel(clientP
     });
 
     m_component = ftxui::Renderer(buttons, [&, buttons] {
-        auto title = ftxui::vbox({
-            ftxui::text("♔  C H E S S  ♚") | ftxui::bold | ftxui::center,
-            ftxui::text("a chess client") | ftxui::dim | ftxui::center,
-        });
-
         auto statusBar = ftxui::hbox({
             ftxui::text(" ♟ Username") | ftxui::dim,
             ftxui::filler(),
         });
 
         return ftxui::vbox({
-            title,
-            ftxui::separator(),
             buttons->Render() | ftxui::center | ftxui::flex,
             ftxui::separator(),
             statusBar,
@@ -81,5 +71,12 @@ void MainMenuScreen::onLeave() {
 
 }
 
+void MainMenuScreen::onResume() {
+
+}
+
+bool MainMenuScreen::onBackRequested() {
+    return false;
+}
 
 }

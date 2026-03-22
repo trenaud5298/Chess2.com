@@ -10,7 +10,7 @@
 #include <Chess/Server/UI/LogTab.hpp>
 #include <Chess/Core/UI/ScrollableTextWindow.hpp>
 #include <Chess/Server/Runtime/GameServer.hpp>
-#include <Chess/Server/Common/TimeFormat.hpp>
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/event.hpp>

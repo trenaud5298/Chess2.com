@@ -1,5 +1,6 @@
-#ifndef CHESS_CLIENT_UI_SINGLEPLAYERSCREEN_HPP
-#define CHESS_CLIENT_UI_SINGLEPLAYERSCREEN_HPP
+#ifndef CHESS_CLIENT_UI_MULTIPLAYERLOBBYSCREEN_HPP
+#define CHESS_CLIENT_UI_MULTIPLAYERLOBBYSCREEN_HPP
+
 
 /*
  * Chess
@@ -10,9 +11,7 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/ScreenInterface.hpp>
-#include <Chess/Core/Game/Board.hpp>
-#include <Chess/Core/UI/ChessBoardDisplay.hpp>
+#include <Chess/Client/UI/Screen/ScreenInterface.hpp>
 
 // ASIO Includes
 
@@ -20,28 +19,27 @@
 #include <ftxui/component/component.hpp>
 
 // C++ Includes
-
+#include <cstdint>
 
 namespace Chess {
 
 class ClientPanel;
 
-class SingleplayerScreen : public ScreenInterface {
+class MultiplayerLobbyScreen : public ScreenInterface {
 public:
-    explicit SingleplayerScreen(ClientPanel& clientPanel);
-    ~SingleplayerScreen();
+    explicit MultiplayerLobbyScreen(ClientPanel& clientPanel);
+    ~MultiplayerLobbyScreen();
     ftxui::Component getComponent() override;
     void onEnter() override;
     void onLeave() override;
+    void onResume() override;
+    bool onBackRequested() override;
 
 private:
-    ClientPanel& m_clientPanel;
+    ;
     ftxui::Component m_component;
-
-    static constexpr Screen SCREEN_TYPE = Screen::Singleplayer;
+    static constexpr Screen SCREEN_TYPE = Screen::Multiplayer_Lobby;
 };
 
 }
-
-
 #endif

@@ -11,7 +11,8 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/ScreenInterface.hpp>
+#include <Chess/Client/UI/Screen/ScreenInterface.hpp>
+#include <Chess/Client/UI/Modal/ModalInterface.hpp>
 
 // ASIO Includes
 
@@ -22,6 +23,7 @@
 #include <memory>
 #include <map>
 #include <stack>
+
 
 namespace Chess {
 
@@ -44,11 +46,20 @@ public:
     [[nodiscard]] bool canNavigateBack() const;
     [[nodiscard]] Screen currentScreen() const;
 
+    // Modal Controls
+    void pushModal(std::unique_ptr<ModalInterface> modal);
+    void popModal();
+    void popAllModals();
+    [[nodiscard]] bool hasModal() const;
+
     // Client Reference
-    [[nodiscard]] GameClient& gameClient() { return m_gameClient; };
-    [[nodiscard]] const GameClient& gameClient() const { return m_gameClient; };
+    [[nodiscard]] GameClient& gameClient() { return m_gameClient; }
+    [[nodiscard]] const GameClient& gameClient() const { return m_gameClient; }
+
 private:
     void setActiveScreen(Screen screen);
+
+    ftxui::Component buildMainComponent();
 
 private:
     // Game Client
@@ -65,6 +76,9 @@ private:
     std::stack<Screen> m_screenHistory;
     Screen m_selectedScreen{Screen::MainMenu};
     int m_selectedIndex{static_cast<int>(Screen::MainMenu)};
+
+    std::vector<std::unique_ptr<ModalInterface>> m_modalStack;
+    bool m_showModal{false};
 };
 
 

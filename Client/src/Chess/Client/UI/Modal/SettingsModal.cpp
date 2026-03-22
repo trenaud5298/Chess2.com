@@ -7,7 +7,7 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/SingleplayerScreen.hpp>
+#include <Chess/Client/UI/Modal/SettingsModal.hpp>
 #include <Chess/Client/UI/ClientPanel.hpp>
 
 // FTXUI Includes
@@ -18,35 +18,34 @@
 
 namespace Chess {
 
-SingleplayerScreen::SingleplayerScreen(ClientPanel& clientPanel)
-: m_clientPanel(clientPanel) {
+SettingsModal::SettingsModal(ClientPanel& clientPanel)
+: ModalInterface(clientPanel) {
     auto backButton = ftxui::Button("  Back  ", [&] {
-        m_clientPanel.navigateBack();
+        m_clientPanel.popModal();
     }, ftxui::ButtonOption::Animated());
 
     m_component = ftxui::Renderer(backButton, [&, backButton] {
         return ftxui::vbox({
             ftxui::filler(),
-            ftxui::text("Single Player") | ftxui::bold | ftxui::center,
+            ftxui::text("Settings") | ftxui::bold | ftxui::center,
             ftxui::text("Not yet implemented") | ftxui::dim | ftxui::center,
             ftxui::separatorEmpty(),
             backButton->Render() | ftxui::center,
             ftxui::filler(),
         });
     });
-
-
-
 }
 
-SingleplayerScreen::~SingleplayerScreen() {}
+SettingsModal::~SettingsModal() {}
 
-ftxui::Component SingleplayerScreen::getComponent() {
+ftxui::Component SettingsModal::getComponent() {
     return m_component;
 }
 
-void SingleplayerScreen::onEnter() {}
+void SettingsModal::onEnter() {}
 
-void SingleplayerScreen::onLeave() {}
+void SettingsModal::onLeave() {}
+
+void SettingsModal::onEscape() {}
 
 } // namespace Chess

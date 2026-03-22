@@ -7,8 +7,8 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Runtime/Persistence/LogFile.hpp>
-#include <Chess/Server/Runtime/GameServer.hpp>
+#include <Chess/Client/Runtime/Persistence/LogFile.hpp>
+#include <Chess/Client/Runtime/GameClient.hpp>
 #include <Chess/Core/Common/TimeFormat.hpp>
 
 // TOML Includes
@@ -40,8 +40,8 @@ inline std::string formatTimePointMilliseconds(const std::chrono::system_clock::
 
 namespace Chess {
 
-LogFile::LogFile(GameServer &gameServer) : m_gameServer(gameServer) {
-    std::filesystem::path logPath = std::filesystem::current_path() / "Server" / "logs" / formatTimePointSeconds(std::chrono::system_clock::now());
+LogFile::LogFile(GameClient &gameClient) : m_gameClient(gameClient) {
+    std::filesystem::path logPath = std::filesystem::current_path() / "Client" / "logs" / formatTimePointSeconds(std::chrono::system_clock::now());
     std::filesystem::create_directories(logPath.parent_path());
     m_file.open(logPath, std::ios::out | std::ios::app);
     if (!m_file.is_open()) { throw std::runtime_error("FATAL! Can not open Logging File");}
@@ -49,15 +49,15 @@ LogFile::LogFile(GameServer &gameServer) : m_gameServer(gameServer) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_file << "Start of Log\n";
 
-    m_handlerID = m_gameServer.loggingManager().addHandler(LogType::LOG_ALL, [this](const LogEntry& entry) {
-        std::string formatted = std::format("[{}][{}] {}", formatHHMMSS(m_gameServer.totalUptimeAtPoint(entry.timestamp)), logTypeAsString(entry.type), entry.message);
+    m_handlerID = m_gameClient.loggingManager().addHandler(LogType::LOG_ALL, [this](const LogEntry& entry) {
+        std::string formatted = std::format("[{}][{}] {}", formatHHMMSS(m_gameClient.uptimeAtPoint(entry.timestamp)), logTypeAsString(entry.type), entry.message);
         std::lock_guard<std::mutex> lock(m_mutex);
         m_file << formatted << std::endl;
     });
 }
 
 LogFile::~LogFile() {
-    m_gameServer.loggingManager().removeHandler(m_handlerID);
+    m_gameClient.loggingManager().removeHandler(m_handlerID);
     if (m_file.is_open()) {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_file << "End of Log\n";

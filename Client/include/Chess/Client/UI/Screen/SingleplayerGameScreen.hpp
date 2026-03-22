@@ -1,5 +1,6 @@
-#ifndef CHESS_CLIENT_UI_MAINMENUSCREEN_HPP
-#define CHESS_CLIENT_UI_MAINMENUSCREEN_HPP
+#ifndef CHESS_CLIENT_UI_SINGLEPLAYERGAMESCREEN_HPP
+#define CHESS_CLIENT_UI_SINGLEPLAYERGAMESCREEN_HPP
+
 
 /*
  * Chess
@@ -10,7 +11,7 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/ScreenInterface.hpp>
+#include <Chess/Client/UI/Screen/ScreenInterface.hpp>
 
 // ASIO Includes
 
@@ -18,27 +19,27 @@
 #include <ftxui/component/component.hpp>
 
 // C++ Includes
-
+#include <cstdint>
 
 namespace Chess {
 
 class ClientPanel;
 
-class MainMenuScreen : public ScreenInterface {
+class SingleplayerGameScreen : public ScreenInterface {
 public:
-    explicit MainMenuScreen(ClientPanel& clientPanel);
-    ~MainMenuScreen();
+    explicit SingleplayerGameScreen(ClientPanel& clientPanel);
+    ~SingleplayerGameScreen();
     ftxui::Component getComponent() override;
     void onEnter() override;
     void onLeave() override;
+    void onResume() override;
+    bool onBackRequested() override;
 
 private:
-    ClientPanel& m_clientPanel;
+    ;
     ftxui::Component m_component;
-    static constexpr Screen SCREEN_TYPE = Screen::MainMenu;
+    static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Game;
 };
 
 }
-
-
 #endif

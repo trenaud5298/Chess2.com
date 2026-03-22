@@ -10,12 +10,14 @@
  */
 
 // Chess Includes
+#include <Chess/Client/Common/ServerInfo.hpp>
 
 // C++ Includes
 #include <filesystem>
 #include <shared_mutex>
 #include <mutex>
 #include <utility>
+#include <vector>
 
 namespace Chess {
 
@@ -41,8 +43,6 @@ private:
 
 
 
-
-
 class Settings {
 
     template<typename>
@@ -59,19 +59,26 @@ public:
 
     struct General {
         Setting<std::string> username;
-        Setting<std::string> serverPassword;
 
         // Defaults
         General(Settings& owner)
-        : username(owner, "Chess Server"),
-        serverPassword(owner, "") {}
+        : username(owner, "Chess Server") {}
+
     }; General general;
 
+    struct Board {
+        Setting<std::uint8_t> boardScale;
+
+        Board(Settings& owner)
+        : boardScale(owner, 3) {}
+
+    }; Board board;
+
     struct Network {
-        Setting<std::uint16_t> port;
+        Setting<std::vector<ServerInfo>> servers;
 
         Network(Settings& owner)
-        : port(owner, 24377) {}
+        : servers(owner, {}) {}
     }; Network network;
 
 private:

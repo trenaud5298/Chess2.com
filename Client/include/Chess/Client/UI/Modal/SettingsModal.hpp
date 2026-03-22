@@ -1,5 +1,5 @@
-#ifndef CHESS_CLIENT_UI_SETTINGSSCREEN_HPP
-#define CHESS_CLIENT_UI_SETTINGSSCREEN_HPP
+#ifndef CHESS_CLIENT_UI_MODAL_SETTINGSMODAL_HPP
+#define CHESS_CLIENT_UI_MODAL_SETTINGSMODAL_HPP
 
 /*
  * Chess
@@ -10,12 +10,13 @@
  */
 
 // Chess Includes
-#include <Chess/Client/UI/ScreenInterface.hpp>
+#include <Chess/Client/UI/Modal/ModalInterface.hpp>
 
 // ASIO Includes
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
+
 
 // C++ Includes
 
@@ -24,18 +25,18 @@ namespace Chess {
 
 class ClientPanel;
 
-class SettingsScreen : public ScreenInterface {
+class SettingsModal : public ModalInterface {
 public:
-    explicit SettingsScreen(ClientPanel& clientPanel);
-    ~SettingsScreen();
-    ftxui::Component getComponent() override;
+    explicit SettingsModal(ClientPanel& panel);
+    virtual ~SettingsModal();
+
     void onEnter() override;
     void onLeave() override;
+    void onEscape() override;
 
+    [[nodiscard]] ftxui::Component getComponent() override;
 private:
-    ClientPanel& m_clientPanel;
     ftxui::Component m_component;
-    static constexpr Screen SCREEN_TYPE = Screen::Settings;
 };
 
 }

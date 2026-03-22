@@ -9,7 +9,7 @@
 // Chess Includes
 #include <Chess/Server/UI/StatusTab.hpp>
 #include <Chess/Server/Runtime/GameServer.hpp>
-#include <Chess/Server/Common/TimeFormat.hpp>
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // FTXUI Includes
 #include <ftxui/dom/elements.hpp>
