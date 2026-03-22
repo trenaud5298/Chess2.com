@@ -40,6 +40,9 @@ public:
     void run();
     void quit();
 
+    // Post Tick
+    void tick();
+
     // Screen Navigation
     void navigateTo(Screen screen);
     void navigateBack();

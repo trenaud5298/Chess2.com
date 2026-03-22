@@ -20,10 +20,14 @@
 
 // C++ Includes
 #include <cstdint>
+#include <chrono>
+#include <string>
+#include <thread>
 
 namespace Chess {
 
 class ClientPanel;
+class ChessBoardDisplay;
 
 class SingleplayerGameScreen : public ScreenInterface {
 public:
@@ -36,9 +40,19 @@ public:
     bool onBackRequested() override;
 
 private:
-    ;
+    ftxui::Component buildComponent();
+    void onTick();
+    ftxui::Element renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const;
+
+private:
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Game;
+
+    std::shared_ptr<ChessBoardDisplay> m_boardDisplay;
+    std::jthread m_tickThread;
+
+    bool m_resultTransitionDone{false};
+    static constexpr std::chrono::milliseconds TICK_INTERVAL = std::chrono::milliseconds{100};
 };
 
 }

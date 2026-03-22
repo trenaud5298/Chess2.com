@@ -35,7 +35,7 @@ public:
     void updateBoard(const std::array<ID, 64>& board);
     void setFlipped(bool flipped);
     void setCellSize(int width, int height);
-    std::function<void(Pos from, Pos to)> onMove;
+    std::function<void(ID from, Pos to)> onMove;
 
     ftxui::Element OnRender() override;
     bool OnEvent(ftxui::Event e) override;

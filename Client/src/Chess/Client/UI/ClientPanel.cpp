@@ -60,6 +60,10 @@ void ClientPanel::quit() {
     m_screen.ExitLoopClosure()();
 }
 
+void ClientPanel::tick() {
+    m_screen.PostEvent(TickEvent);
+}
+
 void ClientPanel::navigateTo(Screen screen) {
     if (screen == m_selectedScreen) { return; }
 
@@ -187,10 +191,6 @@ ftxui::Component ClientPanel::buildMainComponent() {
     auto modalLayout = ftxui::Modal(baseRenderer, modalProxy, &m_showModal);
 
     auto mainEventCatcher = ftxui::CatchEvent(modalLayout, [this](ftxui::Event event) {
-        if (event == TickEvent) {
-            return true;
-        }
-
         if (!hasModal() && event == ftxui::Event::Escape && canNavigateBack()) {
             navigateBack();
             return true;
