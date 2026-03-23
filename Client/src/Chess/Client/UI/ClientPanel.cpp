@@ -74,7 +74,9 @@ void ClientPanel::navigateTo(Screen screen) {
 
 void ClientPanel::navigateBack() {
     if (m_screenHistory.empty()) { return; }
-
+    if (m_screens[m_selectedScreen]->onBackRequested()) {
+        return;
+    }
     m_screens[m_selectedScreen]->onLeave();
     Screen previous = m_screenHistory.top();
     m_screenHistory.pop();

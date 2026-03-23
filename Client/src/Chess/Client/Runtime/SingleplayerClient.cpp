@@ -44,9 +44,9 @@ void SingleplayerClient::stop() {
 
 bool SingleplayerClient::tryMove(ID from, Pos to) {
     if (m_state != SingleplayerState::INGAME) { return false; }
-
     if (from==ID::EMPTY) { return false; }
     if (!isColor(from, m_currentTurn)) { return false; }
+    if (!m_board.isValidMove(from, to)) { return false; }
 
     m_board.move(from, to);
     advanceTurn();

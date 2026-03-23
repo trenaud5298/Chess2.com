@@ -111,7 +111,10 @@ namespace Chess {
     }
 
     Pos& Board::getPos(const ID& id) {
-        return m_pieceArr[((int) id)].position;
+        // I added a -1 here since ID starts at 1 instead
+        // of 0 creating a small issue of being off by one piece
+        // in the array
+        return m_pieceArr[((int)id)-1].position;
     }
 
     void Board::setIdAt(const Pos& pos, const ID& id){
@@ -123,12 +126,41 @@ namespace Chess {
     }
 
     void Board::move(const ID& id, const Pos& pos) {
-        int castedId = (int) id;
-        Pos old = pos;
+        // I was having issues with the move function and noticed an issue
+        // or two with an indexing mismatch.
+        // The IDs start at 1, but are used as an index
+        // into an array and this results in an off by one error.
+        // I have a temporary quick fix thing below for current demo.
+        // I also had to change getPos() for the same reason and noted it there as well
+        // int castedId = (int) id;
+        // Pos old = pos;
+        // m_pieceArr[castedId - 1].position = pos;
+        // setIdAt(pos, id);
+        // setIdAt(old, ID::EMPTY);
+
+        int castedId = (int)id - 1;
+        Pos old = m_pieceArr[castedId].position;
         m_pieceArr[castedId].position = pos;
         setIdAt(pos, id);
         setIdAt(old, ID::EMPTY);
     }
+
+    bool Board::isValidMove(const ID& id, const Pos& target) {
+        return true;
+    }
+
+    void Board::setTurn(bool isWhite) {
+        m_isWhiteTurn = isWhite;
+    }
+
+    bool Board::getTurn() const {
+        return m_isWhiteTurn;
+    }
+
+    void Board::nextTurn() {
+        m_isWhiteTurn = !m_isWhiteTurn;
+    }
+
 
     const std::array<ID, 64> &Board::getBoard() {
         return m_board;

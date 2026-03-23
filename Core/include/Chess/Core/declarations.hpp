@@ -25,7 +25,7 @@
 #define MAX_MOVES_QUEEN 27
 #define MAX_MOVES_KING 8
 #define MAX_PINNED 8
-#define MAX_MOVES (3 + 8 + 13 + 14 + 27 + 8)
+#define MAX_MOVES (8*MAX_MOVES_PAWN + 4*MAX_MOVES_KNIGHT + 4*MAX_MOVES_BISHOP + 4*MAX_MOVES_ROOK + 2*MAX_MOVES_QUEEN + 2*MAX_MOVES_KING)
 
 // Pos is {row, col} or {a-f(0-7), 0-7}
 using Pos = std::array<std::uint8_t, 2>;
@@ -52,6 +52,7 @@ enum class COLOR : std::uint8_t {
     BLACK = 2,
 };
 
+// Changed The Enum Ordering For Black To Match White
 enum class ID : std::uint8_t {
     EMPTY = 0,
     W_ROOK1 = 1,
@@ -70,14 +71,14 @@ enum class ID : std::uint8_t {
     W_PAWN6 = 14,
     W_PAWN7 = 15,
     W_PAWN8 = 16,
-    B_KNIGHT1 = 17,
-    B_KNIGHT2 = 18,
-    B_BISHOP1 = 19,
-    B_BISHOP2 = 20,
-    B_ROOK1 = 21,
-    B_ROOK2 = 22,
-    B_QUEEN = 23,
-    B_KING = 24,
+    B_ROOK1   = 17,
+    B_ROOK2   = 18,
+    B_KNIGHT1 = 19,
+    B_KNIGHT2 = 20,
+    B_BISHOP1 = 21,
+    B_BISHOP2 = 22,
+    B_QUEEN   = 23,
+    B_KING    = 24,
     B_PAWN1 = 25,
     B_PAWN2 = 26,
     B_PAWN3 = 27,

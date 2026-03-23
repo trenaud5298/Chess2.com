@@ -182,12 +182,9 @@ ftxui::Element ChessBoardDisplay::renderBoard() const {
 }
 
 ftxui::Element ChessBoardDisplay::OnRender() {
-    auto board = renderBoard() | ftxui::frame;
-    if (Focused()) {
-        board = board | ftxui::focus;
-    }
-    // reflect stores the element's screen bounding box for mouse hit-testing
-    return board | ftxui::reflect(m_box);
+    auto board = renderBoard() | ftxui::frame | ftxui::reflect(m_box);
+    if (Focused()) { board |= ftxui::focus; }
+    return board;
 }
 
 bool ChessBoardDisplay::OnEvent(ftxui::Event event) {

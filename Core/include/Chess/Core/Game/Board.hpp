@@ -19,7 +19,22 @@ namespace Chess {
             Pos& getPos(const ID& id);
 
             void move(const ID& id, const Pos& pos);
+
+            // Public Method Integration
+            // These Methods Are Called By The Singleplayer
+            // Client At The Correct Times.
+            // Call Order On Every Move Attempts:
+            /*
+             * if (isValidMove()) {
+             *     move();
+             *     nextTurn();
+             *
+             */
             const std::array<ID, 64>& getBoard();
+            bool isValidMove(const ID& id, const Pos& target);
+            void setTurn(bool isWhite);
+            bool getTurn() const;
+            void nextTurn();
         private:
             std::array<ID, 64> m_board;
             //Piece position is indexed at m_pieces[Piece-1]
