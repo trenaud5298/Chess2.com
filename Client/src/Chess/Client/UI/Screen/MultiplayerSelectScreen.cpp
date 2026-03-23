@@ -29,12 +29,6 @@ ftxui::Component MultiplayerSelectScreen::getComponent() {
     return m_component;
 }
 
-void MultiplayerSelectScreen::onEnter() {}
 
-void MultiplayerSelectScreen::onLeave() {}
-
-void MultiplayerSelectScreen::onResume() {}
-
-bool MultiplayerSelectScreen::onBackRequested() { return false; }
 
 } // namespace Chess

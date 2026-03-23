@@ -120,9 +120,4 @@ void SingleplayerSetupScreen::onEnter() {
     m_incrementIndex = 0;
 }
 
-void SingleplayerSetupScreen::onLeave() {}
-
-void SingleplayerSetupScreen::onResume() {}
-
-bool SingleplayerSetupScreen::onBackRequested() { return false; }
 } // namespace Chess

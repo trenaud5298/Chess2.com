@@ -34,10 +34,14 @@ public:
     explicit SingleplayerGameScreen(ClientPanel& clientPanel);
     ~SingleplayerGameScreen();
     ftxui::Component getComponent() override;
+
     void onEnter() override;
     void onLeave() override;
+
+    void onPause() override;
     void onResume() override;
-    bool onBackRequested() override;
+
+    void onLeaveRequest(std::function<void()> confirm) override;
 
 private:
     ftxui::Component buildComponent();

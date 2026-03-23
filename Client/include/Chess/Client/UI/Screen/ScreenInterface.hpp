@@ -67,11 +67,12 @@ public:
     virtual void onEnter() {}
     virtual void onLeave() {}
 
+    virtual void onPause() {}
     virtual void onResume() {}
 
-    // Return True When Back Handled And Modem Pushed
-    // Return False To Allow Back To Proceed
-    virtual bool onBackRequested() { return false; }
+    virtual void onLeaveRequest(std::function<void()> confirm) {
+        confirm();
+    }
 
     [[nodiscard]] virtual ftxui::Component getComponent() = 0;
 protected:

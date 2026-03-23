@@ -30,10 +30,7 @@ public:
     explicit MultiplayerGameScreen(ClientPanel& clientPanel);
     ~MultiplayerGameScreen();
     ftxui::Component getComponent() override;
-    void onEnter() override;
-    void onLeave() override;
-    void onResume() override;
-    bool onBackRequested() override;
+
 
 private:
     ;

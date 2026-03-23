@@ -38,7 +38,9 @@ struct GameResult {
 };
 
 enum class SingleplayerState {
+    IDLE,
     INGAME,
+    PAUSED,
     RESULT,
 };
 
@@ -57,6 +59,8 @@ public:
 
     void start(const SingleplayerConfig& config);
     void stop();
+    void pause();
+    void resume();
 
     bool tryMove(ID from, Pos to);
 
@@ -84,7 +88,7 @@ private:
 
 private:
     GameClient& m_gameClient;
-    SingleplayerState m_state{SingleplayerState::INGAME};
+    SingleplayerState m_state{SingleplayerState::IDLE};
     SingleplayerConfig m_config{};
 
     Board m_board;
@@ -94,6 +98,7 @@ private:
     std::chrono::milliseconds m_blackTime{0};
 
     std::chrono::steady_clock::time_point m_turnStart;
+    std::chrono::steady_clock::time_point m_pauseStart;
 
     GameResult m_result{COLOR::EMPTY, GameOverReason::RESIGN};
 };

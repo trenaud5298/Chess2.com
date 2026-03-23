@@ -63,20 +63,6 @@ ftxui::Component MainMenuScreen::getComponent() {
     return m_component;
 }
 
-void MainMenuScreen::onEnter() {
 
-}
-
-void MainMenuScreen::onLeave() {
-
-}
-
-void MainMenuScreen::onResume() {
-
-}
-
-bool MainMenuScreen::onBackRequested() {
-    return false;
-}
 
 }

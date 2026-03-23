@@ -66,21 +66,21 @@ void ClientPanel::tick() {
 
 void ClientPanel::navigateTo(Screen screen) {
     if (screen == m_selectedScreen) { return; }
-
-    m_screens[m_selectedScreen]->onLeave();
-    m_screenHistory.push(m_selectedScreen);
-    setActiveScreen(screen);
+    m_screens[m_selectedScreen]->onLeaveRequest([this, screen]() {
+        m_screens[m_selectedScreen]->onLeave();
+        m_screenHistory.push(m_selectedScreen);
+        setActiveScreen(screen);
+    });
 }
 
 void ClientPanel::navigateBack() {
     if (m_screenHistory.empty()) { return; }
-    if (m_screens[m_selectedScreen]->onBackRequested()) {
-        return;
-    }
-    m_screens[m_selectedScreen]->onLeave();
-    Screen previous = m_screenHistory.top();
-    m_screenHistory.pop();
-    setActiveScreen(previous);
+    m_screens[m_selectedScreen]->onLeaveRequest([this]() {
+        m_screens[m_selectedScreen]->onLeave();
+        Screen previous = m_screenHistory.top();
+        m_screenHistory.pop();
+        setActiveScreen(previous);
+    });
 }
 
 bool ClientPanel::canNavigateBack() const {
@@ -98,6 +98,7 @@ void ClientPanel::setActiveScreen(Screen screen) {
 }
 
 void ClientPanel::pushModal(std::unique_ptr<ModalInterface> modal) {
+    m_screens[m_selectedScreen]->onPause();
     modal->onEnter();
     m_modalStack.push_back(std::move(modal));
     m_showModal = true;

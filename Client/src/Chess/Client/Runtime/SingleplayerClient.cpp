@@ -39,7 +39,24 @@ void SingleplayerClient::start(const SingleplayerConfig& config) {
 }
 
 void SingleplayerClient::stop() {
+    m_state = SingleplayerState::IDLE;
+    m_board = Board{};
+    m_currentTurn = COLOR::WHITE;
+    m_whiteTime = std::chrono::milliseconds{0};
+    m_blackTime = std::chrono::milliseconds{0};
+}
 
+void SingleplayerClient::pause() {
+    if (m_state != SingleplayerState::INGAME) { return; }
+    m_pauseStart = std::chrono::steady_clock::now();
+    m_state = SingleplayerState::PAUSED;
+}
+
+void SingleplayerClient::resume() {
+    if (m_state != SingleplayerState::PAUSED) { return; }
+    auto pauseDuration = std::chrono::steady_clock::now() - m_pauseStart;
+    m_turnStart += pauseDuration;
+    m_state = SingleplayerState::INGAME;
 }
 
 bool SingleplayerClient::tryMove(ID from, Pos to) {
