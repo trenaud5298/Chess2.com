@@ -62,49 +62,79 @@ SingleplayerSetupScreen::SingleplayerSetupScreen(ClientPanel& clientPanel) : Scr
         m_clientPanel.navigateTo(Screen::Singleplayer_Game);
     }, ftxui::ButtonOption::Simple());
 
-    auto controls = ftxui::Container::Vertical({
+    auto optionMenus = ftxui::Container::Horizontal({
         colorRadio,
         timeRadio,
-        incrementRadio,
+        incrementRadio
+    });
+
+    auto layout = ftxui::Container::Vertical({
+        optionMenus,
         startButton,
     });
 
-    m_component = ftxui::Renderer(controls, [colorRadio, timeRadio, incrementRadio, startButton]() {
-        return ftxui::vbox({
-            ftxui::text("New Singleplayer Game") | ftxui::bold | ftxui::center,
-            ftxui::separator(),
-            ftxui::filler(),
 
-            ftxui::hbox({
-                ftxui::filler(),
-                ftxui::vbox({
-                    ftxui::text("Play as") | ftxui::bold,
-                    ftxui::separator(),
-                    colorRadio->Render(),
-                }) | ftxui::border | ftxui::flex,
-                ftxui::text("  "),
-                ftxui::vbox({
-                    ftxui::text("Time per side") | ftxui::bold,
-                    ftxui::separator(),
-                    timeRadio->Render(),
-                }) | ftxui::border | ftxui::flex,
-                 ftxui::text("  "),
-                ftxui::vbox({
-                    ftxui::text("Increment") | ftxui::bold,
-                    ftxui::separator(),
-                    incrementRadio->Render(),
-                }) | ftxui::border | ftxui::flex,
-                ftxui::filler(),
-            }) | ftxui::flex,
-            ftxui::filler(),
+    m_component = ftxui::Renderer(layout, [this, colorRadio, timeRadio, incrementRadio, startButton]() {
+        auto colorMenu = ftxui::vbox({
+            ftxui::text("Play as") | ftxui::bold,
             ftxui::separator(),
-            ftxui::hbox({
-                ftxui::filler(),
-                startButton->Render() | ftxui::bold,
-                ftxui::filler(),
+            colorRadio->Render(),
+        }) | ftxui::border | ftxui::flex;
+
+        auto timeMenu = ftxui::vbox({
+            ftxui::text("Time per side") | ftxui::bold,
+            ftxui::separator(),
+            timeRadio->Render(),
+        }) | ftxui::border | ftxui::flex;
+
+        auto incrementMenu = ftxui::vbox({
+            ftxui::text("Increment") | ftxui::bold,
+            ftxui::separator(),
+            incrementRadio->Render(),
+        }) | ftxui::border | ftxui::flex;
+
+        auto menus = ftxui::hbox({
+            colorMenu,
+            timeMenu,
+            incrementMenu
+        });
+
+        COLOR col;
+        switch (m_colorIndex) {
+            case 0: col = COLOR::WHITE; break;
+            case 1: col = COLOR::BLACK; break;
+            case 2: col = (std::rand() % 2 == 0) ? COLOR::WHITE : COLOR::BLACK; break;
+            default: col = COLOR::WHITE; break;
+        }
+
+        auto debugInfo = ftxui::hbox({
+            ftxui::filler(),
+            ftxui::vbox({
+                ftxui::text("Color Index: " + std::to_string(m_colorIndex)),
+                ftxui::text("Color Value: " + std::to_string((int)col))
             }),
             ftxui::filler(),
+            ftxui::vbox({
+                ftxui::text("Time Index: " + std::to_string(m_timeIndex)),
+                ftxui::text("Time Value: " + std::to_string(TIME_VALUES[m_timeIndex].count()) + " s")
+            }),
+            ftxui::filler(),
+            ftxui::vbox({
+                ftxui::text("Increment Index: " + std::to_string(m_incrementIndex)),
+                ftxui::text("Increment Value: " + std::to_string(INCREMENT_VALUES[m_incrementIndex].count()) + " s"),
+            }),
+            ftxui::filler()
         });
+
+        return ftxui::vbox({
+            ftxui::filler(),
+            menus,
+            ftxui::filler(),
+            startButton->Render() | ftxui::center,
+            ftxui::filler(),
+            debugInfo,
+            ftxui::filler()
+        }) | ftxui::frame;
     });
 }
 

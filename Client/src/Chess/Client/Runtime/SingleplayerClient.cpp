@@ -31,6 +31,7 @@ void SingleplayerClient::start(const SingleplayerConfig& config) {
     m_board = Board{};
     m_currentTurn = COLOR::WHITE;
     m_state = SingleplayerState::INGAME;
+    m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
 
     m_whiteTime = std::chrono::duration_cast<std::chrono::milliseconds>(config.timePerSide);
     m_blackTime = std::chrono::duration_cast<std::chrono::milliseconds>(config.timePerSide);
@@ -39,6 +40,7 @@ void SingleplayerClient::start(const SingleplayerConfig& config) {
 }
 
 void SingleplayerClient::stop() {
+    if (m_state == SingleplayerState::IDLE) { return; }
     m_state = SingleplayerState::IDLE;
     m_board = Board{};
     m_currentTurn = COLOR::WHITE;

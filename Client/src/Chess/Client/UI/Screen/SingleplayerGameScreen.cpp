@@ -55,14 +55,12 @@ void SingleplayerGameScreen::onEnter() {
 
 void SingleplayerGameScreen::onLeave() {
     m_tickThread.request_stop();
-    m_tickThread.join();
-    m_clientPanel.gameClient().singleplayerClient().stop();
+    m_clientPanel.gameClient().stopSingleplayer();
 }
 
 void SingleplayerGameScreen::onPause() {
     m_clientPanel.gameClient().singleplayerClient().pause();
     m_tickThread.request_stop();
-    m_tickThread.join();
 }
 
 void SingleplayerGameScreen::onResume() {
