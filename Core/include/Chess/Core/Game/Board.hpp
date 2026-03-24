@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <array>
+#include <complex.h>
 #include <set>
 
 
@@ -35,6 +36,9 @@ namespace Chess {
             void setTurn(bool isWhite);
             bool getTurn() const;
             void nextTurn();
+
+            std::ios &(* isValidMove())(std::ios &);
+
         private:
             std::array<ID, 64> m_board;
             //Piece position is indexed at m_pieces[Piece-1]

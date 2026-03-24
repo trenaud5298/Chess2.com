@@ -58,6 +58,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)
 # Server Executable
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Server)
 
+# Test Client Exe
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/TestClient)
+
 #--------------------------------------------------------------------
 # Packaging
 #--------------------------------------------------------------------

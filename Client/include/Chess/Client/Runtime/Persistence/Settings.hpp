@@ -12,6 +12,9 @@
 // Chess Includes
 #include <Chess/Client/Common/ServerInfo.hpp>
 
+// TOML Includes
+#include <toml++/toml.hpp>
+
 // C++ Includes
 #include <filesystem>
 #include <shared_mutex>
@@ -81,6 +84,9 @@ public:
         : servers(owner, {}) {}
     }; Network network;
 
+    void setAllSettings(General& generala, Board& board, Network& network);
+    std::tuple<General, Board, Network> getAllSettings();
+
 private:
     void load();
     void save();
@@ -88,6 +94,11 @@ private:
 private:
     std::filesystem::path m_path;
     mutable std::shared_mutex m_mutex;
+
+    toml::table m_table;
+    toml::table m_generalTable;
+    toml::table m_boardTable;
+    toml::table m_networkTable;
 };
 
 

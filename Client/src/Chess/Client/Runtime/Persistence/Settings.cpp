@@ -16,12 +16,27 @@
 #include <fstream>
 #include <iostream>
 #include <utility>
+#include <Chess/Core/Game/Board.hpp>
 
 namespace Chess {
 
 Settings::Settings() : general(*this), board(*this), network(*this), m_path(std::filesystem::current_path() / "Client" / "Settings.toml") {
     load();
     save();
+}
+
+void Settings::setAllSettings(General& general, Board& board, Network& network) {
+    std::unique_lock lock(m_mutex);
+    // Need to implement (Maybe a slight redesign of settings is needed)
+    // Ideas:
+    // Settings Can Store The Toml Table Of All Settings On Construction
+    // Each Settings Value Somehow Needs To Be Seperate
+    // Structs Can Be Passed To Update Multiple Settings Values
+    // At Once
+}
+
+std::tuple<Settings::General, Settings::Board, Settings::Network> Settings::getAllSettings() {
+    return { general, board, network };
 }
 
 void Settings::load() {
@@ -88,7 +103,6 @@ void Settings::save() {
             {"password", server.password},
         });
     }
-    // Assuming you build a toml::table per category:
     networkTable.insert("servers", std::move(serverArray));
 
     table.insert_or_assign("Network", std::move(networkTable));
