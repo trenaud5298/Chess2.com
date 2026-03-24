@@ -146,7 +146,21 @@ namespace Chess {
     }
 
     bool Board::isValidMove(const ID& id, const Pos& target) {
-        return true;
+        const int castedId = (int)id -1,
+                  idx = m_pieceArr[castedId].movesIdx;
+        if( idx == 0 ) 
+            return false;
+
+        const int offset = m_moveOffset[castedId];
+        bool flag = false;
+        Pos temp;
+        
+        for(int i = 0; i < idx; i++) {
+            temp = m_moves[offset + i];
+            if( temp[ROW] == target[ROW] && temp[COL] == target[COL]  )
+                flag = true;
+        }
+        return flag;
     }
 
     void Board::setTurn(bool isWhite) {
@@ -228,7 +242,7 @@ namespace Chess {
 
     void Board::setMoveAt(const ID& id, const Pos& pos, const int& i) {
         const int castedId = (int) id-1,
-              idx = m_moveOffset[castedId] + i - 1;
+              idx = m_moveOffset[castedId] + i;
         m_moves[idx] = pos;
     }
 
