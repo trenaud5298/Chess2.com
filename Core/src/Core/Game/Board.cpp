@@ -87,7 +87,7 @@ namespace Chess {
                 std::pair(-1,-1),
                 })
         {
-            m_moveOffset[0] = m_pieceArr[0].reserved;
+            m_moveOffset[0] = 0;
             for(int i = 1; i < m_pieceArr.size(); i++) {
                 m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
             }
@@ -242,7 +242,7 @@ namespace Chess {
 
     void Board::setMoveAt(const ID& id, const Pos& pos, const int& i) {
         const int castedId = (int) id-1,
-              idx = m_moveOffset[castedId] + i;
+              idx = m_moveOffset[castedId] + i -1;
         m_moves[idx] = pos;
     }
 
@@ -654,8 +654,8 @@ namespace Chess {
                 y = -y;
             }
             temp = {castHelper(initial[ROW], x), castHelper(initial[COL], y)};
-            tempColor = getColor(getIdAt(temp));
             if( isInBoard(temp) ) {
+                tempColor = getColor(getIdAt(temp));
                 if( color != tempColor ) {
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
@@ -666,6 +666,7 @@ namespace Chess {
             }
             temp = {castHelper(initial[ROW], y), castHelper(initial[COL], x)};
             if( isInBoard(temp) ) {
+                tempColor = getColor(getIdAt(temp));
                 if( color != tempColor ) {
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
@@ -687,9 +688,9 @@ namespace Chess {
 
         for(const std::pair<int,int>& mod : m_mods) {
             temp = {castHelper(initial[ROW], mod.first), castHelper(initial[COL], mod.second)};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
             if( isInBoard(temp) ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
                 if( color != tempColor ) {
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
@@ -719,9 +720,9 @@ namespace Chess {
         }
         if( initial[ROW] == pawnRow) {
             temp = {castHelper(initial[ROW], 2*m_pawnMods[0].first), initial[COL]};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
             if( isInBoard(temp) ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
                 if( color == COLOR::EMPTY ) {
                     setMoveAt(initialId, temp, i);
                     i++;
@@ -729,18 +730,18 @@ namespace Chess {
             }
         }
         temp = {castHelper(initial[ROW], m_pawnMods[0].first), initial[COL]};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
         if( isInBoard(temp) ) {
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
             if( color == COLOR::EMPTY ) {
                 setMoveAt(initialId, temp, i);
                 i++;
             }
         }
         temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
         if( isInBoard(temp) ) {
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
             if( color != tempColor ) {
                 setAttackedAt(temp);
                 setMoveAt(initialId, temp, i);
@@ -750,9 +751,9 @@ namespace Chess {
             }
         }
         temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
         if( isInBoard(temp) ) {
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
             if( color != tempColor ) {
                 setAttackedAt(temp);
                 setMoveAt(initialId, temp, i);
@@ -768,7 +769,7 @@ namespace Chess {
         addCardinalMoves(getPos(W_ROOK1));
         addDiagonalMoves(getPos(W_BISHOP1));
         addDiagonalMoves(getPos(W_BISHOP2));
-        addKnightMoves(getPos(W_KNIGHT1));
+        addKnightMoves(getPos(W_KNIGHT1)); 
         addKnightMoves(getPos(W_KNIGHT2));
         addKingMoves(getPos(W_KING));
         addQueenMoves(getPos(W_QUEEN));
@@ -791,6 +792,7 @@ namespace Chess {
         addKingMoves(getPos(B_KING));
         addQueenMoves(getPos(B_QUEEN));
 
+        //std::cout << "HERE" << std::endl;
         addPawnMoves(getPos(B_PAWN1));
         addPawnMoves(getPos(B_PAWN2));
         addPawnMoves(getPos(B_PAWN3));
@@ -865,4 +867,12 @@ namespace Chess {
                 str.append(U"\n-----------------\n");
         }
         std::cout << std::string(str.begin(), str.end()) << std::endl; }
+
+    void Board::printMoveOffset() {
+        for(int n : m_moveOffset) {
+            std::cout << n << '\n';
+            std::cout << std::endl;
+        }
+    }
+
 }

@@ -4,6 +4,7 @@
 
 int main() {
     Chess::Board board;
-    std::cout<<board.isValidMove(ID::B_KING, Pos{0,0})<<std::endl;
+    //board.printMoveOffset();
+    board.genMoves();
     return 0;
 }

@@ -18,14 +18,14 @@
 #define WHITE_PAWN_ROW 1
 #define BLACK_PAWN_ROW 6
 
-#define MAX_MOVES_PAWN 3
+#define MAX_MOVES_PAWN 5 // five possible: up 2, up 1, 2 diagonals, and an en passant
 #define MAX_MOVES_KNIGHT 8
 #define MAX_MOVES_BISHOP 13
 #define MAX_MOVES_ROOK 14
 #define MAX_MOVES_QUEEN 27
 #define MAX_MOVES_KING 8
 #define MAX_PINNED 8
-#define MAX_MOVES (8*MAX_MOVES_PAWN + 4*MAX_MOVES_KNIGHT + 4*MAX_MOVES_BISHOP + 4*MAX_MOVES_ROOK + 2*MAX_MOVES_QUEEN + 2*MAX_MOVES_KING)
+#define MAX_MOVES (16*MAX_MOVES_PAWN + 4*MAX_MOVES_KNIGHT + 4*MAX_MOVES_BISHOP + 4*MAX_MOVES_ROOK + 2*MAX_MOVES_QUEEN + 2*MAX_MOVES_KING)
 
 // Pos is {row, col} or {a-f(0-7), 0-7}
 using Pos = std::array<std::uint8_t, 2>;

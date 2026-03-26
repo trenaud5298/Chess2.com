@@ -36,8 +36,12 @@ namespace Chess {
             void setTurn(bool isWhite);
             bool getTurn() const;
             void nextTurn();
+            void genMoves();
 
             std::ios &(* isValidMove())(std::ios &);
+
+            // Testing functions
+            void printMoveOffset();
 
         private:
             std::array<ID, 64> m_board;
@@ -95,10 +99,10 @@ namespace Chess {
             void addKingMoves(const Pos& initial);
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
-            void genMoves();
 
             char32_t getGlyph(const ID& id);
             void displayBoard();
+
     };
 }
 #endif
