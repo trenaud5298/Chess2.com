@@ -67,7 +67,7 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         }),
-        m_moves({8,8}),
+        m_moves(),
         m_moveOffset({0}),
         m_defended(64, false),
         m_attackedWhite(64, false),
@@ -95,6 +95,7 @@ namespace Chess {
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
+            m_moves.fill({8,8});
         }
 
     Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieceArr(pieces) {}
@@ -242,7 +243,7 @@ namespace Chess {
 
     void Board::setMoveAt(const ID& id, const Pos& pos, const int& i) {
         const int castedId = (int) id-1,
-              idx = m_moveOffset[castedId] + i -1;
+              idx = m_moveOffset[castedId] + i;
         m_moves[idx] = pos;
     }
 
@@ -659,6 +660,7 @@ namespace Chess {
                 if( color != tempColor ) {
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
+                    std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
                     i++;
                 } else {
                     setDefendedAt(temp);
@@ -767,12 +769,12 @@ namespace Chess {
     void Board::genMoves() {
         addCardinalMoves(getPos(W_ROOK1));
         addCardinalMoves(getPos(W_ROOK1));
-        addDiagonalMoves(getPos(W_BISHOP1));
-        addDiagonalMoves(getPos(W_BISHOP2));
         addKnightMoves(getPos(W_KNIGHT1)); 
         addKnightMoves(getPos(W_KNIGHT2));
-        addKingMoves(getPos(W_KING));
+        addDiagonalMoves(getPos(W_BISHOP1));
+        addDiagonalMoves(getPos(W_BISHOP2));
         addQueenMoves(getPos(W_QUEEN));
+        addKingMoves(getPos(W_KING));
 
         addPawnMoves(getPos(W_PAWN1));
         addPawnMoves(getPos(W_PAWN2));
@@ -785,14 +787,13 @@ namespace Chess {
 
         addCardinalMoves(getPos(B_ROOK2));
         addCardinalMoves(getPos(B_ROOK2));
-        addDiagonalMoves(getPos(B_BISHOP1));
-        addDiagonalMoves(getPos(B_BISHOP2));
         addKnightMoves(getPos(B_KNIGHT1));
         addKnightMoves(getPos(B_KNIGHT2));
-        addKingMoves(getPos(B_KING));
+        addDiagonalMoves(getPos(B_BISHOP1));
+        addDiagonalMoves(getPos(B_BISHOP2));
         addQueenMoves(getPos(B_QUEEN));
+        addKingMoves(getPos(B_KING));
 
-        //std::cout << "HERE" << std::endl;
         addPawnMoves(getPos(B_PAWN1));
         addPawnMoves(getPos(B_PAWN2));
         addPawnMoves(getPos(B_PAWN3));
@@ -868,11 +869,33 @@ namespace Chess {
         }
         std::cout << std::string(str.begin(), str.end()) << std::endl; }
 
+    /*-------------------Testing Functions-------------------*/
     void Board::printMoveOffset() {
         for(int n : m_moveOffset) {
             std::cout << n << '\n';
             std::cout << std::endl;
         }
     }
+
+    /*
+    std::string idToString(const ID& id) {
+        
+    }
+    */
+
+    void Board::printMoves() {
+        int offsetIdx = 0;
+        for(int i = 0; i <  m_moves.size(); i++) {
+            if( i == m_moveOffset[offsetIdx] ) {
+                std::cout << (int) static_cast<ID>(offsetIdx+1) << '\n';
+                offsetIdx++;
+            }
+            for(const int n : m_moves[i]) {
+                std::cout << n << ' ';
+            }
+            std::cout << '\n';
+        }
+    }
+    
 
 }

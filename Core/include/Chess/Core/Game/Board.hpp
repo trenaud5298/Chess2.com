@@ -42,6 +42,7 @@ namespace Chess {
 
             // Testing functions
             void printMoveOffset();
+            void printMoves();
 
         private:
             std::array<ID, 64> m_board;

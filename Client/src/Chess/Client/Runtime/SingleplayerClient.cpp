@@ -29,6 +29,9 @@ SingleplayerClient::~SingleplayerClient() {
 void SingleplayerClient::start(const SingleplayerConfig& config) {
     m_config = config;
     m_board = Board{};
+    m_board.genMoves();
+    // idea is to put genPinned, genChecked in here and then pop moves from Board::m_moves
+    //      to according to the pinned and checked move with something like Board::validateMoves()
     m_currentTurn = COLOR::WHITE;
     m_state = SingleplayerState::INGAME;
     m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
@@ -128,6 +131,10 @@ void SingleplayerClient::advanceTurn() {
 
     if (m_whiteTime < std::chrono::milliseconds{0}) { m_whiteTime = std::chrono::milliseconds{0}; }
     if (m_blackTime < std::chrono::milliseconds{0}) { m_blackTime = std::chrono::milliseconds{0}; }
+
+    m_board.genMoves();
+    // idea is to put genPinned, genChecked in here and then pop moves from Board::m_moves
+    //      to according to the pinned and checked moves with something like Board::validateMoves()
 
     m_turnStart = std::chrono::steady_clock::now();
 }

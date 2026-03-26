@@ -6,5 +6,6 @@ int main() {
     Chess::Board board;
     //board.printMoveOffset();
     board.genMoves();
+    board.printMoves();
     return 0;
 }
