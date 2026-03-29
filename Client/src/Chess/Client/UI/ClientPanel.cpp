@@ -44,12 +44,18 @@ ClientPanel::ClientPanel(GameClient& gameClient) : m_gameClient(gameClient), m_s
     m_screens[Screen::Multiplayer_Game] = std::make_unique<MultiplayerGameScreen>(*this);
     m_screens[Screen::Multiplayer_Result] = std::make_unique<MultiplayerResultScreen>(*this);
 
-
     m_mainComponent = buildMainComponent();
+
+    m_screens[m_selectedScreen]->onEnter();
+
+    m_tickRunning = true;
+    m_tickThread = std::thread(&ClientPanel::tickLoop, this);
 }
 
 ClientPanel::~ClientPanel() {
-
+    m_tickRunning = false;
+    m_tickCondition.notify_one();
+    if (m_tickThread.joinable()) { m_tickThread.join(); }
 }
 
 void ClientPanel::run() {
@@ -60,8 +66,17 @@ void ClientPanel::quit() {
     m_screen.ExitLoopClosure()();
 }
 
-void ClientPanel::tick() {
-    m_screen.PostEvent(TickEvent);
+void ClientPanel::setTickRate(std::optional<std::chrono::milliseconds> rate) {
+    // Enforce Minimum Tick Interval (>=1ms)
+    if (rate && *rate <= std::chrono::milliseconds::zero()) {
+        rate = std::chrono::milliseconds{1};
+    }
+    {
+        std::lock_guard lock(m_tickMutex);
+        m_tickRate = rate;
+        ++m_tickRevision;
+    }
+    m_tickCondition.notify_one();
 }
 
 void ClientPanel::navigateTo(Screen screen) {
@@ -73,6 +88,15 @@ void ClientPanel::navigateTo(Screen screen) {
     });
 }
 
+void ClientPanel::resetTo(Screen screen) {
+    if (screen == m_selectedScreen) { return; }
+    m_screens[m_selectedScreen]->onLeaveRequest([this, screen]() {
+        m_screens[m_selectedScreen]->onLeave();
+        setActiveScreen(screen);
+        m_screenHistory = {}; //Clears History
+    });
+}
+
 void ClientPanel::navigateBack() {
     if (m_screenHistory.empty()) { return; }
     m_screens[m_selectedScreen]->onLeaveRequest([this]() {
@@ -81,6 +105,28 @@ void ClientPanel::navigateBack() {
         m_screenHistory.pop();
         setActiveScreen(previous);
     });
+}
+
+void ClientPanel::navigateToForce(Screen screen) {
+    if (screen == m_selectedScreen) { return; }
+    m_screens[m_selectedScreen]->onLeave();
+    m_screenHistory.push(m_selectedScreen);
+    setActiveScreen(screen);
+}
+
+void ClientPanel::resetToForce(Screen screen) {
+    if (screen == m_selectedScreen) { return; }
+    m_screens[m_selectedScreen]->onLeave();
+    setActiveScreen(screen);
+    m_screenHistory = {}; //Clears History
+}
+
+void ClientPanel::navigateBackForce() {
+    if (m_screenHistory.empty()) { return; }
+    m_screens[m_selectedScreen]->onLeave();
+    Screen previous = m_screenHistory.top();
+    m_screenHistory.pop();
+    setActiveScreen(previous);
 }
 
 bool ClientPanel::canNavigateBack() const {
@@ -108,6 +154,7 @@ void ClientPanel::popModal() {
     if (m_modalStack.empty()) { return; }
 
     m_modalStack.back()->onLeave();
+    m_modalGraveyard.push_back(std::move(m_modalStack.back()));
     m_modalStack.pop_back();
 
     if (m_modalStack.empty()) {
@@ -121,6 +168,7 @@ void ClientPanel::popAllModals() {
 
     while (!m_modalStack.empty()) {
         m_modalStack.back()->onLeave();
+        m_modalGraveyard.push_back(std::move(m_modalStack.back()));
         m_modalStack.pop_back();
     }
     m_showModal = false;
@@ -194,11 +242,17 @@ ftxui::Component ClientPanel::buildMainComponent() {
     auto modalLayout = ftxui::Modal(baseRenderer, modalProxy, &m_showModal);
 
     auto mainEventCatcher = ftxui::CatchEvent(modalLayout, [this](ftxui::Event event) {
-        if (!hasModal() && event == ftxui::Event::Escape && canNavigateBack()) {
-            navigateBack();
+        if (event == TickEvent) {
+            onTick();
+            m_modalGraveyard.clear();
             return true;
         }
-
+        if (!hasModal() && event == ftxui::Event::Escape && canNavigateBack()) {
+            navigateBack();
+            m_modalGraveyard.clear();
+            return true;
+        }
+        m_modalGraveyard.clear();
         return false;
     });
 
@@ -207,4 +261,43 @@ ftxui::Component ClientPanel::buildMainComponent() {
     });
 }
 
+void ClientPanel::tickLoop() {
+    std::unique_lock lock(m_tickMutex);
+    while (m_tickRunning) {
+        m_tickCondition.wait(lock, [this]() {
+            return !m_tickRunning || m_tickRate.has_value();
+        });
+
+        if (!m_tickRunning) {
+            break;
+        }
+
+        std::chrono::milliseconds interval = *m_tickRate;
+        std::uint64_t revision = m_tickRevision;
+
+        bool interrupted = m_tickCondition.wait_for(lock, interval, [this, revision]() {
+            return !m_tickRunning || !m_tickRate.has_value() || m_tickRevision != revision;
+        });
+
+        if (!m_tickRunning) {
+            break;
+        }
+
+        if (interrupted) {
+            continue;
+        }
+
+        lock.unlock();
+        m_screen.PostEvent(TickEvent);
+        lock.lock();
+    }
+}
+
+void ClientPanel::onTick() {
+    if (hasModal()) {
+        m_modalStack.back()->onTick();
+    } else {
+        m_screens[m_selectedScreen]->onTick();
+    }
+}
 }

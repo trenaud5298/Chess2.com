@@ -22,15 +22,13 @@ namespace Chess {
 ConfirmModal::ConfirmModal(ClientPanel& clientPanel, std::string message, std::function<void()> onConfirm, std::function<void()> onCancel)
 : ModalInterface(clientPanel), m_message(std::move(message)), m_onConfirm(std::move(onConfirm)), m_onCancel(std::move(onCancel)) {
     auto yesButton = ftxui::Button("  Yes  ", [this]() {
-        auto confirm = m_onConfirm;
         m_clientPanel.popModal();
-        if (confirm) { confirm(); }
+        if (m_onConfirm) { m_onConfirm(); }
     }, ftxui::ButtonOption::Simple());
 
     auto noButton = ftxui::Button("  No   ", [this]() {
-        auto cancel = m_onCancel;
         m_clientPanel.popModal();
-        if (cancel) { cancel(); }
+        if (m_onCancel) { m_onCancel(); }
     }, ftxui::ButtonOption::Simple());
 
     m_buttons = ftxui::Container::Horizontal({ yesButton, noButton });

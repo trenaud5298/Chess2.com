@@ -26,14 +26,53 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <expected>
 
 namespace Chess {
 
 
-enum class ClientState {
-    IDLE,
-    SINGLEPLAYER,
-    MULTIPLAYER
+enum class ClientMode {
+    Idle,
+    Singleplayer,
+    Multiplayer
+};
+
+enum class ClientPhase {
+    Idle,
+    Starting,
+    Active,
+    Paused,
+    Stopping,
+    Error
+};
+
+struct ClientStatus {
+    ClientMode mode{ClientMode::Idle};
+    ClientPhase phase{ClientPhase::Idle};
+    std::string message;
+};
+
+enum class ClientError {
+    None,
+    InvalidState,
+    StartupFailed,
+    ShutdownFailed,
+    NetworkError
+};
+
+struct ClientCommandResult {
+    bool ok{false};
+    ClientError error{ClientError::None};
+    std::string message;
+
+    operator bool() const {return ok;}
+
+    static ClientCommandResult Success() {
+        return {true, ClientError::None, ""};
+    }
+    static ClientCommandResult Failure(ClientError error, std::string message) {
+        return {false, error, std::move(message)};
+    }
 };
 
 class GameClient {
@@ -49,10 +88,10 @@ public:
     // Subsystems
     LoggingManager& loggingManager() {return m_loggingManager;}
     PersistenceManager& persistenceManager() {return m_persistenceManager;}
-    CallbackRegistry<ClientState>& callbackRegistry() {return m_stateRegistry;}
+    CallbackRegistry<ClientMode>& callbackRegistry() {return m_stateRegistry;}
     [[nodiscard]] const LoggingManager& loggingManager() const {return m_loggingManager;}
     [[nodiscard]] const PersistenceManager& persistenceManager() const {return m_persistenceManager;}
-    [[nodiscard]] const CallbackRegistry<ClientState>& callbackRegistry() const {return m_stateRegistry;}
+    [[nodiscard]] const CallbackRegistry<ClientMode>& callbackRegistry() const {return m_stateRegistry;}
 
     // Singleplayer/Multiplayer Accessors (Undefined When Called On Mismatch State)
     MultiplayerClient&  multiplayerClient() {return m_multiplayerClient;}
@@ -63,7 +102,8 @@ public:
     // Other Accessors
     [[nodiscard]] asio::io_context& ioContext() {return m_context;}
     [[nodiscard]] const asio::io_context& ioContext() const {return m_context;}
-    [[nodiscard]] ClientState state() const {return m_state;}
+    [[nodiscard]] ClientMode mode() const {return m_mode;}
+    [[nodiscard]] ClientPhase phase() const {return m_phase;}
 
     // Client Level Stats
     [[nodiscard]] std::chrono::steady_clock::time_point startTime() const;
@@ -72,26 +112,30 @@ public:
     [[nodiscard]] std::chrono::milliseconds uptimeAtPoint(std::chrono::steady_clock::time_point point) const;
 
     // GameClient Controls
-    void startSingleplayer(const SingleplayerConfig& config);
-    void stopSingleplayer();
+    ClientCommandResult startSingleplayer(const SingleplayerConfig& config);
+    ClientCommandResult stopSingleplayer();
 
-    void startMultiplayer(const ServerInfo& server);
-    void stopMultiplayer();
+    ClientCommandResult startMultiplayer(const ServerInfo& server);
+    ClientCommandResult stopMultiplayer();
 
 private:
     void onMultiplayerStopped();
-    void transitionTo(ClientState newState);
+
+    void transitionTo(ClientMode newMode);
+    void transitionTo(ClientPhase newPhase);
 
 private:
     // Core Client System
     asio::io_context m_context;
     std::chrono::steady_clock::time_point m_startTime;
-    std::atomic<ClientState> m_state{ClientState::IDLE};
+    std::atomic<ClientMode> m_mode{ClientMode::Idle};
+    std::atomic<ClientPhase> m_phase{ClientPhase::Idle};
 
     // Subsystems
     LoggingManager m_loggingManager;
     PersistenceManager m_persistenceManager;
-    CallbackRegistry<ClientState> m_stateRegistry;
+    CallbackRegistry<ClientMode> m_stateRegistry;
+    CallbackRegistry<ClientPhase> m_phaseRegistry;
 
     // Singleplayer & Multiplayer Clients
     SingleplayerClient m_singleplayerClient;

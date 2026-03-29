@@ -12,6 +12,7 @@
 
 // Chess Includes
 #include <Chess/Client/UI/Screen/ScreenInterface.hpp>
+#include <Chess/Client/Runtime/Callback/CallbackRegistry.hpp>
 
 // ASIO Includes
 
@@ -22,12 +23,13 @@
 #include <cstdint>
 #include <chrono>
 #include <string>
-#include <thread>
+
 
 namespace Chess {
 
 class ClientPanel;
 class ChessBoardDisplay;
+class GameResult;
 
 class SingleplayerGameScreen : public ScreenInterface {
 public:
@@ -41,22 +43,22 @@ public:
     void onPause() override;
     void onResume() override;
 
-    void onLeaveRequest(std::function<void()> confirm) override;
+    void onTick() override;
+
+    void onLeaveRequest(const std::function<void()>& confirm) override;
 
 private:
     ftxui::Component buildComponent();
-    void onTick();
     ftxui::Element renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const;
-
+    void onResult(const GameResult& result);
 private:
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Game;
 
     std::shared_ptr<ChessBoardDisplay> m_boardDisplay;
-    std::jthread m_tickThread;
 
-    bool m_resultTransitionDone{false};
-    static constexpr std::chrono::milliseconds TICK_INTERVAL = std::chrono::milliseconds{100};
+    SubscriptionID m_resultSubscription{0};
+    bool m_resultModalShown{false};
 };
 
 }

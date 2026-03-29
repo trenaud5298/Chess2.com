@@ -14,102 +14,128 @@
 
 // C++ Includes
 #include <fstream>
-#include <iostream>
 #include <utility>
-#include <Chess/Core/Game/Board.hpp>
 
 namespace Chess {
 
-Settings::Settings() : general(*this), board(*this), network(*this), m_path(std::filesystem::current_path() / "Client" / "Settings.toml") {
+Settings::Settings() : m_path(std::filesystem::current_path() / "Client" / "Settings.toml"),
+m_table(makeDefaultTable()), m_generalTable(*m_table["General"].as_table()), m_displayTable(*m_table["Display"].as_table()), m_networkTable(*m_table["Network"].as_table()){
     load();
     save();
 }
 
-void Settings::setAllSettings(General& general, Board& board, Network& network) {
-    std::unique_lock lock(m_mutex);
-    // Need to implement (Maybe a slight redesign of settings is needed)
-    // Ideas:
-    // Settings Can Store The Toml Table Of All Settings On Construction
-    // Each Settings Value Somehow Needs To Be Seperate
-    // Structs Can Be Passed To Update Multiple Settings Values
-    // At Once
+std::string Settings::getUsername() const {
+    std::shared_lock lock(m_mutex);
+    return m_generalTable["username"].value<std::string>().value();
 }
 
-std::tuple<Settings::General, Settings::Board, Settings::Network> Settings::getAllSettings() {
-    return { general, board, network };
+void Settings::setUsername(const std::string& value) {
+    {
+        std::unique_lock lock(m_mutex);
+        m_generalTable.insert_or_assign("username", value);
+    }
+    if (m_batchCount.load(std::memory_order_relaxed) == 0) save();
+}
+
+std::uint8_t Settings::getBoardScale() const {
+    std::shared_lock lock(m_mutex);
+    return m_displayTable["board_scale"].value<std::uint8_t>().value();
+}
+
+void Settings::setBoardScale(std::uint8_t value) {
+    {
+        std::unique_lock lock(m_mutex);
+        m_displayTable.insert_or_assign("board_scale", static_cast<int64_t>(value));
+    }
+    if (m_batchCount.load(std::memory_order_relaxed) == 0) save();
+}
+
+std::vector<ServerInfo> Settings::getServers() const {
+    std::shared_lock lock(m_mutex);
+    std::vector<ServerInfo> result;
+    const auto* arr = m_networkTable["servers"].as_array();
+    if (!arr) return result;
+    // Iterates Through Array, Tries To Make Item Into Table, Tries To Make Table Into ServerInfo
+    for (auto& entry : *arr) {
+        if (const auto* table = entry.as_table()) {
+            if (auto info = ServerInfo::fromToml(*table)) {
+                result.push_back(std::move(*info));
+            }
+        }
+    }
+    return result;
+}
+
+void Settings::setServers(const std::vector<ServerInfo>& servers) {
+    {
+        std::unique_lock lock(m_mutex);
+        toml::array arr;
+        for (const auto& s : servers)
+            arr.push_back(s.toToml());
+        m_networkTable.insert_or_assign("servers", std::move(arr));
+    }
+    if (m_batchCount.load(std::memory_order_relaxed) == 0) save();
+}
+
+toml::table Settings::makeDefaultTable() {
+    // General Settings
+    toml::table generalTable{
+        {"username", std::string("")}
+    };
+
+    // Display Settings
+    toml::table displayTable{
+        {"board_scale", int64_t{3}}
+    };
+
+    // Network Settings
+    toml::table networkTable{
+        {"servers", toml::array{}}
+    };
+
+    return toml::table{
+        {"General", std::move(generalTable)},
+        {"Display", std::move(displayTable)},
+        {"Network", std::move(networkTable)}
+    };
 }
 
 void Settings::load() {
     std::unique_lock lock(m_mutex);
-    if (!std::filesystem::exists(m_path)) {
-        return;
-    }
+    if (!std::filesystem::exists(m_path)) return;
 
-    toml::parse_result result = toml::parse_file(m_path.string());
-    if (!result) {
-        return;
-    }
+    auto result = toml::parse_file(m_path.string());
+    if (!result) return;
 
-    toml::table& table = result.table();
+    const toml::table& file = result.table();
 
-    if (auto v = table["General"]["username"].value<std::string>())
-        general.username.setUnsafe(*v);
+    // General
+    if (auto v = file["General"]["username"].value<std::string>())
+        m_generalTable.insert_or_assign("username", *v);
 
-    if (auto v = table["Board"]["board_scale"].value<std::uint8_t>())
-        board.boardScale.setUnsafe(*v);
+    // Display
+    if (auto v = file["Display"]["board_scale"].value<int64_t>())
+        m_displayTable.insert_or_assign("board_scale", *v);
 
-    if (auto* array = table["Network"]["servers"].as_array()) {
-        std::vector<ServerInfo> parsed;
-        for (auto& entry : *array) {
-            if (auto* tbl = entry.as_table()) {
-                ServerInfo info;
-                info.serverName = tbl->get_as<std::string>("server_name")->value_or("");
-                info.ip = tbl->get_as<std::string>("ip")->value_or("");
-                info.password = tbl->get_as<std::string>("password")->value_or("");
-                if (info.ip != "") {
-                    parsed.push_back(std::move(info));
+    // Network
+    if (const auto* arr = file["Network"]["servers"].as_array()) {
+        toml::array validated;
+        for (const auto& entry : *arr) {
+            if (const auto* table = entry.as_table()) {
+                if (auto info = ServerInfo::fromToml(*table)) {
+                    validated.push_back(info->toToml());
                 }
             }
         }
-        network.servers.setUnsafe(std::move(parsed));
+        m_networkTable.insert_or_assign("servers", std::move(validated));
     }
-
 }
 
 void Settings::save() {
     std::shared_lock lock(m_mutex);
-
-    toml::table table;
-
-    // General Settings
-    toml::table generalTable;
-    generalTable.insert_or_assign("username", general.username.getUnsafe());
-
-    table.insert_or_assign("General", std::move(generalTable));
-
-    // Board Settings
-    toml::table boardTable;
-    boardTable.insert_or_assign("board_scale", board.boardScale.getUnsafe());
-
-    table.insert_or_assign("Board", std::move(boardTable));
-
-    // Network Settings
-    toml::table networkTable;
-    toml::array serverArray = toml::array{};
-    for (const auto& server : network.servers.getUnsafe()) {
-        serverArray.push_back(toml::table{
-            {"server_name", server.serverName},
-            {"ip", server.ip},
-            {"password", server.password},
-        });
-    }
-    networkTable.insert("servers", std::move(serverArray));
-
-    table.insert_or_assign("Network", std::move(networkTable));
-
     std::filesystem::create_directories(m_path.parent_path());
     std::ofstream file(m_path);
-    if (!file) return;
-    file << table;
+    if (file) file << m_table;
 }
+
 }

@@ -32,6 +32,7 @@ public:
     virtual void onEnter() {}
     virtual void onLeave() {}
     virtual void onEscape() {}
+    virtual void onTick() {}
 
     [[nodiscard]] virtual ftxui::Component getComponent() = 0;
 

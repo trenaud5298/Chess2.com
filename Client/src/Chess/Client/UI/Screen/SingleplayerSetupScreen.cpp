@@ -10,6 +10,7 @@
 #include <Chess/Client/UI/Screen/SingleplayerSetupScreen.hpp>
 #include <Chess/Client/UI/ClientPanel.hpp>
 #include <Chess/Client/Runtime/GameClient.hpp>
+#include <Chess/Client/UI/Modal/ErrorModal.hpp>
 
 // FTXUI Includes
 
@@ -58,8 +59,13 @@ SingleplayerSetupScreen::SingleplayerSetupScreen(ClientPanel& clientPanel) : Scr
             case 2: config.playerColor = (std::rand() % 2 == 0) ? COLOR::WHITE : COLOR::BLACK; break;
             default: config.playerColor = COLOR::WHITE; break;
         }
-        m_clientPanel.gameClient().startSingleplayer(config);
-        m_clientPanel.navigateTo(Screen::Singleplayer_Game);
+        ClientCommandResult result = m_clientPanel.gameClient().startSingleplayer(config);
+        if (result) {
+            m_clientPanel.navigateTo(Screen::Singleplayer_Game);
+        } else {
+            m_clientPanel.pushModal(std::make_unique<ErrorModal>(m_clientPanel, result.message));
+        }
+
     }, ftxui::ButtonOption::Simple());
 
     auto optionMenus = ftxui::Container::Horizontal({

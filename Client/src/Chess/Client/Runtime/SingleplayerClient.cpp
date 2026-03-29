@@ -135,6 +135,7 @@ void SingleplayerClient::advanceTurn() {
 void SingleplayerClient::recordResult(COLOR winner, GameOverReason reason) {
     m_result = { winner, reason };
     m_state  = SingleplayerState::RESULT;
+    m_resultRegistry.fire(m_result);
 }
 
 std::chrono::milliseconds SingleplayerClient::timeRemaining(COLOR side, std::chrono::milliseconds elapsed) const {

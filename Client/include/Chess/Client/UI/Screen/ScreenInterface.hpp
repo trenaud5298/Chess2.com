@@ -70,7 +70,9 @@ public:
     virtual void onPause() {}
     virtual void onResume() {}
 
-    virtual void onLeaveRequest(std::function<void()> confirm) {
+    virtual void onTick() {}
+
+    virtual void onLeaveRequest(const std::function<void()>& confirm) {
         confirm();
     }
 

@@ -20,9 +20,16 @@
 #include <ftxui/component/screen_interactive.hpp>
 
 // C++ Includes
-#include <memory>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <stack>
+#include <thread>
+#include <vector>
 
 
 namespace Chess {
@@ -41,11 +48,17 @@ public:
     void quit();
 
     // Post Tick
-    void tick();
+    void setTickRate(std::optional<std::chrono::milliseconds> rate);
 
     // Screen Navigation
     void navigateTo(Screen screen);
+    void resetTo(Screen screen);
     void navigateBack();
+
+    void navigateToForce(Screen screen);
+    void resetToForce(Screen screen);
+    void navigateBackForce();
+
     [[nodiscard]] bool canNavigateBack() const;
     [[nodiscard]] Screen currentScreen() const;
 
@@ -64,6 +77,10 @@ private:
 
     ftxui::Component buildMainComponent();
 
+    void tickLoop();
+
+    void onTick();
+
 private:
     // Game Client
     GameClient& m_gameClient;
@@ -80,8 +97,19 @@ private:
     Screen m_selectedScreen{Screen::MainMenu};
     int m_selectedIndex{static_cast<int>(Screen::MainMenu)};
 
+    // Modals
     std::vector<std::unique_ptr<ModalInterface>> m_modalStack;
+    std::vector<std::unique_ptr<ModalInterface>> m_modalGraveyard;
     bool m_showModal{false};
+
+    // Tick
+    static constexpr std::chrono::milliseconds MIN_TICK_RATE{ 500 };
+    std::thread m_tickThread;
+    std::mutex m_tickMutex;
+    std::condition_variable m_tickCondition;
+    std::atomic<bool> m_tickRunning{false};
+    std::optional<std::chrono::milliseconds> m_tickRate{std::nullopt};
+    std::uint64_t m_tickRevision{0};
 };
 
 

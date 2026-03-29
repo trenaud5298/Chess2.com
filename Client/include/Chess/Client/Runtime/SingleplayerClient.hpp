@@ -18,6 +18,8 @@
 #include <chrono>
 #include <optional>
 
+#include "Callback/CallbackRegistry.hpp"
+
 namespace Chess {
 
 struct SingleplayerConfig {
@@ -76,6 +78,7 @@ public:
     [[nodiscard]] const SingleplayerConfig& config()  const noexcept { return m_config; }
 
     [[nodiscard]] const GameResult& result() const noexcept { return m_result; }
+    [[nodiscard]] CallbackRegistry<const GameResult&>& resultRegistry() { return m_resultRegistry; }
 
     [[nodiscard]] std::chrono::milliseconds whiteTimeRemaining() const;
     [[nodiscard]] std::chrono::milliseconds blackTimeRemaining() const;
@@ -89,6 +92,7 @@ private:
 private:
     GameClient& m_gameClient;
     SingleplayerState m_state{SingleplayerState::IDLE};
+
     SingleplayerConfig m_config{};
 
     Board m_board;
@@ -101,6 +105,7 @@ private:
     std::chrono::steady_clock::time_point m_pauseStart;
 
     GameResult m_result{COLOR::EMPTY, GameOverReason::RESIGN};
+    CallbackRegistry<const GameResult&> m_resultRegistry;
 };
 
 }

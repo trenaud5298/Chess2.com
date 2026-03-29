@@ -21,120 +21,58 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include <atomic>
 
 namespace Chess {
-
-class Settings;
-
-template <typename T>
-class Setting {
-
-    friend class Settings;
-
-public:
-    Setting(Settings& owner, T defaultValue);
-    operator T() const;
-    Setting& operator=(const T& value);
-
-private:
-    const T& getUnsafe() const;
-    void setUnsafe(const T& value);
-
-    Settings& m_owner;
-    T m_value;
-};
-
-
-
 class Settings {
-
-    template<typename>
-    friend class Setting;
-
 public:
     explicit Settings();
-    ~Settings() = default;
 
-    Settings(const Settings&) = delete;
-    Settings& operator=(const Settings&) = delete;
-    Settings(Settings&&) = delete;
-    Settings& operator=(Settings&&) = delete;
+    // Special BatchUpdate Struct
+    // Acquire A BatchUpdate Struct
+    // To Temporarily Disable Saving.
+    // When BatchUpdate Is Destroyed
+    // A Save Occurs
+    struct BatchUpdate {
+        explicit BatchUpdate(Settings& s) : m_settings(s) {
+            m_settings.m_batchCount.fetch_add(1, std::memory_order_acquire);
+        }
+        ~BatchUpdate() {
+            if (m_settings.m_batchCount.fetch_sub(1, std::memory_order_release) == 1) {
+                m_settings.save();
+            }
+        }
+        BatchUpdate(const BatchUpdate&) = delete;
+        BatchUpdate& operator=(const BatchUpdate&) = delete;
+    private:
+        Settings& m_settings;
+    };
 
-    struct General {
-        Setting<std::string> username;
+    // General
+    std::string getUsername() const;
+    void setUsername(const std::string& value);
 
-        // Defaults
-        General(Settings& owner)
-        : username(owner, "Chess Server") {}
+    // Board
+    std::uint8_t getBoardScale() const;
+    void setBoardScale(std::uint8_t value);
 
-    }; General general;
-
-    struct Board {
-        Setting<std::uint8_t> boardScale;
-
-        Board(Settings& owner)
-        : boardScale(owner, 3) {}
-
-    }; Board board;
-
-    struct Network {
-        Setting<std::vector<ServerInfo>> servers;
-
-        Network(Settings& owner)
-        : servers(owner, {}) {}
-    }; Network network;
-
-    void setAllSettings(General& generala, Board& board, Network& network);
-    std::tuple<General, Board, Network> getAllSettings();
+    // Network
+    std::vector<ServerInfo> getServers() const;
+    void setServers(const std::vector<ServerInfo>& value);
 
 private:
+    static toml::table makeDefaultTable();
     void load();
     void save();
 
-private:
+    std::atomic<std::uint64_t> m_batchCount{0};
     std::filesystem::path m_path;
     mutable std::shared_mutex m_mutex;
-
     toml::table m_table;
-    toml::table m_generalTable;
-    toml::table m_boardTable;
-    toml::table m_networkTable;
+    toml::table& m_generalTable;
+    toml::table& m_displayTable;
+    toml::table& m_networkTable;
 };
-
-
-
-
-
-template<typename T>
-Setting<T>::Setting(Settings& owner, T defaultValue)
-: m_owner(owner), m_value(std::move(defaultValue)) {}
-
-template<typename T>
-Setting<T>::operator T() const {
-    std::shared_lock lock(m_owner.m_mutex);
-    return m_value;
-}
-
-template<typename T>
-Setting<T>& Setting<T>::operator=(const T& value) {
-    std::unique_lock lock(m_owner.m_mutex);
-    if (m_value == value)
-        return *this;
-
-    m_value = value;
-    m_owner.save();
-    return *this;
-}
-
-template<typename T>
-const T& Setting<T>::getUnsafe() const {
-    return m_value;
-}
-
-template<typename T>
-void Setting<T>::setUnsafe(const T &value) {
-    m_value = value;
-}
 
 }
 

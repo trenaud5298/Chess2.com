@@ -13,6 +13,8 @@
 #include <Chess/Client/Runtime/GameClient.hpp>
 #include <Chess/Core/Common/TimeFormat.hpp>
 #include <Chess/Client/UI/Modal/ConfirmModal.hpp>
+#include <Chess/Client/UI/Modal/ErrorModal.hpp>
+#include <Chess/Client/UI/Modal/TwoButtonModal.hpp>
 
 // FTXUI Includes
 
@@ -24,11 +26,7 @@ SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : Scree
     m_boardDisplay->onMove = [this](ID from, Pos to) {
         SingleplayerClient& singlePlayerClient = m_clientPanel.gameClient().singleplayerClient();
         if (!singlePlayerClient.tryMove(from, to)) { return; }
-
         m_boardDisplay->updateBoard(singlePlayerClient.board().getBoard());
-        if (singlePlayerClient.state() == SingleplayerState::RESULT) {
-            m_clientPanel.navigateTo(Screen::Singleplayer_Result);
-        }
     };
 
     m_component = buildComponent();
@@ -44,44 +42,42 @@ void SingleplayerGameScreen::onEnter() {
     SingleplayerClient& singlePlayerClient = m_clientPanel.gameClient().singleplayerClient();
     m_boardDisplay->setFlipped(singlePlayerClient.playerColor() == COLOR::BLACK);
     m_boardDisplay->updateBoard(singlePlayerClient.board().getBoard());
-
-    m_tickThread = std::jthread([this](std::stop_token stop) {
-        while (!stop.stop_requested()) {
-            m_clientPanel.tick();
-            std::this_thread::sleep_for(TICK_INTERVAL);
-        }
-    });
+    m_resultModalShown = false;
+    m_resultSubscription = singlePlayerClient.resultRegistry().subscribe(std::bind_front(&SingleplayerGameScreen::onResult,this));
+    m_clientPanel.setTickRate(std::chrono::milliseconds(100));
 }
 
 void SingleplayerGameScreen::onLeave() {
-    m_tickThread.request_stop();
-    m_clientPanel.gameClient().stopSingleplayer();
+    if (m_resultSubscription != 0) {
+        m_clientPanel.gameClient().singleplayerClient().resultRegistry().unsubscribe(m_resultSubscription);
+        m_resultSubscription = 0;
+    }
+    m_clientPanel.gameClient().singleplayerClient().resign();
+    auto result = m_clientPanel.gameClient().stopSingleplayer();
+    if (!result) {
+        m_clientPanel.pushModal(std::make_unique<ErrorModal>(m_clientPanel, result.message));
+    }
+    m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onPause() {
     m_clientPanel.gameClient().singleplayerClient().pause();
-    m_tickThread.request_stop();
+    m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onResume() {
-    m_tickThread = std::jthread([this](std::stop_token stop) {
-        while (!stop.stop_requested()) {
-            m_clientPanel.tick();
-            std::this_thread::sleep_for(TICK_INTERVAL);
-        }
-    });
+    m_clientPanel.setTickRate(std::chrono::milliseconds(100));
     m_clientPanel.gameClient().singleplayerClient().resume();
 }
 
-void SingleplayerGameScreen::onLeaveRequest(std::function<void()> confirm) {
+void SingleplayerGameScreen::onLeaveRequest(const std::function<void()>& confirm) {
     if (m_clientPanel.gameClient().singleplayerClient().state() != SingleplayerState::RESULT) {
-        m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Resign and return to menu?",
-            confirm
-        ));
+        m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Resign and return to menu?", [this, confirm]() {
+            confirm();
+        }));
     } else {
         confirm();
     }
-
 }
 
 ftxui::Component SingleplayerGameScreen::buildComponent() {
@@ -124,12 +120,7 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 }
 
 void SingleplayerGameScreen::onTick() {
-    SingleplayerClient& singlePlayerClient = m_clientPanel.gameClient().singleplayerClient();
-    singlePlayerClient.checkTimeout();
-
-    if (singlePlayerClient.state() == SingleplayerState::RESULT) {
-        m_clientPanel.navigateTo(Screen::Singleplayer_Result);
-    }
+    m_clientPanel.gameClient().singleplayerClient().checkTimeout();
 }
 
 ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const {
@@ -154,4 +145,44 @@ ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds rem
     }) | ftxui::border;
 }
 
-} // namespace Chess
+void SingleplayerGameScreen::onResult(const GameResult& result) {
+    if (m_resultModalShown) { return; }
+    m_resultModalShown = true;
+
+    std::string title = "Game Over";
+    std::string message;
+    switch (result.winner) {
+        case COLOR::WHITE:
+            message = "White wins";
+            break;
+        case COLOR::BLACK:
+            message = "Black wins";
+            break;
+        default:
+            message = "Draw";
+            break;
+    }
+
+    switch (result.reason) {
+        case GameOverReason::TIMEOUT:
+            message += " by timeout.";
+            break;
+        case GameOverReason::RESIGN:
+            message += " by resignation.";
+            break;
+        case GameOverReason::CHECKMATE:
+            message += " by checkmate.";
+            break;
+    }
+
+    m_clientPanel.pushModal(std::make_unique<TwoButtonModal>(m_clientPanel,title,message,
+        "Play Again", [this]() {
+            m_clientPanel.navigateBack();
+        },
+        "Main Menu", [this]() {
+            m_clientPanel.resetTo(Screen::MainMenu);
+        }
+    ));
+}
+
+}
