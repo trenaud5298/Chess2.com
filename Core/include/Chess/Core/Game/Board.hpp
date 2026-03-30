@@ -96,7 +96,7 @@ namespace Chess {
             void addDiagonalMoves(const Pos& initial);
             void cardinalHelper(const Pos& initial, const Direction& direction, int& i);
             void addCardinalMoves(const Pos& initial);
-            void addKnightMoves(Pos& initial);
+            void addKnightMoves(const Pos& initial);
             void addKingMoves(const Pos& initial);
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);

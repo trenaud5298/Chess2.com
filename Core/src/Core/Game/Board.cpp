@@ -9,12 +9,15 @@
 // TODO 
 //      * implement "piece collision" in addMoves methods
 //      * implement a way to castle
-//      * implement an isChecked method and getChecking method
 //      * implement a way to promote pawns
 //      * implement a way to en passant
-//      * implement checking logic
+//      * implement checking logic fully
 //
-//      * start a game class
+//      *   Testing TODO
+//        write a function to generate Board objects in initial states from a string 
+//          64 characters long which is generated from another function that can either take
+//          an array of size 64 of ID literals representing board state, or up to 64 std::pair 
+//          of ID or Type and Pos such that it populates the position with the ID in the board
 
 namespace Chess {
     using enum ID;
@@ -330,7 +333,7 @@ namespace Chess {
             if( (i>>1) == 1 ) {
                 x = -x;
             }
-            if( ((i<<1)>>1) == 1 ) {
+            if( i%2 == 1 ) {
                 y = -y;
             }
             temp = Pos({castHelper(kingPos[ROW], x), castHelper(kingPos[COL], y)});
@@ -592,7 +595,7 @@ namespace Chess {
         if( !((card>>1) == 1) ) { //determine the dimension of the initial pos we are increasing
             dim = ROW;
         }
-        if( ((card<<1)>>1) == 1 ) { //determine the direction we are incrementing the dimension in
+        if( card %2 == 1 ) { //determine the direction we are incrementing the dimension in
             inc = -1;
         }
         pos[dim] += inc;
@@ -640,8 +643,8 @@ namespace Chess {
         setMovesIdx(getIdAt(initial), i);
     }
 
-    void Board::addKnightMoves(Pos& initial) {
-        int x, y, i = 0;
+    void Board::addKnightMoves(const Pos& initial) {
+        int x, y, idx = 0;
         std::uint8_t temp_row, temp_col;
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
@@ -655,36 +658,28 @@ namespace Chess {
             if( i%2 == 1 ) {
                 y = -y;
             }
-            std::cout << i << '\n';
-            std::cout << "x = " << x << ", y = " << y << '\n';
-            std::cout << '\n';
 
-            std::cout << "temp row = " << (int) initial[ROW] + x << ", temp col = " << (int) initial[COL] + y << '\n';
             if( (int) initial[ROW] + x > ROW_LOWER_BOUND && (int) initial[COL] + y > COL_LOWER_BOUND ) {
                 temp = Pos{castHelper(initial[ROW], x), castHelper(initial[COL], y)};
-                std::cout << "HERE" << '\n';
                 if( isInBoard(temp) ) {
                     tempColor = getColor(getIdAt(temp));
                     if( color != tempColor ) {
                         setAttackedAt(temp);
-                        setMoveAt(initialId, temp, i);
-                        std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
-                        i++;
+                        setMoveAt(initialId, temp, idx);
+                        idx++;
                     } else {
                         setDefendedAt(temp);
                     }
                 }
             }
-            std::cout << "temp row = " << (int) initial[ROW] + y << ", temp col = " << (int) initial[COL] + x << '\n';
             if( (int) initial[ROW] + y > ROW_LOWER_BOUND && (int) initial[COL] + x > COL_LOWER_BOUND ) {
                 temp = Pos{castHelper(initial[ROW], y), castHelper(initial[COL], x)};
                 if( isInBoard(temp) ) {
                     tempColor = getColor(getIdAt(temp));
                     if( color != tempColor ) {
                         setAttackedAt(temp);
-                        setMoveAt(initialId, temp, i);
-                        std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
-                        i++;
+                        setMoveAt(initialId, temp, idx);
+                        idx++;
                     } else {
                         setDefendedAt(temp);
                     }
@@ -783,7 +778,7 @@ namespace Chess {
         addCardinalMoves(getPos(W_ROOK1));
         addCardinalMoves(getPos(W_ROOK1));
         addKnightMoves(getPos(W_KNIGHT1)); 
-        //addKnightMoves(getPos(W_KNIGHT2));
+        addKnightMoves(getPos(W_KNIGHT2));
         addDiagonalMoves(getPos(W_BISHOP1));
         addDiagonalMoves(getPos(W_BISHOP2));
         addQueenMoves(getPos(W_QUEEN));
@@ -800,8 +795,8 @@ namespace Chess {
 
         addCardinalMoves(getPos(B_ROOK2));
         addCardinalMoves(getPos(B_ROOK2));
-        //addKnightMoves(getPos(B_KNIGHT1));
-        //addKnightMoves(getPos(B_KNIGHT2));
+        addKnightMoves(getPos(B_KNIGHT1));
+        addKnightMoves(getPos(B_KNIGHT2));
         addDiagonalMoves(getPos(B_BISHOP1));
         addDiagonalMoves(getPos(B_BISHOP2));
         addQueenMoves(getPos(B_QUEEN));
@@ -890,11 +885,109 @@ namespace Chess {
         }
     }
 
-    /*
+    // This is a war crime
     std::string idToString(const ID& id) {
-        
+        std::string res;
+        switch( id ) {
+            case( W_ROOK1 ):
+                res = "W_ROOK1";
+                break;
+            case( W_ROOK2 ):
+                res = "W_ROOK2";
+                break;
+            case( W_KNIGHT1 ):
+                res = "W_KNIGHT1";
+                break;
+            case( W_KNIGHT2 ):
+                res = "W_KNIGHT2";
+                break;
+            case( W_BISHOP1 ):
+                res = "W_BISHOP1";
+                break;
+            case( W_BISHOP2 ):
+                res = "W_BISHOP2";
+                break;
+            case( W_QUEEN ):
+                res = "W_QUEEN";
+                break; 
+            case( W_KING ):
+                res = "W_KING";
+                break;
+            case( W_PAWN1 ):
+                res = "W_PAWN1";
+                break;
+            case( W_PAWN2 ):
+                res = "W_PAWN2";
+                break;
+            case( W_PAWN3 ):
+                res = "W_PAWN3";
+                break;
+            case( W_PAWN4 ):
+                res = "W_PAWN4";
+                break;
+            case( W_PAWN5 ):
+                res = "W_PAWN5";
+                break;
+            case( W_PAWN6 ):
+                res = "W_PAWN6";
+                break;
+            case( W_PAWN7 ):
+                res = "W_PAWN7";
+                break;
+            case( W_PAWN8 ):
+                res = "W_PAWN8";
+                break;
+            case( B_ROOK1   ):
+                res = "B_ROOK1";
+                break;
+            case( B_ROOK2   ):
+                res = "B_ROOK2";
+                break;
+            case( B_KNIGHT1 ):
+                res = "B_KNIGHT1";
+                break;
+            case( B_KNIGHT2 ):
+                res = "B_KNIGHT2";
+                break;
+            case( B_BISHOP1 ):
+                res = "B_BISHOP1";
+                break;
+            case( B_BISHOP2 ):
+                res = "B_BISHOP2";
+                break;
+            case( B_QUEEN   ):
+                res = "B_QUEEN";
+                break;
+            case( B_KING    ):
+                res = "B_KING";
+                break;
+            case( B_PAWN1 ):
+                res = "B_PAWN1";
+                break;
+            case( B_PAWN2 ):
+                res = "B_PAWN2";
+                break;
+            case( B_PAWN3 ):
+                res = "B_PAWN3";
+                break;
+            case( B_PAWN4 ):
+                res = "B_PAWN4";
+                break;
+            case( B_PAWN5 ):
+                res = "B_PAWN5";
+                break;
+            case( B_PAWN6 ):
+                res = "B_PAWN6";
+                break;
+            case( B_PAWN7 ):
+                res = "B_PAWN7";
+                break;
+            case( B_PAWN8 ):
+                res = "B_PAWN8";
+                break;
+        }
+        return res;
     }
-    */
 
     void Board::printMoves() {
         int offsetIdx = 0;
@@ -911,6 +1004,4 @@ namespace Chess {
             std::cout << '\n';
         }
     }
-    
-
 }
