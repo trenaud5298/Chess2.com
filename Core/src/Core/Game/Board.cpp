@@ -531,7 +531,7 @@ namespace Chess {
             x = -x;
         }
         // check second bit
-        if( ((card<<1)>>1) == 1 ) {
+        if( card %2 == 1 ) {
             y = -y;
         }
         pos[ROW] += x;
@@ -985,6 +985,9 @@ namespace Chess {
             case( B_PAWN8 ):
                 res = "B_PAWN8";
                 break;
+            default:
+                res = "EMPTY";
+                break;
         }
         return res;
     }
@@ -994,7 +997,7 @@ namespace Chess {
         for(int i = 0; i < m_moves.size(); i++) {
             if( offsetIdx < m_moveOffset.size() ) {
                 if( i == m_moveOffset[offsetIdx] ) {
-                    std::cout << (int) static_cast<ID>(offsetIdx+1) << '\n';
+                    std::cout << idToString(static_cast<ID>(offsetIdx+1)) << '\n';
                     offsetIdx++;
                 }
             }
