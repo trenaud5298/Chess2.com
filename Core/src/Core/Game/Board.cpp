@@ -256,8 +256,8 @@ namespace Chess {
         return static_cast<Direction>(i);
     }
 
-    int Board::getPawnRow() {
-        if( m_isWhiteTurn ) {
+    int Board::getPawnRow(const COLOR& color) {
+        if( color == COLOR::WHITE ) {
             return WHITE_PAWN_ROW;
         } else {
             return BLACK_PAWN_ROW;
@@ -640,8 +640,9 @@ namespace Chess {
         setMovesIdx(getIdAt(initial), i);
     }
 
-    void Board::addKnightMoves(const Pos& initial) {
+    void Board::addKnightMoves(Pos& initial) {
         int x, y, i = 0;
+        std::uint8_t temp_row, temp_col;
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
         Pos temp;
@@ -651,30 +652,42 @@ namespace Chess {
             if( (i>>1) == 1 ) {
                 x = -x;
             }
-            if( ((i<<1)>>1) == 1 ) {
+            if( i%2 == 1 ) {
                 y = -y;
             }
-            temp = {castHelper(initial[ROW], x), castHelper(initial[COL], y)};
-            if( isInBoard(temp) ) {
-                tempColor = getColor(getIdAt(temp));
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
-                    i++;
-                } else {
-                    setDefendedAt(temp);
+            std::cout << i << '\n';
+            std::cout << "x = " << x << ", y = " << y << '\n';
+            std::cout << '\n';
+
+            std::cout << "temp row = " << (int) initial[ROW] + x << ", temp col = " << (int) initial[COL] + y << '\n';
+            if( (int) initial[ROW] + x > ROW_LOWER_BOUND && (int) initial[COL] + y > COL_LOWER_BOUND ) {
+                temp = Pos{castHelper(initial[ROW], x), castHelper(initial[COL], y)};
+                std::cout << "HERE" << '\n';
+                if( isInBoard(temp) ) {
+                    tempColor = getColor(getIdAt(temp));
+                    if( color != tempColor ) {
+                        setAttackedAt(temp);
+                        setMoveAt(initialId, temp, i);
+                        std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
+                        i++;
+                    } else {
+                        setDefendedAt(temp);
+                    }
                 }
             }
-            temp = {castHelper(initial[ROW], y), castHelper(initial[COL], x)};
-            if( isInBoard(temp) ) {
-                tempColor = getColor(getIdAt(temp));
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                } else {
-                    setDefendedAt(temp);
+            std::cout << "temp row = " << (int) initial[ROW] + y << ", temp col = " << (int) initial[COL] + x << '\n';
+            if( (int) initial[ROW] + y > ROW_LOWER_BOUND && (int) initial[COL] + x > COL_LOWER_BOUND ) {
+                temp = Pos{castHelper(initial[ROW], y), castHelper(initial[COL], x)};
+                if( isInBoard(temp) ) {
+                    tempColor = getColor(getIdAt(temp));
+                    if( color != tempColor ) {
+                        setAttackedAt(temp);
+                        setMoveAt(initialId, temp, i);
+                        std::cout << "Added Move " << (int) temp[ROW] << ' ' << (int) temp[COL] << '\n';
+                        i++;
+                    } else {
+                        setDefendedAt(temp);
+                    }
                 }
             }
         }
@@ -707,13 +720,13 @@ namespace Chess {
     void Board::addPawnMoves(const Pos& initial) {
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
-        const int pawnRow = getPawnRow();
+        const int pawnRow = getPawnRow(color);
         int i = 0;
         Pos temp;
         ID tempId;
         COLOR tempColor;
 
-        if( m_isWhiteTurn ) {
+        if( color == COLOR::BLACK ) {
             m_pawnMods[0] = m_mods[6];
             m_pawnMods[1] = m_mods[7];
         } else {
@@ -725,7 +738,7 @@ namespace Chess {
             if( isInBoard(temp) ) {
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
-                if( color == COLOR::EMPTY ) {
+                if( tempColor == COLOR::EMPTY ) {
                     setMoveAt(initialId, temp, i);
                     i++;
                 }
@@ -735,7 +748,7 @@ namespace Chess {
         if( isInBoard(temp) ) {
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
-            if( color == COLOR::EMPTY ) {
+            if( tempColor == COLOR::EMPTY ) {
                 setMoveAt(initialId, temp, i);
                 i++;
             }
@@ -744,7 +757,7 @@ namespace Chess {
         if( isInBoard(temp) ) {
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
-            if( color != tempColor ) {
+            if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
                 setAttackedAt(temp);
                 setMoveAt(initialId, temp, i);
                 i++;
@@ -756,7 +769,7 @@ namespace Chess {
         if( isInBoard(temp) ) {
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
-            if( color != tempColor ) {
+            if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
                 setAttackedAt(temp);
                 setMoveAt(initialId, temp, i);
                 i++;
@@ -770,7 +783,7 @@ namespace Chess {
         addCardinalMoves(getPos(W_ROOK1));
         addCardinalMoves(getPos(W_ROOK1));
         addKnightMoves(getPos(W_KNIGHT1)); 
-        addKnightMoves(getPos(W_KNIGHT2));
+        //addKnightMoves(getPos(W_KNIGHT2));
         addDiagonalMoves(getPos(W_BISHOP1));
         addDiagonalMoves(getPos(W_BISHOP2));
         addQueenMoves(getPos(W_QUEEN));
@@ -787,8 +800,8 @@ namespace Chess {
 
         addCardinalMoves(getPos(B_ROOK2));
         addCardinalMoves(getPos(B_ROOK2));
-        addKnightMoves(getPos(B_KNIGHT1));
-        addKnightMoves(getPos(B_KNIGHT2));
+        //addKnightMoves(getPos(B_KNIGHT1));
+        //addKnightMoves(getPos(B_KNIGHT2));
         addDiagonalMoves(getPos(B_BISHOP1));
         addDiagonalMoves(getPos(B_BISHOP2));
         addQueenMoves(getPos(B_QUEEN));
@@ -885,10 +898,12 @@ namespace Chess {
 
     void Board::printMoves() {
         int offsetIdx = 0;
-        for(int i = 0; i <  m_moves.size(); i++) {
-            if( i == m_moveOffset[offsetIdx] ) {
-                std::cout << (int) static_cast<ID>(offsetIdx+1) << '\n';
-                offsetIdx++;
+        for(int i = 0; i < m_moves.size(); i++) {
+            if( offsetIdx < m_moveOffset.size() ) {
+                if( i == m_moveOffset[offsetIdx] ) {
+                    std::cout << (int) static_cast<ID>(offsetIdx+1) << '\n';
+                    offsetIdx++;
+                }
             }
             for(const int n : m_moves[i]) {
                 std::cout << n << ' ';
