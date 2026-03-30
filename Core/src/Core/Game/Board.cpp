@@ -118,7 +118,8 @@ namespace Chess {
         // I added a -1 here since ID starts at 1 instead
         // of 0 creating a small issue of being off by one piece
         // in the array
-        return m_pieceArr[((int)id)-1].position;
+        int castedId = (int)id-1;
+        return m_pieceArr[castedId].position;
     }
 
     void Board::setIdAt(const Pos& pos, const ID& id){
@@ -195,7 +196,8 @@ namespace Chess {
     }
 
     ID& Board::getIdAt(const Pos& pos) {
-        return m_board[posTranslate(pos)];
+        const int idx = posTranslate(pos);
+        return m_board[idx];
     }
 
     COLOR Board::getColor(const ID& id) {
@@ -572,7 +574,7 @@ namespace Chess {
         const COLOR color = getColor(initialId);
         Pos pos = initial;
         int card, dim, inc;
-        ID& posId = getIdAt(pos);
+        ID posId;
         COLOR posColor;
         switch (direction) {
             case (NORTH):
@@ -598,8 +600,12 @@ namespace Chess {
         if( card %2 == 1 ) { //determine the direction we are incrementing the dimension in
             inc = -1;
         }
-        pos[dim] += inc;
-        posColor = getColor(posId);
+        int castedDim = (int) pos[dim] + inc;
+        if(  castedDim > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+            pos[dim] += inc;
+        } else { return; }
+
+        posColor = getColor(getIdAt(pos));
         while(isInBoard(pos)) {
             if( color != posColor ) {
                 setAttackedAt(pos);
@@ -608,7 +614,9 @@ namespace Chess {
                 if(posColor != COLOR::EMPTY) {
                     return;
                 }
-                pos[dim] += inc;
+                if( (int) pos[dim] + inc > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+                    pos[dim] += inc;
+                } else { return; }
                 posId = getIdAt(pos);
                 posColor = getColor(posId);
             } else {
@@ -776,7 +784,7 @@ namespace Chess {
 
     void Board::genMoves() {
         addCardinalMoves(getPos(W_ROOK1));
-        addCardinalMoves(getPos(W_ROOK1));
+        addCardinalMoves(getPos(W_ROOK2));
         addKnightMoves(getPos(W_KNIGHT1)); 
         addKnightMoves(getPos(W_KNIGHT2));
         addDiagonalMoves(getPos(W_BISHOP1));
@@ -793,7 +801,7 @@ namespace Chess {
         addPawnMoves(getPos(W_PAWN7));
         addPawnMoves(getPos(W_PAWN8));
 
-        addCardinalMoves(getPos(B_ROOK2));
+        addCardinalMoves(getPos(B_ROOK1));
         addCardinalMoves(getPos(B_ROOK2));
         addKnightMoves(getPos(B_KNIGHT1));
         addKnightMoves(getPos(B_KNIGHT2));
@@ -814,7 +822,7 @@ namespace Chess {
 
 // ♔♕♖♗♘♙♚♛♜♝♞♟
 //\u2654 \u2655 \u2656 \u2657 \u2658 \u2659 \u265a \u265b \u265c \u265d \u265e \u265f 
-    char32_t Board::getGlyph(const ID& id) {
+    char32_t Board::getGlyphUnicode(const ID& id) {
         char32_t res;
         switch(id) {
             case(EMPTY): {
@@ -865,17 +873,84 @@ namespace Chess {
         return res;
     }
 
+    char Board::getGlyph(const ID& id) {
+        char32_t res;
+        switch(id) {
+            case(EMPTY): {
+                res =  ' ';
+                break;
+            }
+            default:
+                const Type type = getTypeAt(getPos(id));
+                switch(type) {
+                case(Type::W_KING):
+                    res = 'K';
+                    break;
+                case(Type::W_QUEEN):
+                    res = 'Q';
+                    break;
+                case(Type::W_ROOK):
+                    res = 'R';
+                    break;
+                case(Type::W_BISHOP):
+                    res = 'B';
+                    break;
+                case(Type::W_KNIGHT):
+                    res = 'N';
+                    break;
+                case(Type::W_PAWN):
+                    res = 'P';
+                    break;
+                case(Type::B_KING):
+                    res = 'k';
+                    break;
+                case(Type::B_QUEEN):
+                    res = 'q';
+                    break;
+                case(Type::B_ROOK):
+                    res = 'r';
+                    break;
+                case(Type::B_BISHOP):
+                    res = 'b';
+                    break;
+                case(Type::B_KNIGHT):
+                    res = 'n';
+                    break;
+                case(Type::B_PAWN):
+                    res = 'p';
+                    break;
+                }
+        }
+        return res;
+    }
+
     void Board::displayBoard() {
+        std::string str;
+        str.append("------------------------\n");
+        for(int i = 1; i < m_board.size()+1; i++) {
+            str += '|';
+            str += getGlyph(m_board[i-1]);
+            str += '|';
+            if( i%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl; 
+    }
+
+    void Board::displayBoardUnicode() {
         std::u32string str;
-        str.append(U"-----------------\n");
+        str.append(U"------------------------\n");
         for(int i = 1; i < m_board.size()+1; i++) {
             str += U'|';
-            str += getGlyph(m_board[i-1]);
+            str += getGlyphUnicode(m_board[i-1]);
             str += U'|';
             if( i%8 == 0 )
-                str.append(U"\n-----------------\n");
+                str.append(U"\n------------------------\n");
         }
-        std::cout << std::string(str.begin(), str.end()) << std::endl; }
+        //std::cout << std::string(str.begin(), str.end()) << std::endl; 
+        std::wstring wstr(str.begin(), str.end());
+        std::wcout << wstr << std::endl;
+    }
 
     /*-------------------Testing Functions-------------------*/
     void Board::printMoveOffset() {

@@ -43,6 +43,8 @@ namespace Chess {
             // Testing functions
             void printMoveOffset();
             void printMoves();
+            void displayBoard();
+            void displayBoardUnicode();
 
         private:
             std::array<ID, 64> m_board;
@@ -101,8 +103,8 @@ namespace Chess {
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
 
-            char32_t getGlyph(const ID& id);
-            void displayBoard();
+            char32_t getGlyphUnicode(const ID& id);
+            char getGlyph(const ID& id);
 
     };
 }
