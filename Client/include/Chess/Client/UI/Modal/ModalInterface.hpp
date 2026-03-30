@@ -29,13 +29,16 @@ public:
     explicit ModalInterface(ClientPanel& panel) : m_clientPanel(panel) {}
     virtual ~ModalInterface() = default;
 
+    // Lifecycle
     virtual void onEnter() {}
     virtual void onLeave() {}
-    virtual void onEscape() {}
     virtual void onTick() {}
 
-    [[nodiscard]] virtual ftxui::Component getComponent() = 0;
+    // Dismiss affordance
+    virtual bool canRequestDismiss() const { return true; }
+    virtual void requestDismiss() {}
 
+    [[nodiscard]] virtual ftxui::Component getComponent() = 0;
     [[nodiscard]] virtual ftxui::Element backdropElement() {
         return ftxui::text("") | ftxui::flex | ftxui::bgcolor(ftxui::Color::Black);
     }
@@ -43,6 +46,7 @@ public:
 protected:
     ClientPanel& m_clientPanel;
 };
+
 
 }
 

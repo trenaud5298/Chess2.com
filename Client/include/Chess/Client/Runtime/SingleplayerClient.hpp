@@ -46,12 +46,22 @@ enum class SingleplayerState {
     RESULT,
 };
 
+struct SingleplayerView {
+    SingleplayerState state{SingleplayerState::IDLE};
+    COLOR playerColor{COLOR::WHITE};
+    COLOR currentTurn{COLOR::WHITE};
+    const Board* board{nullptr};
+    std::chrono::milliseconds whiteTimeRemaining{0};
+    std::chrono::milliseconds blackTimeRemaining{0};
+    std::optional<GameResult> result{std::nullopt};
+};
+
 class GameClient;
 
 class SingleplayerClient {
 
 public:
-    explicit SingleplayerClient(GameClient& gameClient);
+    explicit SingleplayerClient();
     ~SingleplayerClient();
 
     SingleplayerClient(const SingleplayerClient&) = delete;
@@ -59,40 +69,32 @@ public:
     SingleplayerClient(SingleplayerClient&&) = delete;
     SingleplayerClient& operator=(SingleplayerClient&&) = delete;
 
-    void start(const SingleplayerConfig& config);
+    void start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now);
+    void restart(std::chrono::steady_clock::time_point now);
     void stop();
-    void pause();
-    void resume();
 
-    bool tryMove(ID from, Pos to);
+    void pause(std::chrono::steady_clock::time_point now);
+    void resume(std::chrono::steady_clock::time_point now);
 
-    void resign();
+    bool tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now);
+    void resign(std::chrono::steady_clock::time_point now);
 
-    void checkTimeout();
+    void tick(std::chrono::steady_clock::time_point now);
 
-    [[nodiscard]] SingleplayerState state() const noexcept { return m_state; }
-    [[nodiscard]] COLOR currentTurn() const noexcept { return m_currentTurn; }
-    [[nodiscard]] COLOR playerColor() const noexcept { return m_config.playerColor; }
-    [[nodiscard]] const Board& board() const noexcept { return m_board; }
-    [[nodiscard]] Board& board() noexcept { return m_board; }
-    [[nodiscard]] const SingleplayerConfig& config()  const noexcept { return m_config; }
-
-    [[nodiscard]] const GameResult& result() const noexcept { return m_result; }
-    [[nodiscard]] CallbackRegistry<const GameResult&>& resultRegistry() { return m_resultRegistry; }
-
-    [[nodiscard]] std::chrono::milliseconds whiteTimeRemaining() const;
-    [[nodiscard]] std::chrono::milliseconds blackTimeRemaining() const;
+    [[nodiscard]] SingleplayerView view(std::chrono::steady_clock::time_point now) const;
+    [[nodiscard]] const SingleplayerConfig& config() const noexcept;
+    [[nodiscard]] const GameResult& result() const noexcept;
+    [[nodiscard]] CallbackRegistry<const GameResult&>& resultRegistry();
 
 private:
+    [[nodiscard]] std::chrono::milliseconds timeRemaining(COLOR side, std::chrono::steady_clock::time_point now) const;
     [[nodiscard]] bool isColor(ID id, COLOR color) const noexcept;
-    void advanceTurn();
+    void advanceTurn(std::chrono::steady_clock::time_point now);
+    void commitElapsedToActiveSide(std::chrono::steady_clock::time_point now);
     void recordResult(COLOR winner, GameOverReason reason);
-    [[nodiscard]] std::chrono::milliseconds timeRemaining(COLOR side, std::chrono::milliseconds elapsed) const;
 
 private:
-    GameClient& m_gameClient;
     SingleplayerState m_state{SingleplayerState::IDLE};
-
     SingleplayerConfig m_config{};
 
     Board m_board;
@@ -100,9 +102,7 @@ private:
 
     std::chrono::milliseconds m_whiteTime{0};
     std::chrono::milliseconds m_blackTime{0};
-
     std::chrono::steady_clock::time_point m_turnStart;
-    std::chrono::steady_clock::time_point m_pauseStart;
 
     GameResult m_result{COLOR::EMPTY, GameOverReason::RESIGN};
     CallbackRegistry<const GameResult&> m_resultRegistry;

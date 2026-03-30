@@ -13,6 +13,7 @@
 // Chess Includes
 #include <Chess/Client/UI/Screen/ScreenInterface.hpp>
 #include <Chess/Client/UI/Modal/ModalInterface.hpp>
+#include <Chess/Client/Runtime/GameClient.hpp>
 
 // ASIO Includes
 
@@ -44,56 +45,61 @@ public:
     explicit ClientPanel(GameClient& gameClient);
     ~ClientPanel();
 
+    ClientPanel(const ClientPanel&) = delete;
+    ClientPanel& operator=(const ClientPanel&) = delete;
+    ClientPanel(ClientPanel&&) = delete;
+    ClientPanel& operator=(ClientPanel&&) = delete;
+
     void run();
     void quit();
 
-    // Post Tick
-    void setTickRate(std::optional<std::chrono::milliseconds> rate);
-
-    // Screen Navigation
-    void navigateTo(Screen screen);
-    void resetTo(Screen screen);
-    void navigateBack();
-
-    void navigateToForce(Screen screen);
-    void resetToForce(Screen screen);
-    void navigateBackForce();
-
-    [[nodiscard]] bool canNavigateBack() const;
-    [[nodiscard]] Screen currentScreen() const;
-
-    // Modal Controls
+    // Modal Navigation
     void pushModal(std::unique_ptr<ModalInterface> modal);
     void popModal();
     void popAllModals();
-    [[nodiscard]] bool hasModal() const;
+
+    // Screen and Modal Query
+    [[nodiscard]] Screen currentScreen() const {return m_selectedScreen;}
+    [[nodiscard]] ScreenInterface& activeScreen() {return *m_screens[m_selectedScreen];}
+    [[nodiscard]] bool hasModal() const {return !m_modalStack.empty();}
+    [[nodiscard]] ModalInterface& activeModal() {return *m_modalStack.back();}
+
+    // Post Tick
+    void setTickRate(std::optional<std::chrono::milliseconds> rate);
 
     // Client Reference
     [[nodiscard]] GameClient& gameClient() { return m_gameClient; }
     [[nodiscard]] const GameClient& gameClient() const { return m_gameClient; }
 
 private:
-    void setActiveScreen(Screen screen);
+    // Runtime Callbacks Helpers
+    void subscribeToClientCallbacks();
+    void unsubscribeFromClientCallbacks();
+    void handleClientStateChanged(ClientState newState);
 
-    ftxui::Component buildMainComponent();
+    // Screen Helpers
+    void setScreen(Screen screen);
+    void resetScreen(Screen screen);
+    [[nodiscard]] Screen screenForState(ClientState state) const;
 
-    void tickLoop();
 
+    // FTXUI Helpers
     void onTick();
+    void tickLoop();
+    void cleanupAfterLoop();
+    ftxui::Component buildMainComponent();
 
 private:
     // Game Client
     GameClient& m_gameClient;
+    SubscriptionID m_clientStateSubscription{0};
 
-    // FTXUI Screen
+    // FTXUI
     ftxui::ScreenInteractive m_screen;
-
-    // Main Component
     ftxui::Component m_mainComponent;
 
     // Screen Sub-Classes
     std::map<Screen, std::unique_ptr<ScreenInterface>> m_screens;
-    std::stack<Screen> m_screenHistory;
     Screen m_selectedScreen{Screen::MainMenu};
     int m_selectedIndex{static_cast<int>(Screen::MainMenu)};
 

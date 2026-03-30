@@ -18,6 +18,8 @@
 
 // C++ Includes
 #include <cstdint>
+#include <functional>
+#include <string>
 
 namespace Chess {
 
@@ -59,27 +61,28 @@ constexpr std::string toString(Screen screen) {
 class ClientPanel;
 
 class ScreenInterface {
-
 public:
     explicit ScreenInterface(ClientPanel& panel) : m_clientPanel(panel) {}
     virtual ~ScreenInterface() = default;
 
+    // Lifecycle
     virtual void onEnter() {}
     virtual void onLeave() {}
-
     virtual void onPause() {}
     virtual void onResume() {}
-
     virtual void onTick() {}
 
-    virtual void onLeaveRequest(const std::function<void()>& confirm) {
-        confirm();
-    }
+    // Exit
+    virtual bool canRequestExit() const { return false; }
+    virtual std::string exitLabel() const { return "Back"; }
+    virtual void requestExit() {}
 
     [[nodiscard]] virtual ftxui::Component getComponent() = 0;
+
 protected:
     ClientPanel& m_clientPanel;
 };
+
 
 }
 

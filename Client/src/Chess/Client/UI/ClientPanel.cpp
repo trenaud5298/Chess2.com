@@ -32,6 +32,8 @@
 #include <atomic>
 #include <thread>
 
+#include "Chess/Client/UI/Modal/ErrorModal.hpp"
+
 namespace Chess {
 
 ClientPanel::ClientPanel(GameClient& gameClient) : m_gameClient(gameClient), m_screen(ftxui::ScreenInteractive::FullscreenAlternateScreen()) {
@@ -44,9 +46,13 @@ ClientPanel::ClientPanel(GameClient& gameClient) : m_gameClient(gameClient), m_s
     m_screens[Screen::Multiplayer_Game] = std::make_unique<MultiplayerGameScreen>(*this);
     m_screens[Screen::Multiplayer_Result] = std::make_unique<MultiplayerResultScreen>(*this);
 
+    subscribeToClientCallbacks();
+    m_selectedScreen = screenForState(m_gameClient.state());
+    m_selectedIndex = static_cast<int>(m_selectedScreen);
+
     m_mainComponent = buildMainComponent();
 
-    m_screens[m_selectedScreen]->onEnter();
+    activeScreen().onEnter();
 
     m_tickRunning = true;
     m_tickThread = std::thread(&ClientPanel::tickLoop, this);
@@ -56,15 +62,23 @@ ClientPanel::~ClientPanel() {
     m_tickRunning = false;
     m_tickCondition.notify_one();
     if (m_tickThread.joinable()) { m_tickThread.join(); }
+    cleanupAfterLoop();
+    unsubscribeFromClientCallbacks();
 }
 
 void ClientPanel::run() {
-    m_screen.Loop(m_mainComponent);
+    ftxui::Loop loop(&m_screen, m_mainComponent);
+    while (!loop.HasQuitted()) {
+        loop.RunOnceBlocking();
+        m_modalGraveyard.clear();
+    }
+    cleanupAfterLoop();
 }
 
 void ClientPanel::quit() {
     m_screen.ExitLoopClosure()();
 }
+
 
 void ClientPanel::setTickRate(std::optional<std::chrono::milliseconds> rate) {
     // Enforce Minimum Tick Interval (>=1ms)
@@ -79,72 +93,10 @@ void ClientPanel::setTickRate(std::optional<std::chrono::milliseconds> rate) {
     m_tickCondition.notify_one();
 }
 
-void ClientPanel::navigateTo(Screen screen) {
-    if (screen == m_selectedScreen) { return; }
-    m_screens[m_selectedScreen]->onLeaveRequest([this, screen]() {
-        m_screens[m_selectedScreen]->onLeave();
-        m_screenHistory.push(m_selectedScreen);
-        setActiveScreen(screen);
-    });
-}
-
-void ClientPanel::resetTo(Screen screen) {
-    if (screen == m_selectedScreen) { return; }
-    m_screens[m_selectedScreen]->onLeaveRequest([this, screen]() {
-        m_screens[m_selectedScreen]->onLeave();
-        setActiveScreen(screen);
-        m_screenHistory = {}; //Clears History
-    });
-}
-
-void ClientPanel::navigateBack() {
-    if (m_screenHistory.empty()) { return; }
-    m_screens[m_selectedScreen]->onLeaveRequest([this]() {
-        m_screens[m_selectedScreen]->onLeave();
-        Screen previous = m_screenHistory.top();
-        m_screenHistory.pop();
-        setActiveScreen(previous);
-    });
-}
-
-void ClientPanel::navigateToForce(Screen screen) {
-    if (screen == m_selectedScreen) { return; }
-    m_screens[m_selectedScreen]->onLeave();
-    m_screenHistory.push(m_selectedScreen);
-    setActiveScreen(screen);
-}
-
-void ClientPanel::resetToForce(Screen screen) {
-    if (screen == m_selectedScreen) { return; }
-    m_screens[m_selectedScreen]->onLeave();
-    setActiveScreen(screen);
-    m_screenHistory = {}; //Clears History
-}
-
-void ClientPanel::navigateBackForce() {
-    if (m_screenHistory.empty()) { return; }
-    m_screens[m_selectedScreen]->onLeave();
-    Screen previous = m_screenHistory.top();
-    m_screenHistory.pop();
-    setActiveScreen(previous);
-}
-
-bool ClientPanel::canNavigateBack() const {
-    return !m_screenHistory.empty();
-}
-
-Screen ClientPanel::currentScreen() const {
-    return m_selectedScreen;
-}
-
-void ClientPanel::setActiveScreen(Screen screen) {
-    m_selectedScreen = screen;
-    m_selectedIndex = static_cast<int>(screen);
-    m_screens[screen]->onEnter();
-}
-
 void ClientPanel::pushModal(std::unique_ptr<ModalInterface> modal) {
-    m_screens[m_selectedScreen]->onPause();
+    if (!hasModal()) {
+        activeScreen().onPause();
+    }
     modal->onEnter();
     m_modalStack.push_back(std::move(modal));
     m_showModal = true;
@@ -159,7 +111,7 @@ void ClientPanel::popModal() {
 
     if (m_modalStack.empty()) {
         m_showModal = false;
-        m_screens[m_selectedScreen]->onResume();
+        activeScreen().onResume();
     }
 }
 
@@ -172,93 +124,77 @@ void ClientPanel::popAllModals() {
         m_modalStack.pop_back();
     }
     m_showModal = false;
-    m_screens[m_selectedScreen]->onResume();
+    activeScreen().onResume();
 }
 
-bool ClientPanel::hasModal() const {
-    return !m_modalStack.empty();
+
+// Helpers
+
+void ClientPanel::subscribeToClientCallbacks() {
+    m_clientStateSubscription = m_gameClient.stateRegistry().subscribe(std::bind_front(&ClientPanel::handleClientStateChanged, this));
 }
 
-ftxui::Component ClientPanel::buildMainComponent() {
-    auto screenContainer = ftxui::Container::Tab({
-        m_screens[Screen::MainMenu]->getComponent(),
-        m_screens[Screen::Singleplayer_Setup]->getComponent(),
-        m_screens[Screen::Singleplayer_Game]->getComponent(),
-        m_screens[Screen::Singleplayer_Result]->getComponent(),
-        m_screens[Screen::Multiplayer_Select]->getComponent(),
-        m_screens[Screen::Multiplayer_Lobby]->getComponent(),
-        m_screens[Screen::Multiplayer_Game]->getComponent(),
-        m_screens[Screen::Multiplayer_Result]->getComponent()
-    }, &m_selectedIndex);
+void ClientPanel::unsubscribeFromClientCallbacks() {
+    if (m_clientStateSubscription == 0) { return; }
 
-    // Status Bar
-    auto backButtonOption = ftxui::ButtonOption::Simple();
-    backButtonOption.transform = [this](const ftxui::EntryState& s) {
-        auto label = ftxui::text(s.label);
-        if (!canNavigateBack()) { label |= ftxui::dim; }
-        else if (s.focused) { label |= ftxui::bold; }
-        return label;
-    };
-    auto backButton = ftxui::Button("← Back    ", [this]() {
-        if (canNavigateBack()) { navigateBack(); }
-    }, backButtonOption);
+    m_gameClient.stateRegistry().unsubscribe(m_clientStateSubscription);
+    m_clientStateSubscription = 0;
+}
 
-    auto settingsButtonOption = ftxui::ButtonOption::Simple();
-    settingsButtonOption.transform = [](const ftxui::EntryState& s) {
-        auto label = ftxui::text(s.label);
-        if (s.focused) label = label | ftxui::bold;
-        return label;
-    };
-    auto settingsButton = ftxui::Button("⚙ Settings", [this]() {
-        pushModal(std::make_unique<SettingsModal>(*this));
-    }, settingsButtonOption);
+void ClientPanel::handleClientStateChanged(ClientState state) {
+    Screen targetScreen = screenForState(state);
+    setScreen(targetScreen);
+    if (state == ClientState::Error) {
+        pushModal(std::make_unique<ErrorModal>(*this, "ERROR"));
+    }
+}
 
-    auto statusBarButtons = ftxui::Container::Horizontal({
-        backButton,
-        settingsButton,
-    });
+void ClientPanel::setScreen(Screen screen) {
+    if (screen == currentScreen()) {return;}
 
-    auto statusBar = ftxui::Renderer(statusBarButtons, [this, backButton, settingsButton]() {
-        return ftxui::hbox({
-            backButton->Render(),
-            ftxui::filler(),
-            ftxui::text(toString(currentScreen())) | ftxui::bold | ftxui::center,
-            ftxui::filler(),
-            hasModal() ? ftxui::text("          ") : settingsButton->Render()
-        });
-    });
+    activeScreen().onLeave();
 
-    auto baseLayout = ftxui::Container::Vertical({statusBar, screenContainer});
-    auto baseRenderer = ftxui::Renderer(baseLayout, [this, statusBar, screenContainer]() {
-        return ftxui::vbox({
-            statusBar->Render(),
-            ftxui::separator(),
-            screenContainer->Render() | ftxui::flex
-        }) | (m_showModal ? ftxui::dim : ftxui::nothing);
-    });
+    m_selectedScreen = screen;
+    m_selectedIndex = static_cast<int>(screen);
 
-    auto modalProxy = ftxui::Make<ModalProxy>(m_modalStack);
+    activeScreen().onEnter();
+}
 
-    auto modalLayout = ftxui::Modal(baseRenderer, modalProxy, &m_showModal);
+void ClientPanel::resetScreen(Screen screen) {
+    popAllModals();
+    setScreen(screen);
+}
 
-    auto mainEventCatcher = ftxui::CatchEvent(modalLayout, [this](ftxui::Event event) {
-        if (event == TickEvent) {
-            onTick();
-            m_modalGraveyard.clear();
-            return true;
-        }
-        if (!hasModal() && event == ftxui::Event::Escape && canNavigateBack()) {
-            navigateBack();
-            m_modalGraveyard.clear();
-            return true;
-        }
-        m_modalGraveyard.clear();
-        return false;
-    });
+Screen ClientPanel::screenForState(ClientState state) const {
+    switch (state) {
+        case ClientState::Idle:
+            return Screen::MainMenu;
+        case ClientState::SingleplayerSetup:
+            return Screen::Singleplayer_Setup;
+        case ClientState::SingleplayerInGame:
+        case ClientState::SingleplayerResult:
+            return Screen::Singleplayer_Game;
+        case ClientState::MultiplayerSelect:
+        case ClientState::MultiplayerConnecting:
+            return Screen::Multiplayer_Select;
+        case ClientState::MultiplayerLobby:
+            return Screen::Multiplayer_Lobby;
+        case ClientState::MultiplayerInGame:
+        case ClientState::MultiplayerResult:
+            return Screen::Multiplayer_Game;
+        case ClientState::Error:
+            return Screen::MainMenu;
+    }
 
-    return ftxui::Renderer(mainEventCatcher, [mainEventCatcher]() {
-        return ftxui::window(ftxui::text("Chess2.com Client") | ftxui::bold, mainEventCatcher->Render() | ftxui::flex);
-    });
+    return Screen::MainMenu;
+}
+
+void ClientPanel::onTick() {
+    if (hasModal()) {
+        m_modalStack.back()->onTick();
+    } else {
+        m_screens[m_selectedScreen]->onTick();
+    }
 }
 
 void ClientPanel::tickLoop() {
@@ -293,11 +229,100 @@ void ClientPanel::tickLoop() {
     }
 }
 
-void ClientPanel::onTick() {
-    if (hasModal()) {
-        m_modalStack.back()->onTick();
-    } else {
-        m_screens[m_selectedScreen]->onTick();
-    }
+void ClientPanel::cleanupAfterLoop() {
+    popAllModals();
+    activeScreen().onLeave();
 }
+
+ftxui::Component ClientPanel::buildMainComponent() {
+    auto screenContainer = ftxui::Container::Tab({
+        m_screens[Screen::MainMenu]->getComponent(),
+        m_screens[Screen::Singleplayer_Setup]->getComponent(),
+        m_screens[Screen::Singleplayer_Game]->getComponent(),
+        m_screens[Screen::Singleplayer_Result]->getComponent(),
+        m_screens[Screen::Multiplayer_Select]->getComponent(),
+        m_screens[Screen::Multiplayer_Lobby]->getComponent(),
+        m_screens[Screen::Multiplayer_Game]->getComponent(),
+        m_screens[Screen::Multiplayer_Result]->getComponent()
+    }, &m_selectedIndex);
+
+    // Status Bar
+    auto exitButtonOption = ftxui::ButtonOption::Simple();
+    exitButtonOption.transform = [this](const ftxui::EntryState& state) {
+        auto label = ftxui::text(activeScreen().exitLabel());
+        if (!activeScreen().canRequestExit()) {label |= ftxui::dim;}
+        else if (state.focused) {label |= ftxui::bold;}
+        return label;
+    };
+    auto exitButton = ftxui::Button("", [this]() {
+        if (!hasModal() && activeScreen().canRequestExit()) {
+            activeScreen().requestExit();
+        }
+    }, exitButtonOption);
+
+    auto settingsButtonOption = ftxui::ButtonOption::Simple();
+    settingsButtonOption.transform = [](const ftxui::EntryState& state) {
+        auto label = ftxui::text("Settings");
+        if (state.focused) {label |= ftxui::bold;}
+        return label;
+    };
+    auto settingsButton = ftxui::Button("", [this]() {
+        pushModal(std::make_unique<SettingsModal>(*this));
+    }, settingsButtonOption);
+
+    auto statusBarButtons = ftxui::Container::Horizontal({
+        exitButton,
+        settingsButton,
+    });
+
+    auto statusBar = ftxui::Renderer(statusBarButtons, [this, exitButton, settingsButton]() {
+        return ftxui::hbox({
+            exitButton->Render(),
+            ftxui::filler(),
+            ftxui::text(toString(currentScreen())) | ftxui::bold | ftxui::center,
+            ftxui::filler(),
+            hasModal() ? ftxui::text("        ") : settingsButton->Render()
+        });
+    });
+
+    auto baseLayout = ftxui::Container::Vertical({statusBar, screenContainer});
+    auto baseRenderer = ftxui::Renderer(baseLayout, [this, statusBar, screenContainer]() {
+        return ftxui::vbox({
+            statusBar->Render(),
+            ftxui::separator(),
+            screenContainer->Render() | ftxui::flex
+        }) | (m_showModal ? ftxui::dim : ftxui::nothing);
+    });
+
+    auto modalProxy = ftxui::Make<ModalProxy>(m_modalStack);
+
+    auto modalLayout = ftxui::Modal(baseRenderer, modalProxy, &m_showModal);
+
+    auto mainEventCatcher = ftxui::CatchEvent(modalLayout, [this](ftxui::Event event) {
+        if (event == TickEvent) {
+            onTick();
+            return true;
+        }
+
+        if (event == ftxui::Event::Escape) {
+            if (hasModal()) {
+                if (activeModal().canRequestDismiss()) {
+                    activeModal().requestDismiss();
+                }
+                return true;
+            } else if (activeScreen().canRequestExit()) {
+                activeScreen().requestExit();
+                return true;
+            }
+        }
+        return false;
+    });
+
+    return ftxui::Renderer(mainEventCatcher, [mainEventCatcher]() {
+        return ftxui::window(ftxui::text("Chess2.com Client") | ftxui::bold, mainEventCatcher->Render() | ftxui::flex);
+    });
+}
+
+
+
 }

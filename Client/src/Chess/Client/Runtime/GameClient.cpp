@@ -18,33 +18,11 @@
 
 namespace Chess {
 
-namespace {
 
-std::string toString(ClientMode mode) {
-    switch (mode) {
-        case ClientMode::Idle: return "Idle";
-        case ClientMode::Singleplayer: return "Singleplayer";
-        case ClientMode::Multiplayer: return "Multiplayer";
-        default: return "Unknown";
-    }
-}
-
-std::string toString(ClientPhase phase) {
-    switch (phase) {
-        case ClientPhase::Idle: return "Idle";
-        case ClientPhase::Starting: return "Starting";
-        case ClientPhase::Active: return "Active";
-        case ClientPhase::Paused: return "Paused";
-        case ClientPhase::Stopping: return "Stopping";
-        case ClientPhase::Error: return "Error";
-        default: return "Unknown";
-    }
-}
-
-}
-
-GameClient::GameClient() : m_startTime(std::chrono::steady_clock::now()), m_loggingManager(*this), m_persistenceManager(*this), m_singleplayerClient(*this), m_multiplayerClient(*this) {
-    m_loggingManager.log(LogEntry::Info("GameClient initialized: mode=" + toString(m_mode.load()) + ", phase=" + toString(m_phase.load())));
+GameClient::GameClient() : m_startTime(std::chrono::steady_clock::now()), m_loggingManager(*this), m_persistenceManager(*this), m_singleplayerClient(), m_multiplayerClient(*this) {
+    m_singleplayerClient.resultRegistry().subscribe([this](const GameResult&) {
+        transitionTo(ClientState::SingleplayerResult);
+    });
 }
 
 GameClient::~GameClient() {
@@ -52,135 +30,143 @@ GameClient::~GameClient() {
 }
 
 
-std::chrono::steady_clock::time_point GameClient::startTime() const {
-    return m_startTime;
+// GameClient Controls
+void GameClient::tick() {
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    if (isSingleplayerState()) {
+        m_singleplayerClient.tick(now);
+    }
+    if (isMultiplayerState()) {
+        // m_multiplayerClient.tick(now);
+    }
 }
 
-std::chrono::milliseconds GameClient::uptimeCurrent() const {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_startTime
-    );
-}
 
-std::chrono::milliseconds GameClient::uptimeAtPoint(std::chrono::steady_clock::time_point point) const {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        point - m_startTime
-    );
+// Singleplayer Commands
+ClientCommandResult GameClient::enterSingleplayerSetup() {
+    if (m_state.load() != ClientState::Idle) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Client must be idle");
+    }
+    transitionTo(ClientState::SingleplayerSetup);
+    return ClientCommandResult::Success();
 }
-
 
 ClientCommandResult GameClient::startSingleplayer(const SingleplayerConfig& config) {
-    if (m_mode.load() != ClientMode::Idle) {
-        m_loggingManager.log(LogEntry::Warning("Rejected startSingleplayer(): mode=" + toString(m_mode.load()) + ", phase=" + toString(m_phase.load())));
-        return ClientCommandResult::Failure(ClientError::InvalidState,
-            "startSingleplayer() Requires Current Mode To Be Idle"
-        );
+    if (m_state.load() != ClientState::SingleplayerSetup) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Not in singleplayer setup");
     }
 
-    m_loggingManager.log(LogEntry::Info("Starting singleplayer: playerColor=" + std::to_string(static_cast<int>(config.playerColor)) +", timePerSide=" + std::to_string(config.timePerSide.count()) + "s, increment=" + std::to_string(config.increment.count()) + "s"));
-    transitionTo(ClientPhase::Starting);
-
     try {
-        m_singleplayerClient.start(config);
-        transitionTo(ClientMode::Singleplayer);
-        transitionTo(ClientPhase::Active);
-        m_loggingManager.log(LogEntry::Info("Singleplayer started successfully"));
+        m_singleplayerClient.start(config, std::chrono::steady_clock::now());
+        transitionTo(ClientState::SingleplayerInGame);
         return ClientCommandResult::Success();
     } catch (const std::exception& e) {
-        transitionTo(ClientMode::Idle);
-        transitionTo(ClientPhase::Idle);
-        m_loggingManager.log(LogEntry::Error("startSingleplayer() failed: " + std::string(e.what())));
+        transitionTo(ClientState::Error);
         return ClientCommandResult::Failure(ClientError::StartupFailed, e.what());
     }
 }
 
-ClientCommandResult GameClient::stopSingleplayer() {
-    if (m_mode.load() != ClientMode::Singleplayer) {
-        m_loggingManager.log(LogEntry::Warning("Rejected stopSingleplayer(): mode=" + toString(m_mode.load()) + ", phase=" + toString(m_phase.load())));
-        return ClientCommandResult::Failure(ClientError::InvalidState,
-            "stopSingleplayer() Requires Current Mode To Be Singleplayer"
-        );
+ClientCommandResult GameClient::submitSingleplayerMove(ID from, Pos to) {
+    if (m_state.load() != ClientState::SingleplayerInGame) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not active");
     }
 
-    m_loggingManager.log(LogEntry::Info("Stopping singleplayer"));
-    transitionTo(ClientPhase::Stopping);
+    bool validMove = false;
+    try {
+        validMove = m_singleplayerClient.tryMove(from, to, std::chrono::steady_clock::now());
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+    }
+
+    if (!validMove) {
+        return ClientCommandResult::Failure(ClientError::CommandRejected, "Invalid move");
+    }
+    return ClientCommandResult::Success();
+}
+
+ClientCommandResult GameClient::resignSingleplayer() {
+    if (m_state.load() != ClientState::SingleplayerInGame) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
+    }
+
+    try {
+        m_singleplayerClient.resign(std::chrono::steady_clock::now());
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+    }
+    return ClientCommandResult::Success();
+}
+
+ClientCommandResult GameClient::stopSingleplayer() {
+    if (!isSingleplayerState()) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not active");
+    }
 
     try {
         m_singleplayerClient.stop();
-        transitionTo(ClientMode::Idle);
-        transitionTo(ClientPhase::Idle);
-        m_loggingManager.log(LogEntry::Info("Singleplayer stopped successfully"));
-        return ClientCommandResult::Success();
     } catch (const std::exception& e) {
-        transitionTo(ClientPhase::Error);
-        m_loggingManager.log(LogEntry::Error("stopSingleplayer() failed: " + std::string(e.what())));
-        return ClientCommandResult::Failure(ClientError::ShutdownFailed, e.what());
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
     }
+    transitionTo(ClientState::Idle);
+    return ClientCommandResult::Success();
 }
 
-ClientCommandResult GameClient::startMultiplayer(const ServerInfo& server) {
-    if (m_mode.load() != ClientMode::Idle) {
-        m_loggingManager.log(LogEntry::Warning("Rejected startMultiplayer(): mode=" + toString(m_mode.load()) + ", phase=" + toString(m_phase.load())));
-        return ClientCommandResult::Failure(ClientError::InvalidState,
-            "startMultiplayer() Requires Current Mode To Be Idle"
-        );
+ClientCommandResult GameClient::pauseSingleplayer() {
+    if (m_state.load() != ClientState::SingleplayerInGame) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
     }
 
-    m_loggingManager.log(LogEntry::Info("Starting multiplayer: serverIp=" + server.ip));
-    transitionTo(ClientMode::Multiplayer);
-    transitionTo(ClientPhase::Starting);
-
-    // auto result = m_multiplayerClient.connect(server);
-    // if (!result) {
-    //     transitionTo(ClientMode::Idle);
-    //     transitionTo(ClientPhase::Idle);
-    //     return result;
-    // }
-
-    m_loggingManager.log(LogEntry::Info("Multiplayer start accepted"));
+    try {
+        m_singleplayerClient.pause(std::chrono::steady_clock::now());
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+    }
     return ClientCommandResult::Success();
+}
+
+ClientCommandResult GameClient::resumeSingleplayer() {
+    if (m_state.load() != ClientState::SingleplayerInGame) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
+    }
+
+    try {
+        m_singleplayerClient.resume(std::chrono::steady_clock::now());
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+    }
+    return ClientCommandResult::Success();
+}
+
+// Singleplayer Info
+SingleplayerView GameClient::singleplayerView(std::chrono::steady_clock::time_point now) const {
+    return m_singleplayerClient.view(now);
+}
+
+
+// Multiplayer Commands
+ClientCommandResult GameClient::startMultiplayer(const ServerInfo &server) {
+    return ClientCommandResult::Failure(ClientError::RuntimeException, "NOT IMPLEMENTED");
 }
 
 ClientCommandResult GameClient::stopMultiplayer() {
-    if (m_mode.load() != ClientMode::Multiplayer) {
-        m_loggingManager.log(LogEntry::Warning("Rejected stopMultiplayer(): mode=" + toString(m_mode.load()) + ", phase=" + toString(m_phase.load())));
-        return ClientCommandResult::Failure(ClientError::InvalidState,
-            "stopMultiplayer() Requires Current Mode To Be Multiplayer"
-        );
+    return ClientCommandResult::Failure(ClientError::RuntimeException, "NOT IMPLEMENTED");
+}
+
+
+
+// Helpers
+void GameClient::transitionTo(ClientState newState) {
+    ClientState oldState = m_state.exchange(newState);
+    if (oldState == newState) {
+        return;
     }
 
-    m_loggingManager.log(LogEntry::Info("Stopping multiplayer"));
-    transitionTo(ClientPhase::Stopping);
-
-    // auto result = m_multiplayerClient.disconnect();
-    // if (!result) {
-    //     transitionTo(ClientPhase::Error;
-    //     return result;
-    // }
-
-    m_loggingManager.log(LogEntry::Info("Multiplayer stop accepted"));
-    return ClientCommandResult::Success();
+    m_loggingManager.log(LogEntry::Info("Client State Transition: " + toString(oldState) + " -> " + toString(newState)));
+    m_stateRegistry.fire(newState);
 }
-
-void GameClient::onMultiplayerStopped() {
-    if (m_mode.load() != ClientMode::Multiplayer) { return; }
-    m_loggingManager.log(LogEntry::Info("Multiplayer stopped, returning to Idle"));
-    transitionTo(ClientMode::Idle);
-}
-
-
-void GameClient::transitionTo(ClientMode newMode) {
-    ClientMode oldState = m_mode.load();
-    m_loggingManager.log(LogEntry::Info("Client mode transition: " + toString(oldState) + " -> " + toString(newMode)));
-    m_mode = newMode;
-    m_stateRegistry.fire(newMode);
-}
-
-void GameClient::transitionTo(ClientPhase newPhase) {
-    ClientPhase oldPhase = m_phase.load();
-    m_loggingManager.log(LogEntry::Info("Client phase transition: " + toString(oldPhase) + " -> " + toString(newPhase)));
-    m_phase = newPhase;
-    m_phaseRegistry.fire(newPhase);
-}
-
 }

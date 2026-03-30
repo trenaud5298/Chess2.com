@@ -18,7 +18,7 @@
 
 namespace Chess {
 
-SingleplayerClient::SingleplayerClient(GameClient& gameClient) : m_gameClient(gameClient) {
+SingleplayerClient::SingleplayerClient() {
 
 }
 
@@ -26,17 +26,20 @@ SingleplayerClient::~SingleplayerClient() {
 
 }
 
-void SingleplayerClient::start(const SingleplayerConfig& config) {
+void SingleplayerClient::start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now) {
     m_config = config;
     m_board = Board{};
     m_currentTurn = COLOR::WHITE;
     m_state = SingleplayerState::INGAME;
     m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
+    m_whiteTime = config.timePerSide;
+    m_blackTime = config.timePerSide;
+    m_turnStart = now;
+}
 
-    m_whiteTime = std::chrono::duration_cast<std::chrono::milliseconds>(config.timePerSide);
-    m_blackTime = std::chrono::duration_cast<std::chrono::milliseconds>(config.timePerSide);
-
-    m_turnStart = std::chrono::steady_clock::now();
+void SingleplayerClient::restart(std::chrono::steady_clock::time_point now) {
+    stop();
+    start(m_config, now);
 }
 
 void SingleplayerClient::stop() {
@@ -46,62 +49,85 @@ void SingleplayerClient::stop() {
     m_currentTurn = COLOR::WHITE;
     m_whiteTime = std::chrono::milliseconds{0};
     m_blackTime = std::chrono::milliseconds{0};
+    m_turnStart = {};
+    m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
 }
 
-void SingleplayerClient::pause() {
+
+void SingleplayerClient::pause(std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::INGAME) { return; }
-    m_pauseStart = std::chrono::steady_clock::now();
+    commitElapsedToActiveSide(now);
     m_state = SingleplayerState::PAUSED;
 }
 
-void SingleplayerClient::resume() {
+void SingleplayerClient::resume(std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::PAUSED) { return; }
-    auto pauseDuration = std::chrono::steady_clock::now() - m_pauseStart;
-    m_turnStart += pauseDuration;
+    m_turnStart = now;
     m_state = SingleplayerState::INGAME;
 }
 
-bool SingleplayerClient::tryMove(ID from, Pos to) {
+bool SingleplayerClient::tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::INGAME) { return false; }
     if (from==ID::EMPTY) { return false; }
     if (!isColor(from, m_currentTurn)) { return false; }
+    if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) { return false; }
     if (!m_board.isValidMove(from, to)) { return false; }
 
     m_board.move(from, to);
-    advanceTurn();
+    advanceTurn(now);
     return true;
 }
 
-void SingleplayerClient::resign() {
+void SingleplayerClient::resign(std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::INGAME) { return; }
-
+    commitElapsedToActiveSide(now);
     recordResult((m_currentTurn == COLOR::WHITE) ? COLOR::BLACK : COLOR::WHITE, GameOverReason::RESIGN);
 }
 
-void SingleplayerClient::checkTimeout() {
-    if (m_state != SingleplayerState::INGAME) { return; }
 
-    if (whiteTimeRemaining() <= std::chrono::milliseconds{0}) {
-        recordResult(COLOR::BLACK, GameOverReason::TIMEOUT);
-    } else if (blackTimeRemaining() <= std::chrono::milliseconds{0}) {
-        recordResult(COLOR::WHITE, GameOverReason::TIMEOUT);
+void SingleplayerClient::tick(std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::INGAME) { return; }
+    if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) {
+        commitElapsedToActiveSide(now);
+        recordResult(m_currentTurn == COLOR::WHITE ? COLOR::BLACK : COLOR::WHITE, GameOverReason::TIMEOUT);
     }
 }
 
-std::chrono::milliseconds SingleplayerClient::whiteTimeRemaining() const {
-    std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_turnStart
-    );
-    return timeRemaining(COLOR::WHITE, elapsed);
+
+[[nodiscard]] SingleplayerView SingleplayerClient::view(std::chrono::steady_clock::time_point now) const {
+    return {
+        .state = m_state,
+        .playerColor = m_config.playerColor,
+        .currentTurn = m_currentTurn,
+        .board = &m_board,
+        .whiteTimeRemaining = timeRemaining(COLOR::WHITE, now),
+        .blackTimeRemaining = timeRemaining(COLOR::BLACK, now),
+        .result = (m_state == SingleplayerState::RESULT ? std::make_optional(m_result) : std::nullopt)
+    };
 }
 
-std::chrono::milliseconds SingleplayerClient::blackTimeRemaining() const {
-    std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_turnStart
-    );
-    return timeRemaining(COLOR::BLACK, elapsed);
+[[nodiscard]] const SingleplayerConfig& SingleplayerClient::config() const noexcept {
+    return m_config;
 }
 
+[[nodiscard]] const GameResult& SingleplayerClient::result() const noexcept {
+    return m_result;
+}
+
+
+[[nodiscard]] CallbackRegistry<const GameResult&>& SingleplayerClient::resultRegistry() {
+    return m_resultRegistry;
+}
+
+
+// Helpers
+std::chrono::milliseconds SingleplayerClient::timeRemaining(COLOR side, std::chrono::steady_clock::time_point now) const {
+    std::chrono::milliseconds sideTime = (side == COLOR::WHITE ? m_whiteTime : m_blackTime);
+    if (m_state == SingleplayerState::INGAME && m_currentTurn == side) {
+        sideTime -= std::chrono::duration_cast<std::chrono::milliseconds>(now - m_turnStart);
+    }
+    return std::max(std::chrono::milliseconds{0}, sideTime);
+}
 
 bool SingleplayerClient::isColor(ID id, COLOR color) const noexcept {
     if (id == ID::EMPTY) { return false; }
@@ -111,39 +137,32 @@ bool SingleplayerClient::isColor(ID id, COLOR color) const noexcept {
     return false;
 }
 
-void SingleplayerClient::advanceTurn() {
-    std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_turnStart);
-    std::chrono::milliseconds increment = std::chrono::duration_cast<std::chrono::milliseconds>(
-        m_config.increment
-    );
-
+void SingleplayerClient::advanceTurn(std::chrono::steady_clock::time_point now) {
+    commitElapsedToActiveSide(now);
     if (m_currentTurn == COLOR::WHITE) {
-        m_whiteTime = m_whiteTime - elapsed + increment;
+        m_whiteTime += m_config.increment;
         m_currentTurn = COLOR::BLACK;
     } else {
-        m_blackTime = m_blackTime - elapsed + increment;
+        m_blackTime += m_config.increment;
         m_currentTurn = COLOR::WHITE;
     }
-
-    if (m_whiteTime < std::chrono::milliseconds{0}) { m_whiteTime = std::chrono::milliseconds{0}; }
-    if (m_blackTime < std::chrono::milliseconds{0}) { m_blackTime = std::chrono::milliseconds{0}; }
-
-    m_turnStart = std::chrono::steady_clock::now();
 }
 
+void SingleplayerClient::commitElapsedToActiveSide(std::chrono::steady_clock::time_point now) {
+    if (m_currentTurn == COLOR::WHITE) {
+        m_whiteTime -= std::chrono::duration_cast<std::chrono::milliseconds>(now - m_turnStart);
+    } else {
+        m_blackTime -= std::chrono::duration_cast<std::chrono::milliseconds>(now - m_turnStart);
+    }
+    m_turnStart = now;
+}
+
+
 void SingleplayerClient::recordResult(COLOR winner, GameOverReason reason) {
+    if (m_state == SingleplayerState::RESULT) {return;}
     m_result = { winner, reason };
     m_state  = SingleplayerState::RESULT;
     m_resultRegistry.fire(m_result);
-}
-
-std::chrono::milliseconds SingleplayerClient::timeRemaining(COLOR side, std::chrono::milliseconds elapsed) const {
-    if (side == m_currentTurn) {
-        std::chrono::milliseconds remaining = (side == COLOR::WHITE ? m_whiteTime : m_blackTime) - elapsed;
-        return remaining < std::chrono::milliseconds{0} ? std::chrono::milliseconds{0} : remaining;
-    }
-    return side == COLOR::WHITE ? m_whiteTime : m_blackTime;
 }
 
 }

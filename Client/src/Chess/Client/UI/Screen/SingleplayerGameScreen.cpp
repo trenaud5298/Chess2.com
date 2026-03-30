@@ -180,7 +180,7 @@ void SingleplayerGameScreen::onResult(const GameResult& result) {
             m_clientPanel.navigateBack();
         },
         "Main Menu", [this]() {
-            m_clientPanel.resetTo(Screen::MainMenu);
+            m_clientPanel.resetScreen(Screen::MainMenu);
         }
     ));
 }
