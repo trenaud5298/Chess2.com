@@ -12,12 +12,16 @@
 //      * implement a way to promote pawns
 //      * implement a way to en passant
 //      * implement checking logic fully
+//      * Fix the indexing mismatch in most of the functions
 //
 //      *   Testing TODO
-//        write a function to generate Board objects in initial states from a string 
-//          64 characters long which is generated from another function that can either take
-//          an array of size 64 of ID literals representing board state, or up to 64 std::pair 
-//          of ID or Type and Pos such that it populates the position with the ID in the board
+//        write a function to generate Board objects in initial states from an
+//          an array of size 64 of ID literals representing board state, 
+//          
+//          Make another function that generates arrays of size 64 from up to 
+//          to 64 std::pair of ID or Type and Pos such that it populates the 
+//          position in the array corresponding to the given Pos with the ID in the board
+//
 
 namespace Chess {
     using enum ID;
@@ -178,6 +182,7 @@ namespace Chess {
 
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
+        m_moves.fill(Pos{8,8});
     }
 
 
@@ -756,28 +761,41 @@ namespace Chess {
                 i++;
             }
         }
-        temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
-        if( isInBoard(temp) ) {
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
-            if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
-                setAttackedAt(temp);
-                setMoveAt(initialId, temp, i);
-                i++;
-            } else {
-                setDefendedAt(temp);
+        int tempRow = (int) initial[ROW] + m_pawnMods[0].first;
+        int tempCol = (int) initial[COL] + m_pawnMods[0].second;
+        if( ROW_LOWER_BOUND < tempRow && tempRow < ROW_UPPER_BOUND && COL_LOWER_BOUND < tempCol && tempCol < COL_UPPER_BOUND ) {
+            temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
+            if( isInBoard(temp) ) { // this is redundant but im keeping it for now
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
+                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                    std::cout << "HERE i = " << i<< std::endl;
+                    for( const int& n : temp ) {
+                        std::cout << n << ' ';
+                    }
+                    std::cout << std::endl;
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
         }
-        temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
-        if( isInBoard(temp) ) {
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
-            if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
-                setAttackedAt(temp);
-                setMoveAt(initialId, temp, i);
-                i++;
-            } else {
-                setDefendedAt(temp);
+        tempRow = (int) initial[ROW] + m_pawnMods[1].first;
+        tempCol = (int) initial[COL] + m_pawnMods[1].second;
+        if( ROW_LOWER_BOUND < tempRow && tempRow < ROW_UPPER_BOUND && COL_LOWER_BOUND < tempCol && tempCol < COL_UPPER_BOUND ) {
+            temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
+            if( isInBoard(temp) ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
+                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
         }
     }

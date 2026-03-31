@@ -11,7 +11,10 @@ int main() {
     board.move(ID::W_ROOK1, Pos{2,0});
     board.move(ID::W_ROOK1, Pos{2,1});
     board.move(ID::W_KNIGHT1, Pos{2,2});
+    board.move(ID::B_PAWN2, Pos{4,1});
+    board.move(ID::B_PAWN2, Pos{3,1});
     board.displayBoard();
+    board.nextTurn();
     board.genMoves();
     board.printMoves();
 
