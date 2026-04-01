@@ -32,7 +32,6 @@ public:
     ftxui::Component getComponent() override;
 
 private:
-    ;
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Result;
 };

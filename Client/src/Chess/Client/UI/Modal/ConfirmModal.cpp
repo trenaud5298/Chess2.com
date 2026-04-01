@@ -64,13 +64,6 @@ void ConfirmModal::onLeave() {
 }
 
 
-void ConfirmModal::onEscape() {
-    auto cancel = m_onCancel;
-    m_clientPanel.popModal();
-    if (cancel) { cancel(); }
-}
-
-
 
 [[nodiscard]] ftxui::Component ConfirmModal::getComponent() {
     return m_component;

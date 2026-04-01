@@ -120,6 +120,7 @@ void SingleplayerClient::tick(std::chrono::steady_clock::time_point now) {
 }
 
 
+
 // Helpers
 std::chrono::milliseconds SingleplayerClient::timeRemaining(COLOR side, std::chrono::steady_clock::time_point now) const {
     std::chrono::milliseconds sideTime = (side == COLOR::WHITE ? m_whiteTime : m_blackTime);

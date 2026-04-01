@@ -34,6 +34,10 @@ public:
     ftxui::Component getComponent() override;
     void onEnter() override;
 
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override {return "Main Menu";}
+    void requestExit() override;
+
 private:
     ;
     ftxui::Component m_component;

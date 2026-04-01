@@ -45,20 +45,20 @@ public:
 
     void onTick() override;
 
-    void onLeaveRequest(const std::function<void()>& confirm) override;
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override {return "Quit";}
+    void requestExit() override;
 
 private:
     ftxui::Component buildComponent();
     ftxui::Element renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const;
-    void onResult(const GameResult& result);
+
 private:
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Game;
 
     std::shared_ptr<ChessBoardDisplay> m_boardDisplay;
 
-    SubscriptionID m_resultSubscription{0};
-    bool m_resultModalShown{false};
 };
 
 }

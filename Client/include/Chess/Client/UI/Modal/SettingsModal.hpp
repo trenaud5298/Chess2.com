@@ -32,7 +32,6 @@ public:
 
     void onEnter() override;
     void onLeave() override;
-    void onEscape() override;
 
     [[nodiscard]] ftxui::Component getComponent() override;
 private:

@@ -28,6 +28,12 @@ class MainMenuScreen : public ScreenInterface {
 public:
     explicit MainMenuScreen(ClientPanel& clientPanel);
     ~MainMenuScreen();
+
+    // Exit
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override {return "Quit";}
+    void requestExit() override;
+
     ftxui::Component getComponent() override;
 
 

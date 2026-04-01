@@ -162,7 +162,7 @@ namespace Chess {
     }
 
 
-    const std::array<ID, 64> &Board::getBoard() {
+    const std::array<ID, 64> &Board::getBoard() const {
         return m_board;
     }
 

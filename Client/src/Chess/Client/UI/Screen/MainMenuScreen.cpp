@@ -30,10 +30,10 @@ MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : ScreenInterface(clien
 
     auto buttons = ftxui::Container::Vertical({
         ftxui::Button("  Singleplayer  ", [&] {
-            m_clientPanel.navigateTo(Screen::Singleplayer_Setup);
+            m_clientPanel.gameClient().enterSingleplayerSetup();
         }, buttonOption),
         ftxui::Button("  Multiplayer   ", [&] {
-            m_clientPanel.navigateTo(Screen::Multiplayer_Select);
+            m_clientPanel.gameClient().enterMultiplayerSetup();
         }, buttonOption),
         ftxui::Button("      Quit      ", [&] {
             m_clientPanel.quit();
@@ -58,6 +58,9 @@ MainMenuScreen::~MainMenuScreen() {
 
 }
 
+void MainMenuScreen::requestExit() {
+    m_clientPanel.quit();
+}
 
 ftxui::Component MainMenuScreen::getComponent() {
     return m_component;

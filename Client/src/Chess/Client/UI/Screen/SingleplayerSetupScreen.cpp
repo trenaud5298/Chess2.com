@@ -60,12 +60,6 @@ SingleplayerSetupScreen::SingleplayerSetupScreen(ClientPanel& clientPanel) : Scr
             default: config.playerColor = COLOR::WHITE; break;
         }
         ClientCommandResult result = m_clientPanel.gameClient().startSingleplayer(config);
-        if (result) {
-            m_clientPanel.navigateTo(Screen::Singleplayer_Game);
-        } else {
-            m_clientPanel.pushModal(std::make_unique<ErrorModal>(m_clientPanel, result.message));
-        }
-
     }, ftxui::ButtonOption::Simple());
 
     auto optionMenus = ftxui::Container::Horizontal({
@@ -156,4 +150,7 @@ void SingleplayerSetupScreen::onEnter() {
     m_incrementIndex = 0;
 }
 
+void SingleplayerSetupScreen::requestExit() {
+    m_clientPanel.gameClient().returnToIdle();
+}
 } // namespace Chess

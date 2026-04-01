@@ -46,6 +46,5 @@ void SettingsModal::onEnter() {}
 
 void SettingsModal::onLeave() {}
 
-void SettingsModal::onEscape() {}
 
 } // namespace Chess

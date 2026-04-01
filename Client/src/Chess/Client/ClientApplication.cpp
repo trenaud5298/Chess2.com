@@ -27,6 +27,7 @@ ClientApplication::~ClientApplication() {
 
 void ClientApplication::run() {
     m_clientPanel.run();
+    m_gameClient.shutdown();
 }
 
 

@@ -31,7 +31,7 @@ namespace Chess {
              *     nextTurn();
              *
              */
-            const std::array<ID, 64>& getBoard();
+            const std::array<ID, 64>& getBoard() const;
             bool isValidMove(const ID& id, const Pos& target);
             void setTurn(bool isWhite);
             bool getTurn() const;

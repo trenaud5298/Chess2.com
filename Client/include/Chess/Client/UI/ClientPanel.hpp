@@ -28,7 +28,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <stack>
 #include <thread>
 #include <vector>
 
@@ -36,8 +35,9 @@
 namespace Chess {
 
 class GameClient;
-inline const ftxui::Event TickEvent = ftxui::Event::Special("tick");
 
+inline const ftxui::Event TickEvent = ftxui::Event::Special("tick");
+inline const ftxui::Event StateChangeEvent = ftxui::Event::Special("statechange");
 
 class ClientPanel {
 
@@ -75,7 +75,7 @@ private:
     // Runtime Callbacks Helpers
     void subscribeToClientCallbacks();
     void unsubscribeFromClientCallbacks();
-    void handleClientStateChanged(ClientState newState);
+    void handleClientStateChanged();
 
     // Screen Helpers
     void setScreen(Screen screen);
@@ -109,11 +109,10 @@ private:
     bool m_showModal{false};
 
     // Tick
-    static constexpr std::chrono::milliseconds MIN_TICK_RATE{ 500 };
     std::thread m_tickThread;
     std::mutex m_tickMutex;
     std::condition_variable m_tickCondition;
-    std::atomic<bool> m_tickRunning{false};
+    bool m_tickRunning{false};
     std::optional<std::chrono::milliseconds> m_tickRate{std::nullopt};
     std::uint64_t m_tickRevision{0};
 };

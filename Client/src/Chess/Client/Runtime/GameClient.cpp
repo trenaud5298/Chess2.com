@@ -31,14 +31,44 @@ GameClient::~GameClient() {
 
 
 // GameClient Controls
-void GameClient::tick() {
+ClientCommandResult GameClient::tick() {
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-    if (isSingleplayerState()) {
-        m_singleplayerClient.tick(now);
+    try {
+        if (isSingleplayerState()) {
+            m_singleplayerClient.tick(now);
+        }
+        if (isMultiplayerState()) {
+            // m_multiplayerClient.tick(now);
+        }
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
     }
-    if (isMultiplayerState()) {
-        // m_multiplayerClient.tick(now);
+
+    return ClientCommandResult::Success();
+}
+
+
+ClientCommandResult GameClient::shutdown() {
+    //TODO: Need To Add Asio Shutdown
+    ClientCommandResult result = returnToIdle();
+    if (!result) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::ShutdownFailed, "Shutdown failed");
     }
+    return ClientCommandResult::Success();
+}
+
+ClientCommandResult GameClient::returnToIdle() {
+    try {
+        m_singleplayerClient.stop();
+        // m_multiplayerClient.stop();
+    } catch (const std::exception& e) {
+        transitionTo(ClientState::Error);
+        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+    }
+    transitionTo(ClientState::Idle);
+    return ClientCommandResult::Success();
 }
 
 
@@ -143,12 +173,21 @@ ClientCommandResult GameClient::resumeSingleplayer() {
 }
 
 // Singleplayer Info
-SingleplayerView GameClient::singleplayerView(std::chrono::steady_clock::time_point now) const {
-    return m_singleplayerClient.view(now);
+SingleplayerView GameClient::singleplayerView() const {
+    return m_singleplayerClient.view(std::chrono::steady_clock::now());
 }
 
 
+
 // Multiplayer Commands
+ClientCommandResult GameClient::enterMultiplayerSetup() {
+    if (m_state.load() != ClientState::Idle) {
+        return ClientCommandResult::Failure(ClientError::InvalidState, "Client must be idle");
+    }
+    transitionTo(ClientState::MultiplayerSetup);
+    return ClientCommandResult::Success();
+}
+
 ClientCommandResult GameClient::startMultiplayer(const ServerInfo &server) {
     return ClientCommandResult::Failure(ClientError::RuntimeException, "NOT IMPLEMENTED");
 }
@@ -166,7 +205,7 @@ void GameClient::transitionTo(ClientState newState) {
         return;
     }
 
-    m_loggingManager.log(LogEntry::Info("Client State Transition: " + toString(oldState) + " -> " + toString(newState)));
+    m_loggingManager.log(LogEntry::Info("Client State Transition: " + std::string(toString(oldState)) + " -> " + std::string(toString(newState))));
     m_stateRegistry.fire(newState);
 }
 }

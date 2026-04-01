@@ -24,9 +24,10 @@ namespace Chess {
 
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
     m_boardDisplay->onMove = [this](ID from, Pos to) {
-        SingleplayerClient& singlePlayerClient = m_clientPanel.gameClient().singleplayerClient();
-        if (!singlePlayerClient.tryMove(from, to)) { return; }
-        m_boardDisplay->updateBoard(singlePlayerClient.board().getBoard());
+        ClientCommandResult result = m_clientPanel.gameClient().submitSingleplayerMove(from, to);
+        if (result) {
+            m_boardDisplay->updateBoard(m_clientPanel.gameClient().singleplayerView().board->getBoard());
+        }
     };
 
     m_component = buildComponent();
@@ -39,45 +40,32 @@ ftxui::Component SingleplayerGameScreen::getComponent() {
 }
 
 void SingleplayerGameScreen::onEnter() {
-    SingleplayerClient& singlePlayerClient = m_clientPanel.gameClient().singleplayerClient();
-    m_boardDisplay->setFlipped(singlePlayerClient.playerColor() == COLOR::BLACK);
-    m_boardDisplay->updateBoard(singlePlayerClient.board().getBoard());
-    m_resultModalShown = false;
-    m_resultSubscription = singlePlayerClient.resultRegistry().subscribe(std::bind_front(&SingleplayerGameScreen::onResult,this));
+    SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
+    m_boardDisplay->setFlipped(view.playerColor == COLOR::BLACK);
+    m_boardDisplay->updateBoard(view.board->getBoard());
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
 }
 
 void SingleplayerGameScreen::onLeave() {
-    if (m_resultSubscription != 0) {
-        m_clientPanel.gameClient().singleplayerClient().resultRegistry().unsubscribe(m_resultSubscription);
-        m_resultSubscription = 0;
-    }
-    m_clientPanel.gameClient().singleplayerClient().resign();
-    auto result = m_clientPanel.gameClient().stopSingleplayer();
-    if (!result) {
-        m_clientPanel.pushModal(std::make_unique<ErrorModal>(m_clientPanel, result.message));
-    }
+    m_clientPanel.gameClient().resignSingleplayer();
+    ClientCommandResult result = m_clientPanel.gameClient().stopSingleplayer();
     m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onPause() {
-    m_clientPanel.gameClient().singleplayerClient().pause();
+    ClientCommandResult result = m_clientPanel.gameClient().pauseSingleplayer();
     m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onResume() {
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
-    m_clientPanel.gameClient().singleplayerClient().resume();
+    ClientCommandResult result = m_clientPanel.gameClient().resumeSingleplayer();
 }
 
-void SingleplayerGameScreen::onLeaveRequest(const std::function<void()>& confirm) {
-    if (m_clientPanel.gameClient().singleplayerClient().state() != SingleplayerState::RESULT) {
-        m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Resign and return to menu?", [this, confirm]() {
-            confirm();
-        }));
-    } else {
-        confirm();
-    }
+void SingleplayerGameScreen::requestExit() {
+    m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Are you sure you would like to quit?",[this]() {
+        m_clientPanel.gameClient().returnToIdle();
+    }));
 }
 
 ftxui::Component SingleplayerGameScreen::buildComponent() {
@@ -91,15 +79,15 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 
     // Full screen renderer: board on the left, clocks on the right.
     return ftxui::Renderer(withTick, [this, withTick]() {
-        auto& sp = m_clientPanel.gameClient().singleplayerClient();
+        SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
 
-        const bool whiteActive = (sp.currentTurn() == COLOR::WHITE);
-        const bool blackActive = (sp.currentTurn() == COLOR::BLACK);
+        bool whiteActive = (view.currentTurn == COLOR::WHITE);
+        bool blackActive = (view.currentTurn == COLOR::BLACK);
 
-        auto whiteClock = renderClock(sp.whiteTimeRemaining(), whiteActive, "White");
-        auto blackClock = renderClock(sp.blackTimeRemaining(), blackActive, "Black");
+        auto whiteClock = renderClock(view.whiteTimeRemaining, whiteActive, "White");
+        auto blackClock = renderClock(view.blackTimeRemaining, blackActive, "Black");
 
-        const std::string turnText = whiteActive ? "White's Turn" : "Black's Turn";
+        std::string turnText = whiteActive ? "White's Turn" : "Black's Turn";
 
         auto sidebar = ftxui::vbox({
             ftxui::filler(),
@@ -120,7 +108,7 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 }
 
 void SingleplayerGameScreen::onTick() {
-    m_clientPanel.gameClient().singleplayerClient().checkTimeout();
+    m_clientPanel.gameClient().tick();
 }
 
 ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const {
@@ -143,46 +131,6 @@ ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds rem
         ftxui::text(label) | ftxui::center | ftxui::dim,
         clockText,
     }) | ftxui::border;
-}
-
-void SingleplayerGameScreen::onResult(const GameResult& result) {
-    if (m_resultModalShown) { return; }
-    m_resultModalShown = true;
-
-    std::string title = "Game Over";
-    std::string message;
-    switch (result.winner) {
-        case COLOR::WHITE:
-            message = "White wins";
-            break;
-        case COLOR::BLACK:
-            message = "Black wins";
-            break;
-        default:
-            message = "Draw";
-            break;
-    }
-
-    switch (result.reason) {
-        case GameOverReason::TIMEOUT:
-            message += " by timeout.";
-            break;
-        case GameOverReason::RESIGN:
-            message += " by resignation.";
-            break;
-        case GameOverReason::CHECKMATE:
-            message += " by checkmate.";
-            break;
-    }
-
-    m_clientPanel.pushModal(std::make_unique<TwoButtonModal>(m_clientPanel,title,message,
-        "Play Again", [this]() {
-            m_clientPanel.navigateBack();
-        },
-        "Main Menu", [this]() {
-            m_clientPanel.resetScreen(Screen::MainMenu);
-        }
-    ));
 }
 
 }

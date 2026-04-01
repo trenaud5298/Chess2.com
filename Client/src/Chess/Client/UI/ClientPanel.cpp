@@ -20,6 +20,7 @@
 
 #include <Chess/Client/UI/Modal/ModalProxy.hpp>
 #include <Chess/Client/UI/Modal/SettingsModal.hpp>
+#include <Chess/Client/UI/Modal/ErrorModal.hpp>
 
 // ASIO Includes
 
@@ -32,7 +33,6 @@
 #include <atomic>
 #include <thread>
 
-#include "Chess/Client/UI/Modal/ErrorModal.hpp"
 
 namespace Chess {
 
@@ -72,7 +72,6 @@ void ClientPanel::run() {
         loop.RunOnceBlocking();
         m_modalGraveyard.clear();
     }
-    cleanupAfterLoop();
 }
 
 void ClientPanel::quit() {
@@ -131,20 +130,22 @@ void ClientPanel::popAllModals() {
 // Helpers
 
 void ClientPanel::subscribeToClientCallbacks() {
-    m_clientStateSubscription = m_gameClient.stateRegistry().subscribe(std::bind_front(&ClientPanel::handleClientStateChanged, this));
+    m_clientStateSubscription = m_gameClient.stateRegistry().subscribe([this](ClientState newState) {
+        m_screen.PostEvent(StateChangeEvent);
+    });
 }
 
 void ClientPanel::unsubscribeFromClientCallbacks() {
     if (m_clientStateSubscription == 0) { return; }
-
     m_gameClient.stateRegistry().unsubscribe(m_clientStateSubscription);
     m_clientStateSubscription = 0;
 }
 
-void ClientPanel::handleClientStateChanged(ClientState state) {
-    Screen targetScreen = screenForState(state);
+void ClientPanel::handleClientStateChanged() {
+    ClientState newState = m_gameClient.state();
+    Screen targetScreen = screenForState(newState);
     setScreen(targetScreen);
-    if (state == ClientState::Error) {
+    if (newState == ClientState::Error) {
         pushModal(std::make_unique<ErrorModal>(*this, "ERROR"));
     }
 }
@@ -174,7 +175,7 @@ Screen ClientPanel::screenForState(ClientState state) const {
         case ClientState::SingleplayerInGame:
         case ClientState::SingleplayerResult:
             return Screen::Singleplayer_Game;
-        case ClientState::MultiplayerSelect:
+        case ClientState::MultiplayerSetup:
         case ClientState::MultiplayerConnecting:
             return Screen::Multiplayer_Select;
         case ClientState::MultiplayerLobby:
@@ -301,6 +302,11 @@ ftxui::Component ClientPanel::buildMainComponent() {
     auto mainEventCatcher = ftxui::CatchEvent(modalLayout, [this](ftxui::Event event) {
         if (event == TickEvent) {
             onTick();
+            return true;
+        }
+
+        if (event == StateChangeEvent) {
+            handleClientStateChanged();
             return true;
         }
 

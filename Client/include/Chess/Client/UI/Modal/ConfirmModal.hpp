@@ -31,7 +31,6 @@ public:
     ~ConfirmModal() override;
     void onEnter() override;
     void onLeave() override;
-    void onEscape() override;
 
     [[nodiscard]] ftxui::Component getComponent() override;
 

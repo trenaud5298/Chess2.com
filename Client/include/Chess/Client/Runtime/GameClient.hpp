@@ -38,7 +38,7 @@ enum class ClientState : std::uint8_t {
     SingleplayerInGame = 0x11,
     SingleplayerResult = 0x12,
 
-    MultiplayerSelect = 0x20,
+    MultiplayerSetup = 0x20,
     MultiplayerConnecting = 0x21,
     MultiplayerLobby = 0x22,
     MultiplayerInGame = 0x23,
@@ -51,7 +51,7 @@ constexpr std::string_view toString(ClientState state) {
         case ClientState::SingleplayerSetup: return "SingleplayerSetup";
         case ClientState::SingleplayerInGame: return "SingleplayerInGame";
         case ClientState::SingleplayerResult: return "SingleplayerResult";
-        case ClientState::MultiplayerSelect: return "MultiplayerSelect";
+        case ClientState::MultiplayerSetup: return "MultiplayerSelect";
         case ClientState::MultiplayerConnecting: return "MultiplayerConnecting";
         case ClientState::MultiplayerLobby: return "MultiplayerLobby";
         case ClientState::MultiplayerInGame: return "MultiplayerInGame";
@@ -117,7 +117,9 @@ public:
     [[nodiscard]] std::chrono::milliseconds uptimeAtPoint(std::chrono::steady_clock::time_point point) const {return std::chrono::duration_cast<std::chrono::milliseconds>(point - m_startTime);}
 
     // GameClient Controls
-    void tick();
+    ClientCommandResult tick();
+    ClientCommandResult shutdown();
+    ClientCommandResult returnToIdle();
 
     // Singleplayer Controls
     ClientCommandResult enterSingleplayerSetup();
@@ -129,8 +131,9 @@ public:
     ClientCommandResult resumeSingleplayer();
 
     // Singleplayer Info
-    [[nodiscard]] SingleplayerView singleplayerView(std::chrono::steady_clock::time_point now) const;
+    [[nodiscard]] SingleplayerView singleplayerView() const;
 
+    ClientCommandResult enterMultiplayerSetup();;
     ClientCommandResult startMultiplayer(const ServerInfo& server);
     ClientCommandResult stopMultiplayer();
 
