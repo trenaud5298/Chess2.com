@@ -5,7 +5,6 @@
 #include <vector>
 #include <set>
 #include <string>
-#include <algorithm>
 
 // TODO 
 //      * implement "piece collision" in addMoves methods
@@ -14,6 +13,7 @@
 //      * implement a way to en passant
 //      * implement checking logic fully
 //      * Fix the indexing mismatch in most of the functions
+//      * Add "full" king movement logic with isAttacked() and isDefended()
 //
 //      *   Testing TODO
 //        write a function to generate Board objects in initial states from an
@@ -22,7 +22,7 @@
 //          Make another function that generates arrays of size 64 from up to 
 //          to 64 std::pair of ID or Type and Pos such that it populates the 
 //          position in the array corresponding to the given Pos with the ID in the board
-//
+
 
 namespace Chess {
     using enum ID;
@@ -184,9 +184,9 @@ namespace Chess {
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
         m_moves.fill(Pos{8,8});
-        m_defended.assign(64, false);
-        m_attackedBlack.assign(64, false);
-        m_attackedWhite.assign(64, false);
+        std::fill(m_defended.begin(), m_defended.end(), false);
+        std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
+        std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
     }
 
 

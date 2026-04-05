@@ -16,7 +16,8 @@ int main() {
     board.move(ID::W_PAWN4, Pos{2,3});
     board.move(ID::W_BISHOP1, Pos{5,7});
     board.move(ID::B_PAWN5, Pos{4,4});
-    //board.move(ID::B_BISHOP2, Pos{5,7});
+    board.move(ID::B_BISHOP2, Pos{6,4});
+    board.move(ID::W_KING, Pos{1,3});
     board.displayBoard();
     board.nextTurn();
     board.genMoves();
