@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <algorithm>
 
 // TODO 
 //      * implement "piece collision" in addMoves methods
@@ -183,6 +184,9 @@ namespace Chess {
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
         m_moves.fill(Pos{8,8});
+        m_defended.assign(64, false);
+        m_attackedBlack.assign(64, false);
+        m_attackedWhite.assign(64, false);
     }
 
 
@@ -512,7 +516,7 @@ namespace Chess {
         Pos pos = initial;
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
-        ID& posId = getIdAt(pos);
+        ID posId;
         int card, x, y;
         COLOR posColor;
         switch (direction) {
@@ -541,8 +545,11 @@ namespace Chess {
         if( card %2 == 1 ) {
             y = -y;
         }
-        pos[ROW] += x;
-        pos[COL] += y;
+        if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+            pos[ROW] += x;
+            pos[COL] += y;
+        } else { return; }
+        posId = getIdAt(pos);
         posColor = getColor(posId);
         while( isInBoard(pos) ) {
             if( color != posColor ) {
@@ -552,8 +559,10 @@ namespace Chess {
                 if( posColor != COLOR::EMPTY ) {
                     return;
                 }
-                pos[ROW] += x;
-                pos[COL] += y;
+                if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+                    pos[ROW] += x;
+                    pos[COL] += y;
+                } else { return; }
                 posId = getIdAt(pos);
                 posColor = getColor(posId);
             } else {
@@ -769,11 +778,6 @@ namespace Chess {
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
                 if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
-                    std::cout << "HERE i = " << i<< std::endl;
-                    for( const int& n : temp ) {
-                        std::cout << n << ' ';
-                    }
-                    std::cout << std::endl;
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
                     i++;
