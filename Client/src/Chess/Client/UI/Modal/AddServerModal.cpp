@@ -22,26 +22,6 @@ namespace Chess {
 AddServerModal::AddServerModal(ClientPanel &clientPanel, const std::function<void(ServerInfo)>& onAdd) : ModalInterface(clientPanel) {
 
     ftxui::InputOption serverNameInputFilterOption;
-    // serverNameInputFilterOption.transform = [](const ftxui::InputState& state) {
-    //     auto element = state.element;
-    //     element |= ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, 3);
-    //     if (state.is_placeholder) {
-    //         element = element | ftxui::dim | ftxui::italic;
-    //     }
-    //     if (state.focused) {
-    //         element |= ftxui::color(ftxui::Color::CyanLight);
-    //         return;
-    //     }
-    //
-    //     if (state.hovered) {
-    //         element |= ftxui::color(ftxui::Color::GrayLight);
-    //         return;
-    //     }
-    //
-    //     element |= ftxui::color(ftxui::Color::GrayDark);
-    //
-    //     return element;
-    // };
     serverNameInputFilterOption.on_change = [this]() {
         if (m_serverName.size() > MAX_SERVERNAME_LENGTH) {m_serverName.resize(MAX_SERVERNAME_LENGTH);}
     };
@@ -130,8 +110,5 @@ ftxui::Component AddServerModal::getComponent() {
     return m_component;
 }
 
-void AddServerModal::requestDismiss() {
-    m_clientPanel.popModal();
-}
 
 }

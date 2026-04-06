@@ -29,10 +29,15 @@ class MultiplayerResultScreen : public ScreenInterface {
 public:
     explicit MultiplayerResultScreen(ClientPanel& clientPanel);
     ~MultiplayerResultScreen();
-    ftxui::Component getComponent() override;
 
+    void onEnter() override;
+
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override {return "Main Menu";}
+    void requestExit() override;
+
+    ftxui::Component getComponent() override;
 private:
-    ;
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Multiplayer_Result;
 };

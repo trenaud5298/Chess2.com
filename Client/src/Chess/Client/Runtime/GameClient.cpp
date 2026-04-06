@@ -41,8 +41,8 @@ ClientCommandResult GameClient::tick() {
             // m_multiplayerClient.tick(now);
         }
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
 
     return ClientCommandResult::Success();
@@ -50,13 +50,8 @@ ClientCommandResult GameClient::tick() {
 
 
 ClientCommandResult GameClient::shutdown() {
-    //TODO: Need To Add Asio Shutdown
-    ClientCommandResult result = returnToIdle();
-    if (!result) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::ShutdownFailed, "Shutdown failed");
-    }
-    return ClientCommandResult::Success();
+    //TODO: Need To Implement Shutdown
+    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "Shutdown Not Properly Implemented");
 }
 
 ClientCommandResult GameClient::returnToIdle() {
@@ -64,18 +59,33 @@ ClientCommandResult GameClient::returnToIdle() {
         m_singleplayerClient.stop();
         // m_multiplayerClient.stop();
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
     transitionTo(ClientState::Idle);
     return ClientCommandResult::Success();
 }
 
 
+// Game Client Errors
+std::optional<ClientCommandResult> GameClient::consumeFatalError() {
+    std::lock_guard lock(m_fatalErrorMutex);
+    auto out = std::move(m_fatalError);
+    m_fatalError.reset();
+    return out;
+}
+
+void GameClient::recoverFromFatalError() noexcept {
+    try {m_singleplayerClient.stop();} catch (...) {}
+    // try {m_multiplayerClient.stop();} catch (...) {}
+
+    transitionTo(ClientState::Idle);
+}
+
 // Singleplayer Commands
 ClientCommandResult GameClient::enterSingleplayerSetup() {
     if (m_state.load() != ClientState::Idle) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Client must be idle");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Client must be idle");
     }
     transitionTo(ClientState::SingleplayerSetup);
     return ClientCommandResult::Success();
@@ -83,7 +93,7 @@ ClientCommandResult GameClient::enterSingleplayerSetup() {
 
 ClientCommandResult GameClient::startSingleplayer(const SingleplayerConfig& config) {
     if (m_state.load() != ClientState::SingleplayerSetup) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Not in singleplayer setup");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Not in singleplayer setup");
     }
 
     try {
@@ -91,83 +101,98 @@ ClientCommandResult GameClient::startSingleplayer(const SingleplayerConfig& conf
         transitionTo(ClientState::SingleplayerInGame);
         return ClientCommandResult::Success();
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::StartupFailed, e.what());
+        setFatalError(ClientErrorCode::StartupFailed, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::StartupFailed, e.what());
     }
 }
 
 ClientCommandResult GameClient::submitSingleplayerMove(ID from, Pos to) {
     if (m_state.load() != ClientState::SingleplayerInGame) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not active");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Singleplayer not active");
     }
 
     bool validMove = false;
     try {
         validMove = m_singleplayerClient.tryMove(from, to, std::chrono::steady_clock::now());
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
 
     if (!validMove) {
-        return ClientCommandResult::Failure(ClientError::CommandRejected, "Invalid move");
+        return ClientCommandResult::Reject(ClientErrorCode::InvalidMove, "Invalid move");
     }
     return ClientCommandResult::Success();
 }
 
 ClientCommandResult GameClient::resignSingleplayer() {
     if (m_state.load() != ClientState::SingleplayerInGame) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Singleplayer not in game");
     }
 
     try {
         m_singleplayerClient.resign(std::chrono::steady_clock::now());
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
     return ClientCommandResult::Success();
 }
 
 ClientCommandResult GameClient::stopSingleplayer() {
     if (!isSingleplayerState()) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not active");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Singleplayer not active");
     }
 
     try {
         m_singleplayerClient.stop();
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
     transitionTo(ClientState::Idle);
     return ClientCommandResult::Success();
 }
 
+ClientCommandResult GameClient::restartSingleplayer() {
+    if (m_state.load() != ClientState::SingleplayerResult) {
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Not in singleplayer result");
+    }
+
+    try {
+        m_singleplayerClient.restart(std::chrono::steady_clock::now());
+    } catch (const std::exception& e) {
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
+    }
+    transitionTo(ClientState::SingleplayerInGame);
+    return ClientCommandResult::Success();
+}
+
 ClientCommandResult GameClient::pauseSingleplayer() {
     if (m_state.load() != ClientState::SingleplayerInGame) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Singleplayer not in game");
     }
 
     try {
         m_singleplayerClient.pause(std::chrono::steady_clock::now());
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
     return ClientCommandResult::Success();
 }
 
 ClientCommandResult GameClient::resumeSingleplayer() {
     if (m_state.load() != ClientState::SingleplayerInGame) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Singleplayer not in game");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Singleplayer not in game");
     }
 
     try {
         m_singleplayerClient.resume(std::chrono::steady_clock::now());
     } catch (const std::exception& e) {
-        transitionTo(ClientState::Error);
-        return ClientCommandResult::Failure(ClientError::RuntimeException, e.what());
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
     }
     return ClientCommandResult::Success();
 }
@@ -182,18 +207,18 @@ SingleplayerView GameClient::singleplayerView() const {
 // Multiplayer Commands
 ClientCommandResult GameClient::enterMultiplayerSetup() {
     if (m_state.load() != ClientState::Idle) {
-        return ClientCommandResult::Failure(ClientError::InvalidState, "Client must be idle");
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Client must be idle");
     }
     transitionTo(ClientState::MultiplayerSetup);
     return ClientCommandResult::Success();
 }
 
 ClientCommandResult GameClient::startMultiplayer(const ServerInfo &server) {
-    return ClientCommandResult::Failure(ClientError::RuntimeException, "NOT IMPLEMENTED");
+    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "NOT IMPLEMENTED");
 }
 
 ClientCommandResult GameClient::stopMultiplayer() {
-    return ClientCommandResult::Failure(ClientError::RuntimeException, "NOT IMPLEMENTED");
+    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "NOT IMPLEMENTED");
 }
 
 
@@ -207,5 +232,13 @@ void GameClient::transitionTo(ClientState newState) {
 
     m_loggingManager.log(LogEntry::Info("Client State Transition: " + std::string(toString(oldState)) + " -> " + std::string(toString(newState))));
     m_stateRegistry.fire(newState);
+}
+
+void GameClient::setFatalError(ClientErrorCode error, std::string message) noexcept {
+    {
+        std::lock_guard lock(m_fatalErrorMutex);
+        m_fatalError = ClientCommandResult::Fatal(error, std::move(message));
+    }
+    transitionTo(ClientState::Error);
 }
 }

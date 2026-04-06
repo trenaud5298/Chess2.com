@@ -25,9 +25,10 @@ namespace Chess {
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
     m_boardDisplay->onMove = [this](ID from, Pos to) {
         ClientCommandResult result = m_clientPanel.gameClient().submitSingleplayerMove(from, to);
-        if (result) {
-            m_boardDisplay->updateBoard(m_clientPanel.gameClient().singleplayerView().board->getBoard());
+        if (!m_clientPanel.handleCommandResult(result, "Failed To Make Move")) {
+            return;
         }
+        m_boardDisplay->updateBoard(m_clientPanel.gameClient().singleplayerView().board->getBoard());
     };
 
     m_component = buildComponent();
@@ -47,38 +48,37 @@ void SingleplayerGameScreen::onEnter() {
 }
 
 void SingleplayerGameScreen::onLeave() {
-    m_clientPanel.gameClient().resignSingleplayer();
-    ClientCommandResult result = m_clientPanel.gameClient().stopSingleplayer();
     m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onPause() {
-    ClientCommandResult result = m_clientPanel.gameClient().pauseSingleplayer();
+    m_clientPanel.handleCommandResult(
+        m_clientPanel.gameClient().pauseSingleplayer(),
+        "Unable to pause singleplayer"
+    );
     m_clientPanel.setTickRate(std::nullopt);
 }
 
 void SingleplayerGameScreen::onResume() {
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
-    ClientCommandResult result = m_clientPanel.gameClient().resumeSingleplayer();
+    m_clientPanel.handleCommandResult(
+        m_clientPanel.gameClient().resumeSingleplayer(),
+        "Unable to resume singleplayer"
+    );
 }
 
 void SingleplayerGameScreen::requestExit() {
     m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Are you sure you would like to quit?",[this]() {
-        m_clientPanel.gameClient().returnToIdle();
+        m_clientPanel.handleCommandResult(
+            m_clientPanel.gameClient().returnToIdle(),
+            "Unable to return to main menu"
+        );
     }));
 }
 
 ftxui::Component SingleplayerGameScreen::buildComponent() {
-    auto withTick = ftxui::CatchEvent(m_boardDisplay, [this](ftxui::Event event) {
-        if (event == TickEvent) {
-            onTick();
-            return true;
-        }
-        return false;
-    });
-
     // Full screen renderer: board on the left, clocks on the right.
-    return ftxui::Renderer(withTick, [this, withTick]() {
+    return ftxui::Renderer(m_boardDisplay, [this]() {
         SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
 
         bool whiteActive = (view.currentTurn == COLOR::WHITE);
@@ -100,7 +100,7 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
         }) | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 22);
 
         return ftxui::hbox({
-            withTick->Render() | ftxui::flex,
+            m_boardDisplay->Render() | ftxui::flex,
             ftxui::text(" "),
             sidebar,
         });
@@ -108,7 +108,10 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 }
 
 void SingleplayerGameScreen::onTick() {
-    m_clientPanel.gameClient().tick();
+    m_clientPanel.handleCommandResult(
+        m_clientPanel.gameClient().tick(),
+        "Tick Failed"
+    );
 }
 
 ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const {

@@ -27,7 +27,11 @@ ClientApplication::~ClientApplication() {
 
 void ClientApplication::run() {
     m_clientPanel.run();
-    m_gameClient.shutdown();
+    ClientCommandResult result = m_gameClient.shutdown();
+    if (!result) {
+        std::string message = result.message.empty() ? "Shutdown Failed" : "Shutdown Failed: " + result.message;
+        m_gameClient.loggingManager().log(LogEntry::Error(message));
+    }
 }
 
 

@@ -127,6 +127,60 @@ void ClientPanel::popAllModals() {
 }
 
 
+bool ClientPanel::handleCommandResult(const ClientCommandResult &result, std::string_view action, CommandResultPolicy policy) {
+    if (result) {
+        return true;
+    }
+
+    CommandResultPolicy effectivePolicy = policy;
+    if (policy == CommandResultPolicy::Auto) {
+        switch (result.severity) {
+            case ClientErrorSeverity::Debug:
+                effectivePolicy = CommandResultPolicy::Silent;
+                break;
+            case ClientErrorSeverity::Warning:
+                effectivePolicy = CommandResultPolicy::LogOnly;
+                break;
+            case ClientErrorSeverity::Error:
+            case ClientErrorSeverity::Fatal:
+                effectivePolicy = CommandResultPolicy::Modal;
+                break;
+        }
+    }
+
+    if (effectivePolicy == CommandResultPolicy::Silent) {
+        return false;
+    }
+
+    std::string message = std::string(action);
+    if (!message.empty() && !result.message.empty()) {
+        message += ": ";
+    }
+    message += result.message.empty() ? "Unknown error" : result.message;
+    switch (result.severity) {
+        case ClientErrorSeverity::Debug:
+            m_gameClient.loggingManager().log(LogEntry::Debug(message));
+            break;
+        case ClientErrorSeverity::Warning:
+            m_gameClient.loggingManager().log(LogEntry::Warning(message));
+            break;
+        case ClientErrorSeverity::Error:
+        case ClientErrorSeverity::Fatal:
+            m_gameClient.loggingManager().log(LogEntry::Error(message));
+            break;
+    }
+
+    if (result.isFatal()) {
+        return false;
+    }
+
+    if (effectivePolicy == CommandResultPolicy::Modal) {
+        pushModal(std::make_unique<ErrorModal>(*this, message));
+    }
+    return false;
+}
+
+
 // Helpers
 
 void ClientPanel::subscribeToClientCallbacks() {
@@ -143,11 +197,31 @@ void ClientPanel::unsubscribeFromClientCallbacks() {
 
 void ClientPanel::handleClientStateChanged() {
     ClientState newState = m_gameClient.state();
-    Screen targetScreen = screenForState(newState);
-    setScreen(targetScreen);
+
     if (newState == ClientState::Error) {
-        pushModal(std::make_unique<ErrorModal>(*this, "ERROR"));
+        auto fatal = m_gameClient.consumeFatalError();
+
+        while (!m_modalStack.empty()) {
+            m_modalStack.back()->onLeave();
+            m_modalGraveyard.push_back(std::move(m_modalStack.back()));
+            m_modalStack.pop_back();
+        }
+        m_showModal = false;
+
+        m_gameClient.recoverFromFatalError();
+        setScreen(Screen::MainMenu);
+
+        std::string message = "Unexpected client error";
+        if (fatal && !fatal->message.empty()) {
+            message = fatal->message;
+        }
+
+        pushModal(std::make_unique<ErrorModal>(*this, message));
+        return;
     }
+
+    setScreen(screenForState(newState));
+
 }
 
 void ClientPanel::setScreen(Screen screen) {
@@ -173,8 +247,9 @@ Screen ClientPanel::screenForState(ClientState state) const {
         case ClientState::SingleplayerSetup:
             return Screen::Singleplayer_Setup;
         case ClientState::SingleplayerInGame:
-        case ClientState::SingleplayerResult:
             return Screen::Singleplayer_Game;
+        case ClientState::SingleplayerResult:
+            return Screen::Singleplayer_Result;
         case ClientState::MultiplayerSetup:
         case ClientState::MultiplayerConnecting:
             return Screen::Multiplayer_Select;

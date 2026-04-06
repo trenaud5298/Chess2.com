@@ -20,6 +20,7 @@
 // C++ Includes
 #include <cstdint>
 
+
 namespace Chess {
 
 class ClientPanel;
@@ -36,7 +37,7 @@ public:
 
     // Dismiss affordance
     virtual bool canRequestDismiss() const { return true; }
-    virtual void requestDismiss() {}
+    virtual void requestDismiss();
 
     [[nodiscard]] virtual ftxui::Component getComponent() = 0;
     [[nodiscard]] virtual ftxui::Element backdropElement() {

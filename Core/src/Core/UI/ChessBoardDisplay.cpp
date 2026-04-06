@@ -29,6 +29,7 @@ ChessBoardDisplay::ChessBoardDisplay() {
 
 void ChessBoardDisplay::updateBoard(const std::array<ID, 64> &board) {
     m_board = board;
+    m_selected.reset();
 }
 
 void ChessBoardDisplay::setFlipped(bool flipped) {

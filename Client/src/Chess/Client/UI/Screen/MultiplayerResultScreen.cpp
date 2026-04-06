@@ -25,6 +25,18 @@ MultiplayerResultScreen::MultiplayerResultScreen(ClientPanel& clientPanel)
 
 MultiplayerResultScreen::~MultiplayerResultScreen() {}
 
+
+void MultiplayerResultScreen::onEnter() {
+
+}
+
+void MultiplayerResultScreen::requestExit() {
+    m_clientPanel.handleCommandResult(
+        m_clientPanel.gameClient().returnToIdle(),
+        "Unable to return to main menu"
+    );
+}
+
 ftxui::Component MultiplayerResultScreen::getComponent() {
     return m_component;
 }

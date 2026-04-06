@@ -26,6 +26,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <string_view>
 
 namespace Chess {
 
@@ -61,28 +62,57 @@ constexpr std::string_view toString(ClientState state) {
     return "";
 }
 
-enum class ClientError {
-    None,
-    InvalidState,
-    StartupFailed,
-    ShutdownFailed,
-    NetworkError,
-    RuntimeException,
-    CommandRejected
+enum class ClientErrorSeverity : std::uint8_t {
+    Debug,
+    Warning,
+    Error,
+    Fatal,
 };
 
-struct ClientCommandResult {
+enum class ClientErrorCode {
+    None ,
+
+    CommandRejected,
+    InvalidState,
+    InvalidMove,
+    NotImplemented,
+
+    StartupFailed,
+    ShutdownFailed,
+    PersistenceFailed,
+    NetworkError,
+
+    RuntimeException,
+    UnknownError,
+};
+
+
+struct [[nodiscard]] ClientCommandResult {
     bool ok{false};
-    ClientError error{ClientError::None};
+    ClientErrorCode code{ClientErrorCode::None};
+    ClientErrorSeverity severity{ClientErrorSeverity::Error};
     std::string message;
 
     operator bool() const {return ok;}
+    [[nodiscard]] bool isFatal() const noexcept {return !ok && severity == ClientErrorSeverity::Fatal;}
 
     static ClientCommandResult Success() {
-        return {true, ClientError::None, ""};
+        return {true, ClientErrorCode::None, ClientErrorSeverity::Debug, ""};
     }
-    static ClientCommandResult Failure(ClientError error, std::string message) {
-        return {false, error, std::move(message)};
+    static ClientCommandResult Failure(ClientErrorCode code, ClientErrorSeverity severity, std::string message) {
+        return {false, code, severity, std::move(message)};
+    }
+    static ClientCommandResult Reject(ClientErrorCode code, std::string message) {
+        return Failure(code, ClientErrorSeverity::Debug, std::move(message));
+    }
+    static ClientCommandResult Warn(ClientErrorCode code, std::string message) {
+        return Failure(code, ClientErrorSeverity::Warning, std::move(message));
+    }
+    static ClientCommandResult Error(ClientErrorCode code, std::string message) {
+        return Failure(code, ClientErrorSeverity::Error, std::move(message));
+    }
+    static ClientCommandResult Fatal(ClientErrorCode code, std::string message) {
+        return Failure(code, ClientErrorSeverity::Fatal, std::move(message));
     }
 };
 
@@ -117,34 +147,44 @@ public:
     [[nodiscard]] std::chrono::milliseconds uptimeAtPoint(std::chrono::steady_clock::time_point point) const {return std::chrono::duration_cast<std::chrono::milliseconds>(point - m_startTime);}
 
     // GameClient Controls
-    ClientCommandResult tick();
-    ClientCommandResult shutdown();
-    ClientCommandResult returnToIdle();
+    [[nodiscard]] ClientCommandResult tick();
+    [[nodiscard]] ClientCommandResult shutdown();
+    [[nodiscard]] ClientCommandResult returnToIdle();
+
+    // GameClient Errors
+    [[nodiscard]] std::optional<ClientCommandResult> consumeFatalError();
+    void recoverFromFatalError() noexcept;
 
     // Singleplayer Controls
-    ClientCommandResult enterSingleplayerSetup();
-    ClientCommandResult startSingleplayer(const SingleplayerConfig& config);
-    ClientCommandResult stopSingleplayer();
-    ClientCommandResult submitSingleplayerMove(ID from, Pos to);
-    ClientCommandResult resignSingleplayer();
-    ClientCommandResult pauseSingleplayer();
-    ClientCommandResult resumeSingleplayer();
+    [[nodiscard]] ClientCommandResult enterSingleplayerSetup();
+    [[nodiscard]] ClientCommandResult startSingleplayer(const SingleplayerConfig& config);
+    [[nodiscard]] ClientCommandResult stopSingleplayer();
+    [[nodiscard]] ClientCommandResult restartSingleplayer();
+    [[nodiscard]] ClientCommandResult submitSingleplayerMove(ID from, Pos to);
+    [[nodiscard]] ClientCommandResult resignSingleplayer();
+    [[nodiscard]] ClientCommandResult pauseSingleplayer();
+    [[nodiscard]] ClientCommandResult resumeSingleplayer();
 
     // Singleplayer Info
     [[nodiscard]] SingleplayerView singleplayerView() const;
 
-    ClientCommandResult enterMultiplayerSetup();;
-    ClientCommandResult startMultiplayer(const ServerInfo& server);
-    ClientCommandResult stopMultiplayer();
+    [[nodiscard]] ClientCommandResult enterMultiplayerSetup();;
+    [[nodiscard]] ClientCommandResult startMultiplayer(const ServerInfo& server);
+    [[nodiscard]] ClientCommandResult stopMultiplayer();
 
 private:
     void transitionTo(ClientState newState);
+    void setFatalError(ClientErrorCode error, std::string message) noexcept;
 
 private:
     // Core Client System
     asio::io_context m_context;
     std::chrono::steady_clock::time_point m_startTime;
     std::atomic<ClientState> m_state{ClientState::Idle};
+
+    // Errors
+    std::mutex m_fatalErrorMutex;
+    std::optional<ClientCommandResult> m_fatalError;
 
     // Subsystems
     LoggingManager m_loggingManager;

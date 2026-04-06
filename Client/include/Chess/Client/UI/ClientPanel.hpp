@@ -39,6 +39,25 @@ class GameClient;
 inline const ftxui::Event TickEvent = ftxui::Event::Special("tick");
 inline const ftxui::Event StateChangeEvent = ftxui::Event::Special("statechange");
 
+enum class CommandResultPolicy : std::uint8_t {
+    Auto,
+    Silent,
+    LogOnly,
+    Modal
+};
+
+inline CommandResultPolicy DefaultCommandResultPolicy(const ClientCommandResult &result) {
+    switch (result.severity) {
+        case ClientErrorSeverity::Debug:
+            return CommandResultPolicy::Silent;
+        case ClientErrorSeverity::Warning:
+            return CommandResultPolicy::LogOnly;
+        case ClientErrorSeverity::Error:
+        case ClientErrorSeverity::Fatal:
+            return CommandResultPolicy::Modal;
+    }
+}
+
 class ClientPanel {
 
 public:
@@ -53,6 +72,9 @@ public:
     void run();
     void quit();
 
+    // Post Tick
+    void setTickRate(std::optional<std::chrono::milliseconds> rate);
+
     // Modal Navigation
     void pushModal(std::unique_ptr<ModalInterface> modal);
     void popModal();
@@ -64,12 +86,12 @@ public:
     [[nodiscard]] bool hasModal() const {return !m_modalStack.empty();}
     [[nodiscard]] ModalInterface& activeModal() {return *m_modalStack.back();}
 
-    // Post Tick
-    void setTickRate(std::optional<std::chrono::milliseconds> rate);
-
     // Client Reference
     [[nodiscard]] GameClient& gameClient() { return m_gameClient; }
     [[nodiscard]] const GameClient& gameClient() const { return m_gameClient; }
+
+    // Command Result Handling
+    bool handleCommandResult(const ClientCommandResult &result, std::string_view action, CommandResultPolicy = CommandResultPolicy::Auto);
 
 private:
     // Runtime Callbacks Helpers

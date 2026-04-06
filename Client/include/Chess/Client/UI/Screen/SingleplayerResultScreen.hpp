@@ -29,9 +29,18 @@ class SingleplayerResultScreen : public ScreenInterface {
 public:
     explicit SingleplayerResultScreen(ClientPanel& clientPanel);
     ~SingleplayerResultScreen();
+
+    void onEnter() override;
+
+    bool canRequestExit() const override { return true; }
+    std::string exitLabel() const override { return "Main Menu"; }
+    void requestExit() override;
+
     ftxui::Component getComponent() override;
 
 private:
+    std::string m_title = "";
+    std::string m_description = "";
     ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Singleplayer_Result;
 };

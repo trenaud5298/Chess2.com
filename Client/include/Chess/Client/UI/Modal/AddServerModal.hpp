@@ -31,8 +31,6 @@ public:
     AddServerModal(ClientPanel& clientPanel, const std::function<void(ServerInfo)>& onAdd);
     ~AddServerModal() override;
 
-    void requestDismiss() override;
-
     [[nodiscard]] ftxui::Component getComponent() override;
 
 private:

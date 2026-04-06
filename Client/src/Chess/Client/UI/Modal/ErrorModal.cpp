@@ -25,7 +25,6 @@ ErrorModal::ErrorModal(ClientPanel& clientPanel, std::string message)
         m_clientPanel.popModal();
     }, ftxui::ButtonOption::Simple());
 
-
     m_component = ftxui::Renderer(okButton, [this, okButton]() {
         return ftxui::vbox({
             ftxui::text("Error") | ftxui::center,

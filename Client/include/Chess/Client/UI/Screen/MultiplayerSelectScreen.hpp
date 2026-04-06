@@ -18,10 +18,12 @@
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
+#include <ftxui/screen/box.hpp>
 
 // C++ Includes
 #include <cstdint>
-
+#include <optional>
+#include <vector>
 
 namespace Chess {
 
@@ -43,17 +45,23 @@ public:
 
 private:
     void addServerEntry(ServerInfo serverInfo);
-    void removeServerEntry(std::uint64_t index);
-
+    void removeSelectedServer();
+    void joinSelectedServer();
     ftxui::Component buildComponent();
-    // Entry Helpers
+
+    // Entry Rendering Helpers
     void rebuildServerEntries();
     ftxui::Element renderServerEntry(const ftxui::EntryState& state);
+
+    // Entry Selection Helpers
+    bool hasSelectedServerEntry() const;
+    void activateCursor();
 private:
     // Uses Placeholder Strings For Custom Rendering
     std::vector<ServerInfo> m_servers;
     std::vector<std::string> m_entries;
-    int m_selected;
+    int m_cursor{0};
+    std::optional<int> m_selectedServer{std::nullopt};
 
 
     ftxui::Component m_component;
