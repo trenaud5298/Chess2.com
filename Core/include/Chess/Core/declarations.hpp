@@ -114,4 +114,9 @@ struct CriticalPiece {
     Direction direction;
 };
 
+struct IdPos {
+    ID id;
+    Pos pos;
+};
+
 #endif

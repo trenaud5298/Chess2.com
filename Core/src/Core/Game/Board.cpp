@@ -7,7 +7,6 @@
 #include <string>
 
 // TODO 
-//      * implement "piece collision" in addMoves methods
 //      * implement a way to castle
 //      * implement a way to promote pawns
 //      * implement a way to en passant
@@ -148,11 +147,17 @@ namespace Chess {
         // setIdAt(pos, id);
         // setIdAt(old, ID::EMPTY);
 
-        int castedId = (int)id - 1;
-        Pos old = m_pieceArr[castedId].position;
+        const int castedId = (int)id - 1;
+        const Pos old = m_pieceArr[castedId].position;
+        const ID oldId = getIdAt(old);
+        if( oldId != EMPTY ) {
+            const int castedOldId = (int) oldId - 1;
+            m_pieceArr[castedOldId].position = Pos({8,8});
+        }
         m_pieceArr[castedId].position = pos;
         setIdAt(pos, id);
         setIdAt(old, ID::EMPTY);
+
     }
 
     bool Board::isValidMove(const ID& id, const Pos& target) {
@@ -1104,4 +1109,33 @@ namespace Chess {
             std::cout << '\n';
         }
     }
+
+    std::array<ID, 64> Board::genBoardLiteral(std::vector<IdPos> in) {
+        std::array<ID, 64> res;
+        if( res.size() > 64 || res.size() == 0) {
+            for(int i = 0; i < res.size(); i++) {
+                res[i] = ID::EMPTY;
+            }
+        } else {
+            int inIdx = 0;
+            int nextIdx = posTranslate(in[inIdx].pos);
+            for(int i = 0; i < res.size(); i++) {
+                if( nextIdx == i ) {
+                    res[i] = in[inIdx].id;
+                    if( inIdx+1 != in.size() ) {
+                        inIdx++;
+                        nextIdx = posTranslate(in[inIdx].pos);
+                    }
+                } else {
+                    res[i] = EMPTY;
+                }
+            }
+        }
+        return res;
+    }
+
+    std::array<Piece, 32> Board::genPieces(std::vector<IdPos> in) {
+
+    }
+        
 }
