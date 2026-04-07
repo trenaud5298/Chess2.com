@@ -1204,20 +1204,27 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         });
-        int inIdx = 0;
-        int nextIdx = (int) in[inIdx].id -1;
         int resSize = res.size();
-        for(int i = 0; i < resSize; i++) {
-            if( i == nextIdx ) {
-                res[i].position = in[inIdx].pos;
-                if( inIdx != resSize ) {
-                    inIdx++;
-                    nextIdx = (int) in[inIdx].id -1;
+        int inLength = in.size();
+        if(  inLength > 0 && inLength <= 32 ) {
+            int inIdx = 0;
+            int nextIdx = (int) in[inIdx].id -1;
+            for(int i = 0; i < resSize; i++) {
+                if( i == nextIdx ) {
+                    res[i].position = in[inIdx].pos;
+                    if( inIdx != resSize ) {
+                        inIdx++;
+                        nextIdx = (int) in[inIdx].id -1;
+                    }
+                } else {
+                    res[i].position = Pos{8,8}; // could by hardcoding these
+                                                // and only looping to write the in ids,
+                                                // but I am lazy for now
                 }
-            } else {
-                res[i].position = Pos{8,8}; // could by hardcoding these
-                                            // and only looping to write the in ids,
-                                            // but I am lazy for now
+            }
+        } else {
+            for(int i = 0; i < resSize; i++) {
+                res[i].position = Pos{8,8}; 
             }
         }
         return res;
