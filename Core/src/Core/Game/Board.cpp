@@ -105,7 +105,39 @@ namespace Chess {
             m_moves.fill({8,8});
         }
 
-    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieceArr(pieces) {}
+    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : 
+        m_board(board), 
+        m_pieceArr(pieces),
+        m_moves(),
+        m_moveOffset({0}),
+        m_defended(64, false),
+        m_attackedWhite(64, false),
+        m_attackedBlack(64, false),
+        m_pinnedVec(),
+        m_pinnedIdSet(),
+        m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
+        m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_mods({
+                std::pair(1,0),
+                std::pair(0,1),
+                std::pair(-1,0),
+                std::pair(0,-1),
+                std::pair(1,1),
+                std::pair(1,-1),
+                std::pair(-1,1),
+                std::pair(-1,-1),
+                })
+    {
+            m_moveOffset[0] = 0;
+            for(int i = 1; i < m_pieceArr.size(); i++) {
+                m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
+            }
+            m_pinnedVec.reserve(MAX_PINNED);
+            m_isWhiteTurn = true;
+            m_isWhiteChecked = false;
+            m_isBlackChecked = false;
+            m_moves.fill({8,8});
+    }
 
     Board::~Board() {}
 
@@ -152,7 +184,7 @@ namespace Chess {
         const ID oldId = getIdAt(old);
         if( oldId != EMPTY ) {
             const int castedOldId = (int) oldId - 1;
-            m_pieceArr[castedOldId].position = Pos({8,8});
+            m_pieceArr[castedOldId].position = Pos{8,8};
         }
         m_pieceArr[castedId].position = pos;
         setIdAt(pos, id);
@@ -1135,7 +1167,59 @@ namespace Chess {
     }
 
     std::array<Piece, 32> Board::genPieces(std::vector<IdPos> in) {
+        std::array<Piece, 32> res( {
+                {Pos({0,0}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,7}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,1}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,6}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,2}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,5}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,3}), Type::W_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({0,4}), Type::W_KING, MAX_MOVES_KING, 0},
 
+                {Pos({1,0}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,1}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,2}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,3}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,4}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,5}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,6}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,7}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+
+                {Pos({7,0}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,7}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,1}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,6}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,2}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,5}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,3}), Type::B_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({7,4}), Type::B_KING, MAX_MOVES_KING, 0},
+
+                {Pos({6,0}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,1}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,2}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,3}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,4}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,5}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+        });
+        int inIdx = 0;
+        int nextIdx = (int) in[inIdx].id -1;
+        int resSize = res.size();
+        for(int i = 0; i < resSize; i++) {
+            if( i == nextIdx ) {
+                res[i].position = in[inIdx].pos;
+                if( inIdx != resSize ) {
+                    inIdx++;
+                    nextIdx = (int) in[inIdx].id -1;
+                }
+            } else {
+                res[i].position = Pos{8,8}; // could by hardcoding these
+                                            // and only looping to write the in ids,
+                                            // but I am lazy for now
+            }
+        }
+        return res;
     }
-        
 }
