@@ -15,12 +15,7 @@
 //      * Add "full" king movement logic with isAttacked() and isDefended()
 //
 //      *   Testing TODO
-//        write a function to generate Board objects in initial states from an
-//          an array of size 64 of ID literals representing board state, 
-//          
-//          Make another function that generates arrays of size 64 from up to 
-//          to 64 std::pair of ID or Type and Pos such that it populates the 
-//          position in the array corresponding to the given Pos with the ID in the board
+//          * Test genPinned, genChecked
 
 
 namespace Chess {
@@ -195,8 +190,9 @@ namespace Chess {
     bool Board::isValidMove(const ID& id, const Pos& target) {
         const int castedId = (int)id -1,
                   idx = m_pieceArr[castedId].movesIdx;
-        if( idx == 0 ) 
+        if( idx == 0 ) {
             return false;
+        }
 
         const int offset = m_moveOffset[castedId];
         bool flag = false;
@@ -204,7 +200,7 @@ namespace Chess {
         
         for(int i = 0; i < idx; i++) {
             temp = m_moves[offset + i];
-            if( temp[ROW] == target[ROW] && temp[COL] == target[COL]  )
+            if( temp[ROW] == target[ROW] && temp[COL] == target[COL] )
                 flag = true;
         }
         return flag;
@@ -745,6 +741,7 @@ namespace Chess {
                 }
             }
         }
+        setMovesIdx(initialId, idx);
     }
 
     void Board::addKingMoves(const Pos& initial) {
@@ -768,6 +765,7 @@ namespace Chess {
                     setDefendedAt(temp);
                 }
             }
+            setMovesIdx(initialId, i);
         }
     }
 
@@ -839,6 +837,7 @@ namespace Chess {
                 }
             }
         }
+        setMovesIdx(initialId, i);
     }
 
     void Board::genMoves() {
@@ -1228,5 +1227,12 @@ namespace Chess {
             }
         }
         return res;
+    }
+
+    void Board::printPieceIdxs() {
+        for(Piece p : m_pieceArr) {
+            std::cout << p.movesIdx << '\n';
+        }
+        std::cout << std::endl;
     }
 }

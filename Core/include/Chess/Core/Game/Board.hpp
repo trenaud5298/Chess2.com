@@ -47,6 +47,7 @@ namespace Chess {
             void displayBoardUnicode();
             std::array<Piece, 32> genPieces(std::vector<IdPos> in);
             std::array<ID, 64> genBoardLiteral(std::vector<IdPos> in);
+            void printPieceIdxs();
 
         private:
             std::array<ID, 64> m_board;

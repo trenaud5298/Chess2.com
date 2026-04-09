@@ -22,6 +22,7 @@ int main() {
     board.nextTurn();
     board.genMoves();
     board.printMoves();
+    std::cout << "isValidMove() " << board.isValidMove(ID::W_PAWN1, Pos{4,0});
 
     return 0;
 }
