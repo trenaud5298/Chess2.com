@@ -190,7 +190,6 @@ namespace Chess {
     bool Board::isValidMove(const ID& id, const Pos& target) {
         const int castedId = (int)id -1,
                   idx = m_pieceArr[castedId].movesIdx;
-        std::cout << " HERE idx = " << idx << std::endl;
         if( idx == 0 ) {
             return false;
         }
@@ -198,9 +197,6 @@ namespace Chess {
         const int offset = m_moveOffset[castedId];
         bool flag = false;
         Pos temp;
-        for(int n : temp) {
-            std::cout << n << ' ';
-        }
         
         for(int i = 0; i < idx; i++) {
             temp = m_moves[offset + i];
