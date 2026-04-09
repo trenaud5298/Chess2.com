@@ -14,7 +14,7 @@
 // ASIO Includes
 
 // C++ Includes
-
+#include <iostream>
 
 namespace Chess {
 
@@ -29,6 +29,7 @@ SingleplayerClient::~SingleplayerClient() {
 void SingleplayerClient::start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now) {
     m_config = config;
     m_board = Board{};
+    m_board.genMoves();
     m_currentTurn = COLOR::WHITE;
     m_state = SingleplayerState::INGAME;
     m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
@@ -69,7 +70,6 @@ void SingleplayerClient::resume(std::chrono::steady_clock::time_point now) {
 bool SingleplayerClient::tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::INGAME) { return false; }
     if (from==ID::EMPTY) { return false; }
-    if (!isColor(from, m_currentTurn)) { return false; }
     if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) { return false; }
     if (!m_board.isValidMove(from, to)) { return false; }
 
@@ -147,6 +147,7 @@ void SingleplayerClient::advanceTurn(std::chrono::steady_clock::time_point now) 
         m_blackTime += m_config.increment;
         m_currentTurn = COLOR::WHITE;
     }
+    m_board.genMoves();
 }
 
 void SingleplayerClient::commitElapsedToActiveSide(std::chrono::steady_clock::time_point now) {
