@@ -36,8 +36,17 @@ namespace Chess {
             void setTurn(bool isWhite);
             bool getTurn() const;
             void nextTurn();
+            void genMoves();
 
             std::ios &(* isValidMove())(std::ios &);
+
+            // Testing functions
+            void printMoveOffset();
+            void printMoves();
+            void displayBoard();
+            void displayBoardUnicode();
+            std::array<Piece, 32> genPieces(std::vector<IdPos> in);
+            std::array<ID, 64> genBoardLiteral(std::vector<IdPos> in);
 
         private:
             std::array<ID, 64> m_board;
@@ -69,7 +78,7 @@ namespace Chess {
             ID getKingId();
             Type getTypeAt(const Pos& pos);
             COLOR getColor(const ID& id);
-            int getPawnRow();
+            int getPawnRow(const COLOR& color);
             std::pair<int,int> getMod(const Direction& direction);
             Direction directionCast(const int& i);
             std::vector<bool>& getAttackedVec();
@@ -95,10 +104,10 @@ namespace Chess {
             void addKingMoves(const Pos& initial);
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
-            void genMoves();
 
-            char32_t getGlyph(const ID& id);
-            void displayBoard();
+            char32_t getGlyphUnicode(const ID& id);
+            char getGlyph(const ID& id);
+
     };
 }
 #endif

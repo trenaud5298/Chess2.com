@@ -7,14 +7,21 @@
 #include <string>
 
 // TODO 
-//      * implement "piece collision" in addMoves methods
 //      * implement a way to castle
-//      * implement an isChecked method and getChecking method
 //      * implement a way to promote pawns
 //      * implement a way to en passant
-//      * implement checking logic
+//      * implement checking logic fully
+//      * Fix the indexing mismatch in most of the functions
+//      * Add "full" king movement logic with isAttacked() and isDefended()
 //
-//      * start a game class
+//      *   Testing TODO
+//        write a function to generate Board objects in initial states from an
+//          an array of size 64 of ID literals representing board state, 
+//          
+//          Make another function that generates arrays of size 64 from up to 
+//          to 64 std::pair of ID or Type and Pos such that it populates the 
+//          position in the array corresponding to the given Pos with the ID in the board
+
 
 namespace Chess {
     using enum ID;
@@ -67,7 +74,7 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         }),
-        m_moves({8,8}),
+        m_moves(),
         m_moveOffset({0}),
         m_defended(64, false),
         m_attackedWhite(64, false),
@@ -87,7 +94,7 @@ namespace Chess {
                 std::pair(-1,-1),
                 })
         {
-            m_moveOffset[0] = m_pieceArr[0].reserved;
+            m_moveOffset[0] = 0;
             for(int i = 1; i < m_pieceArr.size(); i++) {
                 m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
             }
@@ -95,9 +102,42 @@ namespace Chess {
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
+            m_moves.fill({8,8});
         }
 
-    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : m_board(board), m_pieceArr(pieces) {}
+    Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : 
+        m_board(board), 
+        m_pieceArr(pieces),
+        m_moves(),
+        m_moveOffset({0}),
+        m_defended(64, false),
+        m_attackedWhite(64, false),
+        m_attackedBlack(64, false),
+        m_pinnedVec(),
+        m_pinnedIdSet(),
+        m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
+        m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_mods({
+                std::pair(1,0),
+                std::pair(0,1),
+                std::pair(-1,0),
+                std::pair(0,-1),
+                std::pair(1,1),
+                std::pair(1,-1),
+                std::pair(-1,1),
+                std::pair(-1,-1),
+                })
+    {
+            m_moveOffset[0] = 0;
+            for(int i = 1; i < m_pieceArr.size(); i++) {
+                m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
+            }
+            m_pinnedVec.reserve(MAX_PINNED);
+            m_isWhiteTurn = true;
+            m_isWhiteChecked = false;
+            m_isBlackChecked = false;
+            m_moves.fill({8,8});
+    }
 
     Board::~Board() {}
 
@@ -114,7 +154,8 @@ namespace Chess {
         // I added a -1 here since ID starts at 1 instead
         // of 0 creating a small issue of being off by one piece
         // in the array
-        return m_pieceArr[((int)id)-1].position;
+        int castedId = (int)id-1;
+        return m_pieceArr[castedId].position;
     }
 
     void Board::setIdAt(const Pos& pos, const ID& id){
@@ -138,15 +179,35 @@ namespace Chess {
         // setIdAt(pos, id);
         // setIdAt(old, ID::EMPTY);
 
-        int castedId = (int)id - 1;
-        Pos old = m_pieceArr[castedId].position;
+        const int castedId = (int)id - 1;
+        const Pos old = m_pieceArr[castedId].position;
+        const ID oldId = getIdAt(old);
+        if( oldId != EMPTY ) {
+            const int castedOldId = (int) oldId - 1;
+            m_pieceArr[castedOldId].position = Pos{8,8};
+        }
         m_pieceArr[castedId].position = pos;
         setIdAt(pos, id);
         setIdAt(old, ID::EMPTY);
+
     }
 
     bool Board::isValidMove(const ID& id, const Pos& target) {
-        return true;
+        const int castedId = (int)id -1,
+                  idx = m_pieceArr[castedId].movesIdx;
+        if( idx == 0 ) 
+            return false;
+
+        const int offset = m_moveOffset[castedId];
+        bool flag = false;
+        Pos temp;
+        
+        for(int i = 0; i < idx; i++) {
+            temp = m_moves[offset + i];
+            if( temp[ROW] == target[ROW] && temp[COL] == target[COL]  )
+                flag = true;
+        }
+        return flag;
     }
 
     void Board::setTurn(bool isWhite) {
@@ -159,6 +220,10 @@ namespace Chess {
 
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
+        m_moves.fill(Pos{8,8});
+        std::fill(m_defended.begin(), m_defended.end(), false);
+        std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
+        std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
     }
 
 
@@ -177,7 +242,8 @@ namespace Chess {
     }
 
     ID& Board::getIdAt(const Pos& pos) {
-        return m_board[posTranslate(pos)];
+        const int idx = posTranslate(pos);
+        return m_board[idx];
     }
 
     COLOR Board::getColor(const ID& id) {
@@ -228,7 +294,7 @@ namespace Chess {
 
     void Board::setMoveAt(const ID& id, const Pos& pos, const int& i) {
         const int castedId = (int) id-1,
-              idx = m_moveOffset[castedId] + i - 1;
+              idx = m_moveOffset[castedId] + i;
         m_moves[idx] = pos;
     }
 
@@ -241,8 +307,8 @@ namespace Chess {
         return static_cast<Direction>(i);
     }
 
-    int Board::getPawnRow() {
-        if( m_isWhiteTurn ) {
+    int Board::getPawnRow(const COLOR& color) {
+        if( color == COLOR::WHITE ) {
             return WHITE_PAWN_ROW;
         } else {
             return BLACK_PAWN_ROW;
@@ -315,7 +381,7 @@ namespace Chess {
             if( (i>>1) == 1 ) {
                 x = -x;
             }
-            if( ((i<<1)>>1) == 1 ) {
+            if( i%2 == 1 ) {
                 y = -y;
             }
             temp = Pos({castHelper(kingPos[ROW], x), castHelper(kingPos[COL], y)});
@@ -487,7 +553,7 @@ namespace Chess {
         Pos pos = initial;
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
-        ID& posId = getIdAt(pos);
+        ID posId;
         int card, x, y;
         COLOR posColor;
         switch (direction) {
@@ -513,11 +579,14 @@ namespace Chess {
             x = -x;
         }
         // check second bit
-        if( ((card<<1)>>1) == 1 ) {
+        if( card %2 == 1 ) {
             y = -y;
         }
-        pos[ROW] += x;
-        pos[COL] += y;
+        if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+            pos[ROW] += x;
+            pos[COL] += y;
+        } else { return; }
+        posId = getIdAt(pos);
         posColor = getColor(posId);
         while( isInBoard(pos) ) {
             if( color != posColor ) {
@@ -527,8 +596,10 @@ namespace Chess {
                 if( posColor != COLOR::EMPTY ) {
                     return;
                 }
-                pos[ROW] += x;
-                pos[COL] += y;
+                if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+                    pos[ROW] += x;
+                    pos[COL] += y;
+                } else { return; }
                 posId = getIdAt(pos);
                 posColor = getColor(posId);
             } else {
@@ -554,7 +625,7 @@ namespace Chess {
         const COLOR color = getColor(initialId);
         Pos pos = initial;
         int card, dim, inc;
-        ID& posId = getIdAt(pos);
+        ID posId;
         COLOR posColor;
         switch (direction) {
             case (NORTH):
@@ -577,11 +648,15 @@ namespace Chess {
         if( !((card>>1) == 1) ) { //determine the dimension of the initial pos we are increasing
             dim = ROW;
         }
-        if( ((card<<1)>>1) == 1 ) { //determine the direction we are incrementing the dimension in
+        if( card %2 == 1 ) { //determine the direction we are incrementing the dimension in
             inc = -1;
         }
-        pos[dim] += inc;
-        posColor = getColor(posId);
+        int castedDim = (int) pos[dim] + inc;
+        if(  castedDim > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+            pos[dim] += inc;
+        } else { return; }
+
+        posColor = getColor(getIdAt(pos));
         while(isInBoard(pos)) {
             if( color != posColor ) {
                 setAttackedAt(pos);
@@ -590,7 +665,9 @@ namespace Chess {
                 if(posColor != COLOR::EMPTY) {
                     return;
                 }
-                pos[dim] += inc;
+                if( (int) pos[dim] + inc > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+                    pos[dim] += inc;
+                } else { return; }
                 posId = getIdAt(pos);
                 posColor = getColor(posId);
             } else {
@@ -626,7 +703,8 @@ namespace Chess {
     }
 
     void Board::addKnightMoves(const Pos& initial) {
-        int x, y, i = 0;
+        int x, y, idx = 0;
+        std::uint8_t temp_row, temp_col;
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
         Pos temp;
@@ -636,28 +714,34 @@ namespace Chess {
             if( (i>>1) == 1 ) {
                 x = -x;
             }
-            if( ((i<<1)>>1) == 1 ) {
+            if( i%2 == 1 ) {
                 y = -y;
             }
-            temp = {castHelper(initial[ROW], x), castHelper(initial[COL], y)};
-            tempColor = getColor(getIdAt(temp));
-            if( isInBoard(temp) ) {
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                } else {
-                    setDefendedAt(temp);
+
+            if( (int) initial[ROW] + x > ROW_LOWER_BOUND && (int) initial[COL] + y > COL_LOWER_BOUND ) {
+                temp = Pos{castHelper(initial[ROW], x), castHelper(initial[COL], y)};
+                if( isInBoard(temp) ) {
+                    tempColor = getColor(getIdAt(temp));
+                    if( color != tempColor ) {
+                        setAttackedAt(temp);
+                        setMoveAt(initialId, temp, idx);
+                        idx++;
+                    } else {
+                        setDefendedAt(temp);
+                    }
                 }
             }
-            temp = {castHelper(initial[ROW], y), castHelper(initial[COL], x)};
-            if( isInBoard(temp) ) {
-                if( color != tempColor ) {
-                    setAttackedAt(temp);
-                    setMoveAt(initialId, temp, i);
-                    i++;
-                } else {
-                    setDefendedAt(temp);
+            if( (int) initial[ROW] + y > ROW_LOWER_BOUND && (int) initial[COL] + x > COL_LOWER_BOUND ) {
+                temp = Pos{castHelper(initial[ROW], y), castHelper(initial[COL], x)};
+                if( isInBoard(temp) ) {
+                    tempColor = getColor(getIdAt(temp));
+                    if( color != tempColor ) {
+                        setAttackedAt(temp);
+                        setMoveAt(initialId, temp, idx);
+                        idx++;
+                    } else {
+                        setDefendedAt(temp);
+                    }
                 }
             }
         }
@@ -673,9 +757,9 @@ namespace Chess {
 
         for(const std::pair<int,int>& mod : m_mods) {
             temp = {castHelper(initial[ROW], mod.first), castHelper(initial[COL], mod.second)};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
             if( isInBoard(temp) ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
                 if( color != tempColor ) {
                     setAttackedAt(temp);
                     setMoveAt(initialId, temp, i);
@@ -690,13 +774,13 @@ namespace Chess {
     void Board::addPawnMoves(const Pos& initial) {
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
-        const int pawnRow = getPawnRow();
+        const int pawnRow = getPawnRow(color);
         int i = 0;
         Pos temp;
         ID tempId;
         COLOR tempColor;
 
-        if( m_isWhiteTurn ) {
+        if( color == COLOR::BLACK ) {
             m_pawnMods[0] = m_mods[6];
             m_pawnMods[1] = m_mods[7];
         } else {
@@ -705,59 +789,67 @@ namespace Chess {
         }
         if( initial[ROW] == pawnRow) {
             temp = {castHelper(initial[ROW], 2*m_pawnMods[0].first), initial[COL]};
-            tempId = getIdAt(temp);
-            tempColor = getColor(tempId);
             if( isInBoard(temp) ) {
-                if( color == COLOR::EMPTY ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
+                if( tempColor == COLOR::EMPTY ) {
                     setMoveAt(initialId, temp, i);
                     i++;
                 }
             }
         }
         temp = {castHelper(initial[ROW], m_pawnMods[0].first), initial[COL]};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
         if( isInBoard(temp) ) {
-            if( color == COLOR::EMPTY ) {
+            tempId = getIdAt(temp);
+            tempColor = getColor(tempId);
+            if( tempColor == COLOR::EMPTY ) {
                 setMoveAt(initialId, temp, i);
                 i++;
             }
         }
-        temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
-        if( isInBoard(temp) ) {
-            if( color != tempColor ) {
-                setAttackedAt(temp);
-                setMoveAt(initialId, temp, i);
-                i++;
-            } else {
-                setDefendedAt(temp);
+        int tempRow = (int) initial[ROW] + m_pawnMods[0].first;
+        int tempCol = (int) initial[COL] + m_pawnMods[0].second;
+        if( ROW_LOWER_BOUND < tempRow && tempRow < ROW_UPPER_BOUND && COL_LOWER_BOUND < tempCol && tempCol < COL_UPPER_BOUND ) {
+            temp = {castHelper(initial[ROW], m_pawnMods[0].first), castHelper(initial[COL], m_pawnMods[0].second)};
+            if( isInBoard(temp) ) { // this is redundant but im keeping it for now
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
+                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
         }
-        temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
-        tempId = getIdAt(temp);
-        tempColor = getColor(tempId);
-        if( isInBoard(temp) ) {
-            if( color != tempColor ) {
-                setAttackedAt(temp);
-                setMoveAt(initialId, temp, i);
-                i++;
-            } else {
-                setDefendedAt(temp);
+        tempRow = (int) initial[ROW] + m_pawnMods[1].first;
+        tempCol = (int) initial[COL] + m_pawnMods[1].second;
+        if( ROW_LOWER_BOUND < tempRow && tempRow < ROW_UPPER_BOUND && COL_LOWER_BOUND < tempCol && tempCol < COL_UPPER_BOUND ) {
+            temp = {castHelper(initial[ROW], m_pawnMods[1].first), castHelper(initial[COL], m_pawnMods[1].second)};
+            if( isInBoard(temp) ) {
+                tempId = getIdAt(temp);
+                tempColor = getColor(tempId);
+                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                    setAttackedAt(temp);
+                    setMoveAt(initialId, temp, i);
+                    i++;
+                } else {
+                    setDefendedAt(temp);
+                }
             }
         }
     }
 
     void Board::genMoves() {
         addCardinalMoves(getPos(W_ROOK1));
-        addCardinalMoves(getPos(W_ROOK1));
+        addCardinalMoves(getPos(W_ROOK2));
+        addKnightMoves(getPos(W_KNIGHT1)); 
+        addKnightMoves(getPos(W_KNIGHT2));
         addDiagonalMoves(getPos(W_BISHOP1));
         addDiagonalMoves(getPos(W_BISHOP2));
-        addKnightMoves(getPos(W_KNIGHT1));
-        addKnightMoves(getPos(W_KNIGHT2));
-        addKingMoves(getPos(W_KING));
         addQueenMoves(getPos(W_QUEEN));
+        addKingMoves(getPos(W_KING));
 
         addPawnMoves(getPos(W_PAWN1));
         addPawnMoves(getPos(W_PAWN2));
@@ -768,14 +860,14 @@ namespace Chess {
         addPawnMoves(getPos(W_PAWN7));
         addPawnMoves(getPos(W_PAWN8));
 
+        addCardinalMoves(getPos(B_ROOK1));
         addCardinalMoves(getPos(B_ROOK2));
-        addCardinalMoves(getPos(B_ROOK2));
-        addDiagonalMoves(getPos(B_BISHOP1));
-        addDiagonalMoves(getPos(B_BISHOP2));
         addKnightMoves(getPos(B_KNIGHT1));
         addKnightMoves(getPos(B_KNIGHT2));
-        addKingMoves(getPos(B_KING));
+        addDiagonalMoves(getPos(B_BISHOP1));
+        addDiagonalMoves(getPos(B_BISHOP2));
         addQueenMoves(getPos(B_QUEEN));
+        addKingMoves(getPos(B_KING));
 
         addPawnMoves(getPos(B_PAWN1));
         addPawnMoves(getPos(B_PAWN2));
@@ -789,7 +881,7 @@ namespace Chess {
 
 // ♔♕♖♗♘♙♚♛♜♝♞♟
 //\u2654 \u2655 \u2656 \u2657 \u2658 \u2659 \u265a \u265b \u265c \u265d \u265e \u265f 
-    char32_t Board::getGlyph(const ID& id) {
+    char32_t Board::getGlyphUnicode(const ID& id) {
         char32_t res;
         switch(id) {
             case(EMPTY): {
@@ -840,15 +932,301 @@ namespace Chess {
         return res;
     }
 
+    char Board::getGlyph(const ID& id) {
+        char32_t res;
+        switch(id) {
+            case(EMPTY): {
+                res =  ' ';
+                break;
+            }
+            default:
+                const Type type = getTypeAt(getPos(id));
+                switch(type) {
+                case(Type::W_KING):
+                    res = 'K';
+                    break;
+                case(Type::W_QUEEN):
+                    res = 'Q';
+                    break;
+                case(Type::W_ROOK):
+                    res = 'R';
+                    break;
+                case(Type::W_BISHOP):
+                    res = 'B';
+                    break;
+                case(Type::W_KNIGHT):
+                    res = 'N';
+                    break;
+                case(Type::W_PAWN):
+                    res = 'P';
+                    break;
+                case(Type::B_KING):
+                    res = 'k';
+                    break;
+                case(Type::B_QUEEN):
+                    res = 'q';
+                    break;
+                case(Type::B_ROOK):
+                    res = 'r';
+                    break;
+                case(Type::B_BISHOP):
+                    res = 'b';
+                    break;
+                case(Type::B_KNIGHT):
+                    res = 'n';
+                    break;
+                case(Type::B_PAWN):
+                    res = 'p';
+                    break;
+                }
+        }
+        return res;
+    }
+
     void Board::displayBoard() {
+        std::string str;
+        str.append("------------------------\n");
+        for(int i = 1; i < m_board.size()+1; i++) {
+            str += '|';
+            str += getGlyph(m_board[i-1]);
+            str += '|';
+            if( i%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl; 
+    }
+
+    void Board::displayBoardUnicode() {
         std::u32string str;
-        str.append(U"-----------------\n");
+        str.append(U"------------------------\n");
         for(int i = 1; i < m_board.size()+1; i++) {
             str += U'|';
-            str += getGlyph(m_board[i-1]);
+            str += getGlyphUnicode(m_board[i-1]);
             str += U'|';
             if( i%8 == 0 )
-                str.append(U"\n-----------------\n");
+                str.append(U"\n------------------------\n");
         }
-        std::cout << std::string(str.begin(), str.end()) << std::endl; }
+        //std::cout << std::string(str.begin(), str.end()) << std::endl; 
+        std::wstring wstr(str.begin(), str.end());
+        std::wcout << wstr << std::endl;
+    }
+
+    /*-------------------Testing Functions-------------------*/
+    void Board::printMoveOffset() {
+        for(int n : m_moveOffset) {
+            std::cout << n << '\n';
+            std::cout << std::endl;
+        }
+    }
+
+    // This is a war crime
+    std::string idToString(const ID& id) {
+        std::string res;
+        switch( id ) {
+            case( W_ROOK1 ):
+                res = "W_ROOK1";
+                break;
+            case( W_ROOK2 ):
+                res = "W_ROOK2";
+                break;
+            case( W_KNIGHT1 ):
+                res = "W_KNIGHT1";
+                break;
+            case( W_KNIGHT2 ):
+                res = "W_KNIGHT2";
+                break;
+            case( W_BISHOP1 ):
+                res = "W_BISHOP1";
+                break;
+            case( W_BISHOP2 ):
+                res = "W_BISHOP2";
+                break;
+            case( W_QUEEN ):
+                res = "W_QUEEN";
+                break; 
+            case( W_KING ):
+                res = "W_KING";
+                break;
+            case( W_PAWN1 ):
+                res = "W_PAWN1";
+                break;
+            case( W_PAWN2 ):
+                res = "W_PAWN2";
+                break;
+            case( W_PAWN3 ):
+                res = "W_PAWN3";
+                break;
+            case( W_PAWN4 ):
+                res = "W_PAWN4";
+                break;
+            case( W_PAWN5 ):
+                res = "W_PAWN5";
+                break;
+            case( W_PAWN6 ):
+                res = "W_PAWN6";
+                break;
+            case( W_PAWN7 ):
+                res = "W_PAWN7";
+                break;
+            case( W_PAWN8 ):
+                res = "W_PAWN8";
+                break;
+            case( B_ROOK1   ):
+                res = "B_ROOK1";
+                break;
+            case( B_ROOK2   ):
+                res = "B_ROOK2";
+                break;
+            case( B_KNIGHT1 ):
+                res = "B_KNIGHT1";
+                break;
+            case( B_KNIGHT2 ):
+                res = "B_KNIGHT2";
+                break;
+            case( B_BISHOP1 ):
+                res = "B_BISHOP1";
+                break;
+            case( B_BISHOP2 ):
+                res = "B_BISHOP2";
+                break;
+            case( B_QUEEN   ):
+                res = "B_QUEEN";
+                break;
+            case( B_KING    ):
+                res = "B_KING";
+                break;
+            case( B_PAWN1 ):
+                res = "B_PAWN1";
+                break;
+            case( B_PAWN2 ):
+                res = "B_PAWN2";
+                break;
+            case( B_PAWN3 ):
+                res = "B_PAWN3";
+                break;
+            case( B_PAWN4 ):
+                res = "B_PAWN4";
+                break;
+            case( B_PAWN5 ):
+                res = "B_PAWN5";
+                break;
+            case( B_PAWN6 ):
+                res = "B_PAWN6";
+                break;
+            case( B_PAWN7 ):
+                res = "B_PAWN7";
+                break;
+            case( B_PAWN8 ):
+                res = "B_PAWN8";
+                break;
+            default:
+                res = "EMPTY";
+                break;
+        }
+        return res;
+    }
+
+    void Board::printMoves() {
+        int offsetIdx = 0;
+        for(int i = 0; i < m_moves.size(); i++) {
+            if( offsetIdx < m_moveOffset.size() ) {
+                if( i == m_moveOffset[offsetIdx] ) {
+                    std::cout << idToString(static_cast<ID>(offsetIdx+1)) << '\n';
+                    offsetIdx++;
+                }
+            }
+            for(const int n : m_moves[i]) {
+                std::cout << n << ' ';
+            }
+            std::cout << '\n';
+        }
+    }
+
+    std::array<ID, 64> Board::genBoardLiteral(std::vector<IdPos> in) {
+        std::array<ID, 64> res;
+        if( res.size() > 64 || res.size() == 0) {
+            for(int i = 0; i < res.size(); i++) {
+                res[i] = ID::EMPTY;
+            }
+        } else {
+            int inIdx = 0;
+            int nextIdx = posTranslate(in[inIdx].pos);
+            for(int i = 0; i < res.size(); i++) {
+                if( nextIdx == i ) {
+                    res[i] = in[inIdx].id;
+                    if( inIdx+1 != in.size() ) {
+                        inIdx++;
+                        nextIdx = posTranslate(in[inIdx].pos);
+                    }
+                } else {
+                    res[i] = EMPTY;
+                }
+            }
+        }
+        return res;
+    }
+
+    std::array<Piece, 32> Board::genPieces(std::vector<IdPos> in) {
+        std::array<Piece, 32> res( {
+                {Pos({0,0}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,7}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({0,1}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,6}), Type::W_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({0,2}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,5}), Type::W_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({0,3}), Type::W_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({0,4}), Type::W_KING, MAX_MOVES_KING, 0},
+
+                {Pos({1,0}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,1}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,2}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,3}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,4}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,5}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,6}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({1,7}), Type::W_PAWN, MAX_MOVES_PAWN, 0},
+
+                {Pos({7,0}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,7}), Type::B_ROOK, MAX_MOVES_ROOK, 0},
+                {Pos({7,1}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,6}), Type::B_KNIGHT, MAX_MOVES_KNIGHT, 0},
+                {Pos({7,2}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,5}), Type::B_BISHOP, MAX_MOVES_BISHOP, 0},
+                {Pos({7,3}), Type::B_QUEEN, MAX_MOVES_QUEEN, 0},
+                {Pos({7,4}), Type::B_KING, MAX_MOVES_KING, 0},
+
+                {Pos({6,0}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,1}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,2}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,3}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,4}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,5}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+                {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
+        });
+        int resSize = res.size();
+        int inLength = in.size();
+        if(  inLength > 0 && inLength <= 32 ) {
+            int inIdx = 0;
+            int nextIdx = (int) in[inIdx].id -1;
+            for(int i = 0; i < resSize; i++) {
+                if( i == nextIdx ) {
+                    res[i].position = in[inIdx].pos;
+                    if( inIdx != resSize ) {
+                        inIdx++;
+                        nextIdx = (int) in[inIdx].id -1;
+                    }
+                } else {
+                    res[i].position = Pos{8,8}; // could by hardcoding these
+                                                // and only looping to write the in ids,
+                                                // but I am lazy for now
+                }
+            }
+        } else {
+            for(int i = 0; i < resSize; i++) {
+                res[i].position = Pos{8,8}; 
+            }
+        }
+        return res;
+    }
 }
