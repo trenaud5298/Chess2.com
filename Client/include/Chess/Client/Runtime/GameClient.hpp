@@ -116,6 +116,7 @@ struct [[nodiscard]] ClientCommandResult {
     }
 };
 
+
 class GameClient {
 public:
     GameClient();
@@ -168,9 +169,14 @@ public:
     // Singleplayer Info
     [[nodiscard]] SingleplayerView singleplayerView() const;
 
-    [[nodiscard]] ClientCommandResult enterMultiplayerSetup();;
-    [[nodiscard]] ClientCommandResult startMultiplayer(const ServerInfo& server);
-    [[nodiscard]] ClientCommandResult stopMultiplayer();
+
+    // Multiplayer Controls
+    [[nodiscard]] ClientCommandResult requestMultiplayerConnect(const ServerInfo& server);
+    [[nodiscard]] ClientCommandResult requestMultiplayerDisconnect();
+
+    // Multiplayer Info
+    [[nodiscard]] MultiplayerState multiplayerState() const noexcept;
+    [[nodiscard]] CallbackRegistry<const MultiplayerEvent&>& multiplayerEventRegistry();
 
 private:
     void transitionTo(ClientState newState);

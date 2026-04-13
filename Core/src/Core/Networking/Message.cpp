@@ -24,7 +24,7 @@ Message::Message(MessageType type)
     m_header.validation = PROTOCOL_VALIDATION;
     m_header.bodyLength = 0;
     m_header.type = static_cast<std::uint32_t>(type);
-    m_header.reserved = 0;
+    m_header.messageThreadID = 0;
 }
 
 // Header Access

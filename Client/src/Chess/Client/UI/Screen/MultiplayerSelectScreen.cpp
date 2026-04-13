@@ -70,7 +70,7 @@ void MultiplayerSelectScreen::joinSelectedServer() {
     }
 
     m_clientPanel.handleCommandResult(
-        m_clientPanel.gameClient().startMultiplayer(m_servers[*m_selectedServer]),
+        m_clientPanel.gameClient().requestMultiplayerConnect(m_servers[*m_selectedServer]),
         "Unable to join server"
     );
 }
