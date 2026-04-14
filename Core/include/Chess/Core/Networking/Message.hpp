@@ -121,7 +121,7 @@ struct MessageHeader {
     std::uint32_t validation;
     std::uint32_t bodyLength;
     std::uint32_t type;
-    std::uint32_t reserved;
+    std::uint32_t messageThreadID;
 };
 static_assert(sizeof(MessageHeader) == 16);
 

@@ -213,7 +213,7 @@ ClientCommandResult GameClient::enterMultiplayerSetup() {
     return ClientCommandResult::Success();
 }
 
-ClientCommandResult GameClient::startMultiplayer(const ServerInfo &server) {
+ClientCommandResult GameClient::requestMultiplayerConnect(const ServerInfo &server) {
     return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "NOT IMPLEMENTED");
 }
 
