@@ -205,21 +205,36 @@ SingleplayerView GameClient::singleplayerView() const {
 
 
 // Multiplayer Commands
-ClientCommandResult GameClient::enterMultiplayerSetup() {
-    if (m_state.load() != ClientState::Idle) {
-        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Client must be idle");
+ClientCommandResult GameClient::requestMultiplayerConnect(const ServerInfo& server, const LoginRequest& loginRequest) {
+    if (m_state.load != ClientState::MultiplayerSetup) {
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Not in multiplayer setup");
     }
-    transitionTo(ClientState::MultiplayerSetup);
-    return ClientCommandResult::Success();
+
+    try {
+        m_multiplayerClient.requestConnect(server, loginRequest);
+    } catch (const std::exception& e) {
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
+    }
+    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "Multiplayer Connect Not Implemented");
 }
 
-ClientCommandResult GameClient::requestMultiplayerConnect(const ServerInfo &server) {
-    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "NOT IMPLEMENTED");
+ClientCommandResult GameClient::requestMultiplayerDisconnect() {
+    // Need proper state handling
+    if (!isMultiplayerState()) {
+        return ClientCommandResult::Warn(ClientErrorCode::InvalidState, "Not in multiplayer");
+    }
+
+    try {
+        m_multiplayerClient.requestDisconnect();
+    } catch (const std::exception& e) {
+        setFatalError(ClientErrorCode::RuntimeException, e.what());
+        return ClientCommandResult::Fatal(ClientErrorCode::RuntimeException, e.what());
+    }
+    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "Multiplayer Disconnect Not Implemented");
 }
 
-ClientCommandResult GameClient::stopMultiplayer() {
-    return ClientCommandResult::Error(ClientErrorCode::NotImplemented, "NOT IMPLEMENTED");
-}
+
 
 
 

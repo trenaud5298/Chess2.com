@@ -171,7 +171,7 @@ public:
 
 
     // Multiplayer Controls
-    [[nodiscard]] ClientCommandResult requestMultiplayerConnect(const ServerInfo& server);
+    [[nodiscard]] ClientCommandResult requestMultiplayerConnect(const ServerInfo& server, const LoginRequest& loginRequest);
     [[nodiscard]] ClientCommandResult requestMultiplayerDisconnect();
 
     // Multiplayer Info

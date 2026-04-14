@@ -38,7 +38,19 @@ public:
     MultiplayerClient& operator=(MultiplayerClient&&) = delete;
 
     // High-level requests
-    [[nodiscard]] MultiplayerStatus requestConnect(const ServerInfo& server, std::string username);
+
+    /* IDEA:
+     * Remove all of the return results
+     * and rely entirely on a callback
+     * based system for actual errors
+     * or failures. This works for errors
+     * but then how are they propogated back
+     * to UI. Does it need to probogate
+     * through an Event callback or what?
+     *
+     *
+     */
+    [[nodiscard]] MultiplayerStatus requestConnect(const ServerInfo& server, const LoginRequest& loginRequest);
     [[nodiscard]] MultiplayerStatus requestDisconnect();
 
     // View / state
