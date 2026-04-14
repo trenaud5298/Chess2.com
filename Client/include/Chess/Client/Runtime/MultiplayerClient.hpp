@@ -74,8 +74,6 @@ private:
 
     mutable std::mutex m_mutex;
     std::optional<ServerInfo> m_serverInfo;
-    std::string m_username;
-    MessageThreadID m_activeMessageThreadID{NO_MESSAGE_THREAD_ID};
     bool m_socketConnected{false};
     bool m_loginAccepted{false};
 
