@@ -14,10 +14,11 @@
 
 // C++ Includes
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace Chess {
 
@@ -26,55 +27,23 @@ inline constexpr MessageThreadID NO_MESSAGE_THREAD_ID = 0;
 
 enum class MultiplayerState : std::uint8_t {
     Idle = 0,
-    ConnectingTransport,
+    ConnectingNetwork,
     AwaitingLogin,
-    Connected,
-    Disconnecting
+    Connected
 };
-
-constexpr std::string_view toString(MultiplayerState state) noexcept {
-    switch (state) {
-        case MultiplayerState::Idle: return "Idle";
-        case MultiplayerState::ConnectingTransport: return "ConnectingTransport";
-        case MultiplayerState::AwaitingLogin: return "AwaitingLogin";
-        case MultiplayerState::Connected: return "Connected";
-        case MultiplayerState::Disconnecting: return "Disconnecting";
-    }
-    return "";
-}
 
 enum class MultiplayerErrorCode : std::uint8_t {
     None = 0,
     InvalidState,
     InvalidArgument,
-
-    ResolveFailed,
     ConnectFailed,
     SendFailed,
     ReadFailed,
-    Disconnected,
-
     LoginRejected,
     ProtocolError,
-    InternalError
+    Disconnected
 };
 
-constexpr std::string_view toString(MultiplayerErrorCode code) noexcept {
-    switch (code) {
-        case MultiplayerErrorCode::None: return "None";
-        case MultiplayerErrorCode::InvalidState: return "InvalidState";
-        case MultiplayerErrorCode::InvalidArgument: return "InvalidArgument";
-        case MultiplayerErrorCode::ResolveFailed: return "ResolveFailed";
-        case MultiplayerErrorCode::ConnectFailed: return "ConnectFailed";
-        case MultiplayerErrorCode::SendFailed: return "SendFailed";
-        case MultiplayerErrorCode::ReadFailed: return "ReadFailed";
-        case MultiplayerErrorCode::Disconnected: return "Disconnected";
-        case MultiplayerErrorCode::LoginRejected: return "LoginRejected";
-        case MultiplayerErrorCode::ProtocolError: return "ProtocolError";
-        case MultiplayerErrorCode::InternalError: return "InternalError";
-    }
-    return "";
-}
 
 struct [[nodiscard]] MultiplayerStatus {
     bool ok{false};
@@ -93,31 +62,14 @@ struct [[nodiscard]] MultiplayerStatus {
 };
 
 enum class MultiplayerEventType : std::uint8_t {
-    ConnectStarted = 0,
-    TransportConnected,
-    ConnectFailed,
-    LoginSent,
+    ConnectFailed = 0,
     LoginAccepted,
     LoginRejected,
     Disconnected
 };
 
-constexpr std::string_view toString(MultiplayerEventType type) noexcept {
-    switch (type) {
-        case MultiplayerEventType::ConnectStarted: return "ConnectStarted";
-        case MultiplayerEventType::TransportConnected: return "TransportConnected";
-        case MultiplayerEventType::ConnectFailed: return "ConnectFailed";
-        case MultiplayerEventType::LoginSent: return "LoginSent";
-        case MultiplayerEventType::LoginAccepted: return "LoginAccepted";
-        case MultiplayerEventType::LoginRejected: return "LoginRejected";
-        case MultiplayerEventType::Disconnected: return "Disconnected";
-    }
-    return "";
-}
-
 struct MultiplayerEvent {
     MultiplayerEventType type{MultiplayerEventType::Disconnected};
-    MultiplayerState state{MultiplayerState::Idle};
     MultiplayerErrorCode errorCode{MultiplayerErrorCode::None};
     MessageThreadID messageThreadID{NO_MESSAGE_THREAD_ID};
     std::string message;
@@ -126,9 +78,29 @@ struct MultiplayerEvent {
 struct MultiplayerView {
     MultiplayerState state{MultiplayerState::Idle};
     std::optional<ServerInfo> serverInfo;
-    MessageThreadID activeMessageThreadID{NO_MESSAGE_THREAD_ID};
     bool socketConnected{false};
     bool loginAccepted{false};
+};
+
+
+template<typename T>
+class AsyncEventQueue {
+public:
+    void push(T value) {
+        std::lock_guard lock(m_mutex);
+        m_queue.push_back(std::move(value));
+    }
+
+    [[nodiscard]] std::vector<T> drain() {
+        std::lock_guard lock(m_mutex);
+        std::vector<T> out;
+        out.swap(m_queue);
+        return out;
+    }
+
+private:
+    std::mutex m_mutex;
+    std::vector<T> m_queue;
 };
 
 } // namespace Chess

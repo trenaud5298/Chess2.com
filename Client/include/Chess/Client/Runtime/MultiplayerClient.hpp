@@ -29,7 +29,7 @@ namespace Chess {
 
 class MultiplayerClient {
 public:
-    explicit MultiplayerClient(asio::io_context& ioContext);
+    explicit MultiplayerClient(asio::io_context& context);
     ~MultiplayerClient();
 
     MultiplayerClient(const MultiplayerClient&) = delete;
@@ -37,60 +37,47 @@ public:
     MultiplayerClient(MultiplayerClient&&) = delete;
     MultiplayerClient& operator=(MultiplayerClient&&) = delete;
 
-    // High-level requests
-
-    /* IDEA:
-     * Remove all of the return results
-     * and rely entirely on a callback
-     * based system for actual errors
-     * or failures. This works for errors
-     * but then how are they propogated back
-     * to UI. Does it need to probogate
-     * through an Event callback or what?
-     *
-     *
-     */
-    [[nodiscard]] MultiplayerStatus requestConnect(const ServerInfo& server, const LoginRequest& loginRequest);
+    // Commands
+    [[nodiscard]] MultiplayerStatus requestConnect(const ServerInfo& serverInfo, std::string username);
     [[nodiscard]] MultiplayerStatus requestDisconnect();
 
-    // View / state
-    [[nodiscard]] MultiplayerState state() const noexcept { return m_state.load(); }
+    // Events
+    void pump();
+    [[nodiscard]] std::vector<MultiplayerEvent> drainEvents();
+
+    //View
     [[nodiscard]] MultiplayerView view() const;
-    [[nodiscard]] bool isConnected() const noexcept;
-    [[nodiscard]] bool isLoggedIn() const noexcept;
-
-    // Callback registries
-    [[nodiscard]] CallbackRegistry<MultiplayerState>& stateRegistry() { return m_stateRegistry; }
-    [[nodiscard]] CallbackRegistry<const MultiplayerEvent&>& eventRegistry() { return m_eventRegistry; }
-
-    // Session callbacks
-    void onTransportConnected(MessageThreadID messageThreadID);
-    void onConnectFailed(MessageThreadID messageThreadID, MultiplayerErrorCode code, std::string message);
-    void onLoginResponse(MessageThreadID messageThreadID, const LoginResponse& response);
-    void onDisconnected(MultiplayerErrorCode code, std::string message);
+    [[nodiscard]] MultiplayerState state() const noexcept;
 
 private:
-    [[nodiscard]] MessageThreadID nextMessageThreadID() noexcept;
-    void transitionTo(MultiplayerState next);
+    [[nodiscard]] MessageThreadID nextMessageThreadID();
+    void transitionTo(MultiplayerState newState);
     void emitEvent(MultiplayerEvent event);
-
-    [[nodiscard]] bool canBeginConnect() const noexcept;
     void clearConnectionState();
 
+    void handleSessionEvent(ClientSessionEvent event);
+    void handleSessionConnected();
+    void handleSessionConnectFailed(ClientSessionEvent event);
+    void handleSessionDisconnected(ClientSessionEvent event);
+    void handleIncomingMessage(Message message);
+    void handleLoginResponse(Message& message);
+
 private:
-    asio::io_context& m_ioContext;
+    asio::io_context& m_context;
     ClientSession m_clientSession;
+
+    AsyncEventQueue<ClientSessionEvent> m_sessionEvents;
+    AsyncEventQueue<MultiplayerEvent> m_events;
 
     std::atomic<MultiplayerState> m_state{MultiplayerState::Idle};
     std::atomic<MessageThreadID> m_nextThreadID{1};
 
-    mutable std::mutex m_mutex;
     std::optional<ServerInfo> m_serverInfo;
+    std::string m_username;
+    MessageThreadID m_activeMessageThreadID{NO_MESSAGE_THREAD_ID};
+
     bool m_socketConnected{false};
     bool m_loginAccepted{false};
-
-    CallbackRegistry<MultiplayerState> m_stateRegistry;
-    CallbackRegistry<const MultiplayerEvent&> m_eventRegistry;
 };
 
 } // namespace Chess
