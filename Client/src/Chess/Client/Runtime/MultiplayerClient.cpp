@@ -9,98 +9,426 @@
 
 // Chess Includes
 #include <Chess/Client/Runtime/MultiplayerClient.hpp>
-#include <Chess/Client/Runtime/GameClient.hpp>
+#include <Chess/Core/Networking/MessagePayloads.hpp>
 
 // ASIO Includes
+#include <asio/bind_executor.hpp>
+#include <asio/ip/address.hpp>
+#include <asio/post.hpp>
+#include <asio/read.hpp>
+#include <asio/write.hpp>
 
 // C++ Includes
+#include <system_error>
+#include <utility>
 
+
+namespace {
+    constexpr std::uint16_t DEFAULT_SERVER_PORT = 24377;
+}
 
 namespace Chess {
-
-MultiplayerClient::MultiplayerClient(asio::io_context& context) : m_context(context), m_clientSession(context, [this](ClientSessionEvent event) {
-    m_sessionEvents.push(std::move(event));
-}) {
-
+MultiplayerClient::MultiplayerClient(asio::io_context& context, std::function<void(ClientEvent)> emitEvent)
+:m_emitEvent(std::move(emitEvent)), m_context(context), m_socket(context), m_strand(asio::make_strand(context)) {
+    refreshViewSnapshot();
 }
 
 
 MultiplayerClient::~MultiplayerClient() {
-
+    std::error_code ec;
+    if (m_socket.is_open()) {
+        m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+        m_socket.close(ec);
+    }
 }
 
 // Commands
-MultiplayerStatus MultiplayerClient::requestConnect(const ServerInfo& serverInfo, std::string username) {
-    if (m_state.load() != MultiplayerState::Idle) {
-        return MultiplayerStatus::Failure(MultiplayerErrorCode::InvalidState, "Multiplayer client is not idle");
+ClientStatus MultiplayerClient::requestConnect(const ServerInfo& serverInfo, std::string username) {
+    if (state() != MultiplayerState::Idle) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "Multiplayer client is not idle");
     }
 
     if (serverInfo.ip.empty()) {
-        return MultiplayerStatus::Failure(MultiplayerErrorCode::InvalidArgument, "Server Ip is empty");
+        return ClientStatus::Warning(StatusCode::InvalidArgument, "Server Ip is empty");
     }
 
     if (username.empty()) {
-        return MultiplayerStatus::Failure(MultiplayerErrorCode::InvalidArgument, "Username is empty");
+        return ClientStatus::Warning(StatusCode::InvalidArgument, "Username is empty");
     }
 
-    m_serverInfo = serverInfo;
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestConnect, this, std::move(serverInfo), std::move(username)
+    ));
+
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestDisconnect() {
+    if (state() == MultiplayerState::Idle) {
+        return ClientStatus::Success();
+    }
+
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestDisconnect, this
+    ));
+
+    return ClientStatus::Success();
+}
+
+// View
+MultiplayerView MultiplayerClient::view() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_viewSnapshot;
+}
+
+MultiplayerState MultiplayerClient::state() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_viewSnapshot.state;
+}
+
+
+// Event Helpers (Thread Safe Since m_emitEvent Does Not Change)
+void MultiplayerClient::emitEvent(ClientEvent event) {
+    if (m_emitEvent) {
+        m_emitEvent(std::move(event));
+    }
+}
+
+void MultiplayerClient::emitInfo(EventType type, std::string message) {
+    emitEvent(ClientEvent::Info(
+        EventSource::Multiplayer,
+        type,
+        std::move(message)
+    ));
+}
+
+void MultiplayerClient::emitResult(EventType type, ClientStatus status) {
+    emitEvent(ClientEvent::Result(
+        EventSource::Multiplayer,
+        type,
+        std::move(status)
+    ));
+}
+
+// All Of The Following Functions Are Strand Only And Will Always Be
+// Called On An ASIO Thread Protected By The Strand
+
+void MultiplayerClient::refreshViewSnapshot() {
+    std::lock_guard lock(m_viewMutex);
+    m_viewSnapshot = {
+        .state = m_state,
+        .serverInfo = m_serverInfo,
+        .socketConnected = m_socketConnected,
+        .loginAccepted = m_loginAccepted
+    };
+}
+
+void MultiplayerClient::transitionTo(MultiplayerState newState) {
+    m_state = newState;
+    refreshViewSnapshot();
+}
+
+
+void MultiplayerClient::clearConnectionState() {
+    m_serverInfo.reset();
+    m_username.clear();
+    m_socketConnected = false;
+    m_loginAccepted = false;
+}
+
+void MultiplayerClient::closeTransport() {
+    std::error_code ec;
+    if (m_socket.is_open()) {
+        m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+        m_socket.close(ec);
+    }
+
+    m_socketConnected = false;
+    m_writeQueue.clear();
+    m_incomingMessage.clear();
+}
+
+void MultiplayerClient::terminateSession(EventType type, ClientStatus status, MultiplayerState nextState) {
+    closeTransport();
+    clearConnectionState();
+    transitionTo(nextState);
+    emitResult(type, std::move(status));
+}
+
+
+void MultiplayerClient::doRequestConnect(ServerInfo serverInfo, std::string username) {
+    if (m_state != MultiplayerState::Idle) {
+        emitResult(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(StatusCode::InvalidState, "MultiplayerClient Is Not Idle, Can Not Connect")
+        );
+        return;
+    }
+
+    std::error_code ec;
+    asio::ip::address address = asio::ip::make_address(serverInfo.ip, ec);
+    if (ec) {
+        emitResult(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(StatusCode::InvalidArgument, "Invalid Server IP: " + ec.message())
+        );
+        return;
+    }
+
+    asio::ip::tcp::endpoint endpoint(address, DEFAULT_SERVER_PORT);
+
+    m_serverInfo = std::move(serverInfo);
     m_username = std::move(username);
-    m_activeMessageThreadID = nextMessageThreadID();
     m_socketConnected = false;
     m_loginAccepted = false;
 
     transitionTo(MultiplayerState::ConnectingNetwork);
+    emitInfo(EventType::MultiplayerTransport, "Starting Transport Connection");
 
-    MultiplayerStatus status = m_clientSession.requestConnect(serverInfo);
-    if (!status) {
-        clearConnectionState();
-        transitionTo(MultiplayerState::Idle);
-        return status;
-    }
-    return MultiplayerStatus::Success();
-}
-
-MultiplayerStatus MultiplayerClient::requestDisconnect() {
-    if (m_state.load() == MultiplayerState::Idle) {
-        return MultiplayerStatus::Success();
+    m_socket.open(endpoint.protocol(), ec);
+    if (ec) {
+        terminateSession(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(StatusCode::ConnectFailed, "Failed to open socket")
+        );
+        return;
     }
 
-    return m_clientSession.requestDisconnect();
+    m_socket.async_connect(endpoint, asio::bind_executor(m_strand, [this](std::error_code ec) {
+        if (ec == asio::error::operation_aborted) {
+            return;
+        }
+
+        if (ec) {
+            terminateSession(
+                EventType::MultiplayerConnect,
+                ClientStatus::Error(StatusCode::ConnectFailed, "Failed to connect: " + ec.message())
+            );
+            return;
+        }
+        onTransportConnected();
+    }));
 }
 
-// Events
-void MultiplayerClient::pump() {
-    for (ClientSessionEvent& event : m_sessionEvents.drain()) {
-        handleSessionEvent(std::move(event));
+void MultiplayerClient::doRequestDisconnect() {
+    if (m_state == MultiplayerState::Idle && !m_socket.is_open()) {
+        return;
     }
+
+    terminateSession(
+        EventType::MultiplayerDisconnect,
+        ClientStatus::Success("Disconnected")
+    );
 }
 
-std::vector<MultiplayerEvent> MultiplayerClient::drainEvents() {
-    return m_events.drain();
+ClientStatus MultiplayerClient::queueSend(std::shared_ptr<const Message> message) {
+    if (!message) {
+        return ClientStatus::Warning(StatusCode::InvalidArgument, "Cannot Send Null message");
+    }
+    if (!m_socketConnected) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "Cannot Send Message; Socket Not Connected");
+    }
+    if (m_writeQueue.size() >= MAX_WRITE_QUEUE_LENGTH) {
+        return ClientStatus::Error(StatusCode::SendFailed, "Write Queue Overflow");
+    }
+
+    bool shouldStartWrite = m_writeQueue.empty();
+    m_writeQueue.push_back(std::move(message));
+    if (shouldStartWrite) {
+        doWrite();
+    }
+    return ClientStatus::Success();
+}
+
+void MultiplayerClient::doReadHeader() {
+    m_incomingMessage.clear();
+
+    asio::async_read(m_socket, m_incomingMessage.headerBuffer(), asio::bind_executor(
+    m_strand, [this](std::error_code ec, std::size_t length) {
+        if (ec==asio::error::operation_aborted) {
+            return;
+        }
+        if (ec) {
+            terminateSession(
+                EventType::MultiplayerDisconnect,
+                ClientStatus::Error(StatusCode::ReadFailed, "Failed to read header: " + ec.message())
+            );
+            return;
+        }
+        if (!m_incomingMessage.validateHeader()) {
+            terminateSession(
+                EventType::MultiplayerDisconnect,
+                ClientStatus::Error(StatusCode::ProtocolError, "Received invalid header")
+            );
+            return;
+        }
+
+        std::size_t bodyLength = m_incomingMessage.header().bodyLength;
+        m_incomingMessage.resize(bodyLength);
+        if (bodyLength == 0) {
+            Message message = std::move(m_incomingMessage);
+            m_incomingMessage.clear();
+            onIncomingMessage(std::move(message));
+
+            if (m_socket.is_open()) {
+                doReadHeader();
+            }
+            return;
+        }
+        doReadBody();
+    }));
+}
+
+void MultiplayerClient::doReadBody() {
+    asio::async_read(m_socket, m_incomingMessage.bodyBuffer(), asio::bind_executor(m_strand, [this](std::error_code ec, std::size_t length) {
+        if (ec == asio::error::operation_aborted) {
+            return;
+        }
+        if (ec) {
+            terminateSession(
+                EventType::MultiplayerDisconnect,
+                ClientStatus::Error(StatusCode::ReadFailed, "Failed to read body: " + ec.message())
+            );
+            return;
+        }
+
+        Message receivedMessage = std::move(m_incomingMessage);
+        m_incomingMessage.clear();
+
+        onIncomingMessage(std::move(receivedMessage));
+
+        if (m_socket.is_open()) {
+            doReadHeader();
+        }
+    }));
+}
+
+void MultiplayerClient::doWrite() {
+    if (m_writeQueue.empty()) {
+        return;
+    }
+
+    asio::async_write(m_socket, m_writeQueue.front()->buffers(), asio::bind_executor(m_strand, [this](std::error_code ec, std::size_t length) {
+        if (ec == asio::error::operation_aborted) {
+            return;
+        }
+
+        if (ec) {
+            terminateSession(
+                EventType::MultiplayerDisconnect,
+                ClientStatus::Error(StatusCode::SendFailed, "Failed to write message: " + ec.message())
+            );
+            return;
+        }
+
+        m_writeQueue.pop_front();
+        if (!m_writeQueue.empty()) {
+            doWrite();
+        }
+    }));
 }
 
 
-// View
-MultiplayerView MultiplayerClient::view() const {
-    return {
-        .state = m_state.load(),
-        .serverInfo = m_serverInfo,
-        .socketConnected = m_socketConnected,
-        .loginAccepted = m_loginAccepted,
+void MultiplayerClient::onTransportConnected() {
+    if (m_state != MultiplayerState::ConnectingNetwork) {
+        terminateSession(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(StatusCode::InvalidState, "Transport Connected When Not Expecting Connection")
+        );
+        return;
+    }
+
+    if (!m_serverInfo.has_value()) {
+        terminateSession(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(StatusCode::InvalidState, "Transport Connected But No Server Info Present")
+        );
+        return;
+    }
+
+    m_socketConnected = true;
+    transitionTo(MultiplayerState::AwaitingLogin);
+
+    emitInfo(EventType::MultiplayerTransport, "Transport Connected");
+    emitInfo(EventType::MultiplayerTransport, "Sending Login Request");
+
+    LoginRequest request{
+        .username = m_username,
+        .password = m_serverInfo->password
     };
+
+    auto message = request.toSharedMessage();
+
+    ClientStatus sendStatus = queueSend(message);
+    if (!sendStatus) {
+        terminateSession(
+            EventType::MultiplayerConnect,
+            ClientStatus::Error(sendStatus.code, std::move(sendStatus.message))
+        );
+        return;
+    }
+
+    doReadHeader();
 }
 
-MultiplayerState MultiplayerClient::state() const noexcept {
-    return m_state.load();
+
+
+void MultiplayerClient::onIncomingMessage(Message message) {
+    emitInfo(
+        EventType::MultiplayerTransport,
+        "Received message type=" + std::string(toString(message.type()))
+    );
+    switch (message.type()) {
+        case MessageType::LoginResponse:
+            onLoginResponse(message);
+            break;
+        default:
+            terminateSession(
+                EventType::MultiplayerDisconnect,
+                ClientStatus::Error(StatusCode::ProtocolError, "Unexpected Message Type Received")
+            );
+            break;
+    }
 }
 
-MessageThreadID MultiplayerClient::nextMessageThreadID() {
-    return  m_nextThreadID.fetch_add(1);
+void MultiplayerClient::onLoginResponse(Message& message) {
+    if (m_state != MultiplayerState::AwaitingLogin) {
+        terminateSession(
+            EventType::MultiplayerLogin,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received LoginResponse while not awaiting login")
+        );
+        return;
+    }
+
+    std::optional<LoginResponse> loginResponse = LoginResponse::fromMessage(message);
+    if (!loginResponse.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse Login Response")
+        );
+        return;
+    }
+
+    if (loginResponse->accepted) {
+        m_loginAccepted = true;
+        transitionTo(MultiplayerState::Connected);
+
+        emitResult(
+            EventType::MultiplayerLogin,
+            ClientStatus::Success("Login Accepted")
+        );
+        return;
+    }
+
+    terminateSession(
+        EventType::MultiplayerLogin,
+        ClientStatus::Error(
+            StatusCode::LoginRejected,
+            loginResponse->reason.empty() ? "Login Rejected" : loginResponse->reason
+        )
+    );
 }
 
-void MultiplayerClient::transitionTo(MultiplayerState newState) {
-    m_state.load(newState);
-}
 
 
 

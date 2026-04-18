@@ -9,24 +9,28 @@
 
 // Chess Includes
 #include <Chess/Client/Runtime/SingleplayerClient.hpp>
-#include <Chess/Client/Runtime/GameClient.hpp>
 
 // ASIO Includes
 
 // C++ Includes
-#include <iostream>
 
 namespace Chess {
 
-SingleplayerClient::SingleplayerClient() {
+SingleplayerClient::SingleplayerClient(std::function<void(ClientEvent)> emitEvent)
+: m_emitEvent(std::move(emitEvent)) {
 
 }
+
 
 SingleplayerClient::~SingleplayerClient() {
 
 }
 
-void SingleplayerClient::start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now) {
+[[nodiscard]] ClientStatus SingleplayerClient::start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::IDLE) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be Idle To Start");
+    }
+
     m_config = config;
     m_board = Board{};
     m_board.genMoves();
@@ -36,15 +40,24 @@ void SingleplayerClient::start(const SingleplayerConfig& config, std::chrono::st
     m_whiteTime = config.timePerSide;
     m_blackTime = config.timePerSide;
     m_turnStart = now;
+
+    return ClientStatus::Success();
 }
 
-void SingleplayerClient::restart(std::chrono::steady_clock::time_point now) {
-    stop();
-    start(m_config, now);
+[[nodiscard]] ClientStatus SingleplayerClient::restart(std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::RESULT) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be In Result To Restart");
+    }
+    ClientStatus stopStatus = stop();
+    if (stopStatus.isFailure()) { return stopStatus; }
+    return start(m_config, now);
 }
 
-void SingleplayerClient::stop() {
-    if (m_state == SingleplayerState::IDLE) { return; }
+[[nodiscard]] ClientStatus SingleplayerClient::stop() {
+    if (m_state == SingleplayerState::IDLE) {
+        return ClientStatus::Success();
+    }
+
     m_state = SingleplayerState::IDLE;
     m_board = Board{};
     m_currentTurn = COLOR::WHITE;
@@ -52,36 +65,55 @@ void SingleplayerClient::stop() {
     m_blackTime = std::chrono::milliseconds{0};
     m_turnStart = {};
     m_result = {COLOR::EMPTY, GameOverReason::RESIGN};
+
+    return ClientStatus::Success();
 }
 
 
-void SingleplayerClient::pause(std::chrono::steady_clock::time_point now) {
-    if (m_state != SingleplayerState::INGAME) { return; }
+[[nodiscard]] ClientStatus SingleplayerClient::pause(std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::INGAME) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be In-Game To Pause");
+    }
     commitElapsedToActiveSide(now);
     m_state = SingleplayerState::PAUSED;
+    return ClientStatus::Success();
 }
 
-void SingleplayerClient::resume(std::chrono::steady_clock::time_point now) {
-    if (m_state != SingleplayerState::PAUSED) { return; }
+[[nodiscard]] ClientStatus SingleplayerClient::resume(std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::PAUSED) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be Paused To Resume");
+    }
     m_turnStart = now;
     m_state = SingleplayerState::INGAME;
+    return ClientStatus::Success();
 }
 
-bool SingleplayerClient::tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now) {
-    if (m_state != SingleplayerState::INGAME) { return false; }
-    if (from==ID::EMPTY) { return false; }
-    if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) { return false; }
-    if (!m_board.isValidMove(from, to)) { return false; }
+[[nodiscard]] ClientStatus SingleplayerClient::tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::INGAME) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be In-Game To Move");
+    }
+    if (from == ID::EMPTY) {
+        return ClientStatus::Warning(StatusCode::InvalidArgument, "SingleplayerClient Cannot Move An Empty Piece");
+    }
+    if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Current Side Has No Time Remainign");
+    }
+    if (!m_board.isValidMove(from, to)) {
+        return ClientStatus::Warning(StatusCode::InvalidMove, "SingleplayerClient Invalid Move");
+    }
 
     m_board.move(from, to);
     advanceTurn(now);
-    return true;
+    return ClientStatus::Success();
 }
 
-void SingleplayerClient::resign(std::chrono::steady_clock::time_point now) {
-    if (m_state != SingleplayerState::INGAME) { return; }
+[[nodiscard]] ClientStatus SingleplayerClient::resign(std::chrono::steady_clock::time_point now) {
+    if (m_state != SingleplayerState::INGAME) {
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Must Be In-Game To Resign");
+    }
     commitElapsedToActiveSide(now);
     recordResult((m_currentTurn == COLOR::WHITE) ? COLOR::BLACK : COLOR::WHITE, GameOverReason::RESIGN);
+    return ClientStatus::Success();
 }
 
 
@@ -89,7 +121,10 @@ void SingleplayerClient::tick(std::chrono::steady_clock::time_point now) {
     if (m_state != SingleplayerState::INGAME) { return; }
     if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) {
         commitElapsedToActiveSide(now);
-        recordResult(m_currentTurn == COLOR::WHITE ? COLOR::BLACK : COLOR::WHITE, GameOverReason::TIMEOUT);
+        recordResult(
+            m_currentTurn == COLOR::WHITE ? COLOR::BLACK : COLOR::WHITE,
+            GameOverReason::TIMEOUT
+        );
     }
 }
 
@@ -112,11 +147,6 @@ void SingleplayerClient::tick(std::chrono::steady_clock::time_point now) {
 
 [[nodiscard]] const GameResult& SingleplayerClient::result() const noexcept {
     return m_result;
-}
-
-
-[[nodiscard]] CallbackRegistry<const GameResult&>& SingleplayerClient::resultRegistry() {
-    return m_resultRegistry;
 }
 
 
@@ -161,10 +191,23 @@ void SingleplayerClient::commitElapsedToActiveSide(std::chrono::steady_clock::ti
 
 
 void SingleplayerClient::recordResult(COLOR winner, GameOverReason reason) {
-    if (m_state == SingleplayerState::RESULT) {return;}
+    if (m_state == SingleplayerState::RESULT) {
+        return;
+    }
+
     m_result = { winner, reason };
     m_state  = SingleplayerState::RESULT;
-    m_resultRegistry.fire(m_result);
+
+    emitEvent(ClientEvent::Result(
+        EventSource::Singleplayer,
+        EventType::SingleplayerGameEnd,
+        ClientStatus::Success("SingleplayerClient Game Ended")
+    ));
 }
 
+void SingleplayerClient::emitEvent(ClientEvent event) {
+    if (m_emitEvent) {
+        m_emitEvent(std::move(event));
+    }
+}
 }

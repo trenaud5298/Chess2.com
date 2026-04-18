@@ -24,8 +24,8 @@ namespace Chess {
 
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
     m_boardDisplay->onMove = [this](ID from, Pos to) {
-        ClientCommandResult result = m_clientPanel.gameClient().submitSingleplayerMove(from, to);
-        if (!m_clientPanel.handleCommandResult(result, "Failed To Make Move")) {
+        ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(from, to);
+        if (!m_clientPanel.handleStatus(result, "Failed To Make Move")) {
             return;
         }
         m_boardDisplay->updateBoard(m_clientPanel.gameClient().singleplayerView().board->getBoard());
@@ -52,7 +52,7 @@ void SingleplayerGameScreen::onLeave() {
 }
 
 void SingleplayerGameScreen::onPause() {
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().pauseSingleplayer(),
         "Unable to pause singleplayer"
     );
@@ -61,7 +61,7 @@ void SingleplayerGameScreen::onPause() {
 
 void SingleplayerGameScreen::onResume() {
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().resumeSingleplayer(),
         "Unable to resume singleplayer"
     );
@@ -69,7 +69,7 @@ void SingleplayerGameScreen::onResume() {
 
 void SingleplayerGameScreen::requestExit() {
     m_clientPanel.pushModal(std::make_unique<ConfirmModal>(m_clientPanel, "Are you sure you would like to quit?",[this]() {
-        m_clientPanel.handleCommandResult(
+        m_clientPanel.handleStatus(
             m_clientPanel.gameClient().returnToIdle(),
             "Unable to return to main menu"
         );
@@ -108,7 +108,7 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 }
 
 void SingleplayerGameScreen::onTick() {
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().tick(),
         "Tick Failed"
     );

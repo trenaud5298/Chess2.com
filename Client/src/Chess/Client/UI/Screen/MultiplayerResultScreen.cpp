@@ -31,7 +31,7 @@ void MultiplayerResultScreen::onEnter() {
 }
 
 void MultiplayerResultScreen::requestExit() {
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().returnToIdle(),
         "Unable to return to main menu"
     );

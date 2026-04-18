@@ -127,54 +127,46 @@ void ClientPanel::popAllModals() {
 }
 
 
-bool ClientPanel::handleCommandResult(const ClientCommandResult &result, std::string_view action, CommandResultPolicy policy) {
-    if (result) {
+bool ClientPanel::handleStatus(const ClientStatus& status, std::string_view action, ResultPolicy policy) {
+    if (status) {
         return true;
     }
 
-    CommandResultPolicy effectivePolicy = policy;
-    if (policy == CommandResultPolicy::Auto) {
-        switch (result.severity) {
-            case ClientErrorSeverity::Debug:
-                effectivePolicy = CommandResultPolicy::Silent;
-                break;
-            case ClientErrorSeverity::Warning:
-                effectivePolicy = CommandResultPolicy::LogOnly;
-                break;
-            case ClientErrorSeverity::Error:
-            case ClientErrorSeverity::Fatal:
-                effectivePolicy = CommandResultPolicy::Modal;
-                break;
-        }
+    ResultPolicy effectivePolicy = policy;
+    if (policy == ResultPolicy::Auto) {
+        effectivePolicy = DefaultResultPolicy(status);
     }
 
-    if (effectivePolicy == CommandResultPolicy::Silent) {
+    if (effectivePolicy == ResultPolicy::Silent) {
         return false;
     }
 
     std::string message = std::string(action);
-    if (!message.empty() && !result.message.empty()) {
+    if (!message.empty() && !status.message.empty()) {
         message += ": ";
     }
-    message += result.message.empty() ? "Unknown error" : result.message;
-    switch (result.severity) {
-        case ClientErrorSeverity::Debug:
+    message += status.message.empty() ? "Unknown error" : status.message;
+    switch (status.severity) {
+        case Severity::Debug:
             m_gameClient.loggingManager().log(LogEntry::Debug(message));
             break;
-        case ClientErrorSeverity::Warning:
+        case Severity::Info:
+            m_gameClient.loggingManager().log(LogEntry::Info(message));
+            break;
+        case Severity::Warning:
             m_gameClient.loggingManager().log(LogEntry::Warning(message));
             break;
-        case ClientErrorSeverity::Error:
-        case ClientErrorSeverity::Fatal:
+        case Severity::Error:
+        case Severity::Fatal:
             m_gameClient.loggingManager().log(LogEntry::Error(message));
             break;
     }
 
-    if (result.isFatal()) {
+    if (status.isFatal()) {
         return false;
     }
 
-    if (effectivePolicy == CommandResultPolicy::Modal) {
+    if (effectivePolicy == ResultPolicy::Modal) {
         pushModal(std::make_unique<ErrorModal>(*this, message));
     }
     return false;
@@ -187,12 +179,31 @@ void ClientPanel::subscribeToClientCallbacks() {
     m_clientStateSubscription = m_gameClient.stateRegistry().subscribe([this](ClientState newState) {
         m_screen.PostEvent(StateChangeEvent);
     });
+    m_clientEventSubscription = m_gameClient.eventRegistry().subscribe([this](ClientEvent event) {
+        if (event.status.severity == Severity::Error) {
+            std::string message =
+                "[" + std::string(toString(event.source)) + "]" +
+                "[" + std::string(toString(event.type)) + "]" +
+                "[" + std::string(toString(event.status.severity)) + "]" +
+                "[" + std::string(toString(event.kind)) + "]";
+
+            if (!event.message().empty()) {
+                message += "\n\n" + event.message();
+            }
+
+            pushModal(std::make_unique<ErrorModal>(*this, std::move(message)));
+        }
+    });
 }
 
 void ClientPanel::unsubscribeFromClientCallbacks() {
     if (m_clientStateSubscription == 0) { return; }
     m_gameClient.stateRegistry().unsubscribe(m_clientStateSubscription);
     m_clientStateSubscription = 0;
+
+    if (m_clientEventSubscription == 0) { return; }
+    m_gameClient.eventRegistry().unsubscribe(m_clientEventSubscription);
+    m_clientEventSubscription = 0;
 }
 
 void ClientPanel::handleClientStateChanged() {
@@ -266,6 +277,7 @@ Screen ClientPanel::screenForState(ClientState state) const {
 }
 
 void ClientPanel::onTick() {
+    handleStatus(m_gameClient.tick(), "Tick GameClient");
     if (hasModal()) {
         m_modalStack.back()->onTick();
     } else {

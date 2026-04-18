@@ -31,14 +31,30 @@ ftxui::Component MultiplayerSelectScreen::getComponent() {
 
 void MultiplayerSelectScreen::onEnter() {
     rebuildServerEntries();
+    m_clientPanel.setTickRate(std::chrono::milliseconds(50));
 }
 
 void MultiplayerSelectScreen::onLeave() {
+    m_clientPanel.setTickRate(std::nullopt);
+}
 
+bool MultiplayerSelectScreen::canRequestExit() const {
+    if (m_clientPanel.gameClient().state() == ClientState::MultiplayerConnecting) {
+        return false;
+    }
+    return true;
 }
 
 void MultiplayerSelectScreen::requestExit() {
-    m_clientPanel.handleCommandResult(
+    if (m_clientPanel.gameClient().state() == ClientState::MultiplayerConnecting) {
+        m_clientPanel.handleStatus(
+            m_clientPanel.gameClient().requestMultiplayerDisconnect(),
+            "Unable to cancel multiplayer connection"
+        );
+        return;
+    }
+
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().returnToIdle(),
         "Unable to return to main menu"
     );
@@ -69,9 +85,10 @@ void MultiplayerSelectScreen::joinSelectedServer() {
         return;
     }
 
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().requestMultiplayerConnect(m_servers[*m_selectedServer]),
-        "Unable to join server"
+        "Unable to join server",
+        ResultPolicy::Modal
     );
 }
 
@@ -151,7 +168,18 @@ ftxui::Component MultiplayerSelectScreen::buildComponent() {
         return false;
 
     });
-    auto renderer = ftxui::Renderer(layoutEventCatcher, [this, menuEventCatcher, addButton, removeButton, joinButton]() {
+
+    auto statusText = [this]() -> std::string {
+        switch (m_clientPanel.gameClient().multiplayerState()) {
+            case MultiplayerState::Idle: return "Idle";
+            case MultiplayerState::ConnectingNetwork: return "Connecting...";
+            case MultiplayerState::AwaitingLogin: return "Awaiting Login...";
+            case MultiplayerState::Connected: return "Connected";
+        }
+        return "";
+    };
+
+    auto renderer = ftxui::Renderer(layoutEventCatcher, [this, menuEventCatcher, addButton, removeButton, joinButton, statusText]() {
         ftxui::Element serverList;
         if (!m_servers.empty()) {
             serverList = menuEventCatcher->Render() | ftxui::frame | ftxui::flex | ftxui::vscroll_indicator;
@@ -168,7 +196,7 @@ ftxui::Component MultiplayerSelectScreen::buildComponent() {
             joinButton->Render()
         }) | ftxui::center;
 
-        return ftxui::vbox({serverList, ftxui::separator(), buttonRow});
+        return ftxui::vbox({serverList, ftxui::separator(), buttonRow, ftxui::text(statusText())});
     });
 
 

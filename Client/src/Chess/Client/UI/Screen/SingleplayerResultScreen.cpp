@@ -51,7 +51,7 @@ SingleplayerResultScreen::SingleplayerResultScreen(ClientPanel& clientPanel)
     };
 
     auto playAgainButton = ftxui::Button("Play Again", [this]() {
-        m_clientPanel.handleCommandResult(
+        m_clientPanel.handleStatus(
             m_clientPanel.gameClient().restartSingleplayer(),
             "Unable to restart singleplayer"
         );
@@ -85,7 +85,7 @@ void SingleplayerResultScreen::onEnter() {
     SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
     if (!view.result) {
         m_clientPanel.gameClient().loggingManager().log(LogEntry::Error("Transitioned To Singleplayer Result Screen But Game Result Not Available"));
-        m_clientPanel.handleCommandResult(
+        m_clientPanel.handleStatus(
             m_clientPanel.gameClient().returnToIdle(),
             "Unable to recover from missing singleplayer result"
         );
@@ -98,7 +98,7 @@ void SingleplayerResultScreen::onEnter() {
 }
 
 void SingleplayerResultScreen::requestExit() {
-    m_clientPanel.handleCommandResult(
+    m_clientPanel.handleStatus(
         m_clientPanel.gameClient().returnToIdle(),
         "Unable to return to main menu"
     );

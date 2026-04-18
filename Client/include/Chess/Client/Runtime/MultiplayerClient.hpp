@@ -10,26 +10,30 @@
  */
 
 // Chess Includes
+#include <Chess/Client/Common/ClientStatus.hpp>
+#include <Chess/Client/Common/ClientEvent.hpp>
 #include <Chess/Client/Common/ServerInfo.hpp>
 #include <Chess/Client/Runtime/MultiplayerTypes.hpp>
-#include <Chess/Client/Runtime/Callback/CallbackRegistry.hpp>
-#include <Chess/Client/Runtime/Network/ClientSession.hpp>
-#include <Chess/Core/Networking/MessagePayloads.hpp>
+#include <Chess/Core/Networking/Message.hpp>
 
 // ASIO Includes
 #include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
+#include <asio/strand.hpp>
 
 // C++ Includes
-#include <atomic>
-#include <mutex>
+#include <deque>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <string>
+#include <mutex>
 
 namespace Chess {
 
 class MultiplayerClient {
 public:
-    explicit MultiplayerClient(asio::io_context& context);
+    explicit MultiplayerClient(asio::io_context& context, std::function<void(ClientEvent)> emitEvent);
     ~MultiplayerClient();
 
     MultiplayerClient(const MultiplayerClient&) = delete;
@@ -38,46 +42,64 @@ public:
     MultiplayerClient& operator=(MultiplayerClient&&) = delete;
 
     // Commands
-    [[nodiscard]] MultiplayerStatus requestConnect(const ServerInfo& serverInfo, std::string username);
-    [[nodiscard]] MultiplayerStatus requestDisconnect();
+    [[nodiscard]] ClientStatus requestConnect(const ServerInfo& serverInfo, std::string username);
+    [[nodiscard]] ClientStatus requestDisconnect();
 
-    // Events
-    void pump();
-    [[nodiscard]] std::vector<MultiplayerEvent> drainEvents();
-
-    //View
+    // View
     [[nodiscard]] MultiplayerView view() const;
-    [[nodiscard]] MultiplayerState state() const noexcept;
+    [[nodiscard]] MultiplayerState state() const;
 
 private:
-    [[nodiscard]] MessageThreadID nextMessageThreadID();
+    // Thread Safe Functions
+    void emitEvent(ClientEvent event);
+    void emitInfo(EventType type, std::string message);
+    void emitResult(EventType type, ClientStatus status);
+
+    // Snapshot Helpers
+    void refreshViewSnapshot();
+
+    // Strand-Only Lifecycle Helpers
     void transitionTo(MultiplayerState newState);
-    void emitEvent(MultiplayerEvent event);
     void clearConnectionState();
+    void closeTransport();
+    void terminateSession(EventType type, ClientStatus status, MultiplayerState nextState = MultiplayerState::Idle);
 
-    void handleSessionEvent(ClientSessionEvent event);
-    void handleSessionConnected();
-    void handleSessionConnectFailed(ClientSessionEvent event);
-    void handleSessionDisconnected(ClientSessionEvent event);
-    void handleIncomingMessage(Message message);
-    void handleLoginResponse(Message& message);
+    // Strand Version Of Public Functions (Public Functions Publish To Strand)
+    void doRequestConnect(ServerInfo serverInfo, std::string username);
+    void doRequestDisconnect();
+    ClientStatus queueSend(std::shared_ptr<const Message> message);
+
+    // Strand Async Transport Functions
+    void doReadHeader();
+    void doReadBody();
+    void doWrite();
+
+    // Strand Protocol Handling
+    void onTransportConnected();
+    void onIncomingMessage(Message message);
+    void onLoginResponse(Message& message);
 
 private:
+    std::function<void(ClientEvent)> m_emitEvent;
+
     asio::io_context& m_context;
-    ClientSession m_clientSession;
+    asio::ip::tcp::socket m_socket;
+    asio::strand<asio::any_io_executor> m_strand;
 
-    AsyncEventQueue<ClientSessionEvent> m_sessionEvents;
-    AsyncEventQueue<MultiplayerEvent> m_events;
-
-    std::atomic<MultiplayerState> m_state{MultiplayerState::Idle};
-    std::atomic<MessageThreadID> m_nextThreadID{1};
-
+    // Strand-Owned Mutable State (Avoids Need For A Mutex)
+    MultiplayerState m_state{MultiplayerState::Idle};
     std::optional<ServerInfo> m_serverInfo;
     std::string m_username;
-    MessageThreadID m_activeMessageThreadID{NO_MESSAGE_THREAD_ID};
-
     bool m_socketConnected{false};
     bool m_loginAccepted{false};
+
+    Message m_incomingMessage{MessageType::None};
+    std::deque<std::shared_ptr<const Message>> m_writeQueue;
+    static constexpr std::size_t MAX_WRITE_QUEUE_LENGTH = 128;
+
+    // Main Thread Snapshot (Mutex Protected, Updated By Strand)
+    mutable std::mutex m_viewMutex;
+    MultiplayerView m_viewSnapshot;
 };
 
 } // namespace Chess

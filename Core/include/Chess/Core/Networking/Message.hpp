@@ -116,6 +116,25 @@ enum class MessageType : std::uint16_t {
     ErrorMessage
 };
 
+constexpr std::string_view toString(MessageType type) {
+    switch (type) {
+        case MessageType::None: return "None";
+        case MessageType::LoginRequest: return "LoginRequest";
+        case MessageType::LoginResponse: return "LoginResponse";
+        case MessageType::Chat: return "Chat";
+        case MessageType::Command: return "Command";
+        case MessageType::CreateRoomRequest: return "CreateRoomRequest";
+        case MessageType::CreateRoomResponse: return "CreateRoomResponse";
+        case MessageType::JoinRoomRequest: return "JoinRoomRequest";
+        case MessageType::JoinRoomResponse: return "JoinRoomResponse";
+        case MessageType::LeaveRoom: return "LeaveRoom";
+        case MessageType::MakeMove: return "MakeMove";
+        case MessageType::GameUpdate: return "GameUpdate";
+        case MessageType::ErrorMessage: return "ErrorMessage";
+    }
+    return "";
+}
+
 
 struct MessageHeader {
     std::uint32_t validation;

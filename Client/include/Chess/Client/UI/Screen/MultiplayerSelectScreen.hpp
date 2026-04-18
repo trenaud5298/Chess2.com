@@ -38,7 +38,7 @@ public:
     void onEnter() override;
     void onLeave() override;
 
-    bool canRequestExit() const override {return true;}
+    bool canRequestExit() const override;
     std::string exitLabel() const override {return "Main Menu";}
     void requestExit() override;
 

@@ -11,14 +11,15 @@
 
 // Chess Includes
 #include <Chess/Core/Game/Board.hpp>
+#include <Chess/Client/Common/ClientStatus.hpp>
+#include <Chess/Client/Common/ClientEvent.hpp>
 
 // ASIO Includes
 
 // C++ Includes
 #include <chrono>
 #include <optional>
-
-#include "Callback/CallbackRegistry.hpp"
+#include <functional>
 
 namespace Chess {
 
@@ -61,7 +62,7 @@ class GameClient;
 class SingleplayerClient {
 
 public:
-    explicit SingleplayerClient();
+    explicit SingleplayerClient(std::function<void(ClientEvent)> emitEvent);
     ~SingleplayerClient();
 
     SingleplayerClient(const SingleplayerClient&) = delete;
@@ -69,22 +70,21 @@ public:
     SingleplayerClient(SingleplayerClient&&) = delete;
     SingleplayerClient& operator=(SingleplayerClient&&) = delete;
 
-    void start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now);
-    void restart(std::chrono::steady_clock::time_point now);
-    void stop();
+    [[nodiscard]] ClientStatus start(const SingleplayerConfig& config, std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus restart(std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus stop();
 
-    void pause(std::chrono::steady_clock::time_point now);
-    void resume(std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus pause(std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus resume(std::chrono::steady_clock::time_point now);
 
-    bool tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now);
-    void resign(std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus resign(std::chrono::steady_clock::time_point now);
 
     void tick(std::chrono::steady_clock::time_point now);
 
     [[nodiscard]] SingleplayerView view(std::chrono::steady_clock::time_point now) const;
     [[nodiscard]] const SingleplayerConfig& config() const noexcept;
     [[nodiscard]] const GameResult& result() const noexcept;
-    [[nodiscard]] CallbackRegistry<const GameResult&>& resultRegistry();
 
 private:
     [[nodiscard]] std::chrono::milliseconds timeRemaining(COLOR side, std::chrono::steady_clock::time_point now) const;
@@ -92,8 +92,11 @@ private:
     void advanceTurn(std::chrono::steady_clock::time_point now);
     void commitElapsedToActiveSide(std::chrono::steady_clock::time_point now);
     void recordResult(COLOR winner, GameOverReason reason);
+    void emitEvent(ClientEvent event);
 
 private:
+    std::function<void(ClientEvent)> m_emitEvent{nullptr};
+
     SingleplayerState m_state{SingleplayerState::IDLE};
     SingleplayerConfig m_config{};
 
@@ -105,7 +108,6 @@ private:
     std::chrono::steady_clock::time_point m_turnStart;
 
     GameResult m_result{COLOR::EMPTY, GameOverReason::RESIGN};
-    CallbackRegistry<const GameResult&> m_resultRegistry;
 };
 
 }

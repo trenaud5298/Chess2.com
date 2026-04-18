@@ -39,23 +39,27 @@ class GameClient;
 inline const ftxui::Event TickEvent = ftxui::Event::Special("tick");
 inline const ftxui::Event StateChangeEvent = ftxui::Event::Special("statechange");
 
-enum class CommandResultPolicy : std::uint8_t {
+enum class ResultPolicy : std::uint8_t {
     Auto,
     Silent,
     LogOnly,
     Modal
 };
 
-inline CommandResultPolicy DefaultCommandResultPolicy(const ClientCommandResult &result) {
+inline ResultPolicy DefaultResultPolicy(const ClientStatus& result) {
     switch (result.severity) {
-        case ClientErrorSeverity::Debug:
-            return CommandResultPolicy::Silent;
-        case ClientErrorSeverity::Warning:
-            return CommandResultPolicy::LogOnly;
-        case ClientErrorSeverity::Error:
-        case ClientErrorSeverity::Fatal:
-            return CommandResultPolicy::Modal;
+        case Severity::Debug:
+            return ResultPolicy::Silent;
+        case Severity::Info:
+            return ResultPolicy::Silent;
+        case Severity::Warning:
+            return ResultPolicy::LogOnly;
+        case Severity::Error:
+            return ResultPolicy::Modal;
+        case Severity::Fatal:
+            return ResultPolicy::Modal;
     }
+    return ResultPolicy::Modal;
 }
 
 class ClientPanel {
@@ -91,7 +95,7 @@ public:
     [[nodiscard]] const GameClient& gameClient() const { return m_gameClient; }
 
     // Command Result Handling
-    bool handleCommandResult(const ClientCommandResult &result, std::string_view action, CommandResultPolicy = CommandResultPolicy::Auto);
+    bool handleStatus(const ClientStatus& status, std::string_view action, ResultPolicy = ResultPolicy::Auto);
 
 private:
     // Runtime Callbacks Helpers
@@ -115,6 +119,7 @@ private:
     // Game Client
     GameClient& m_gameClient;
     SubscriptionID m_clientStateSubscription{0};
+    SubscriptionID m_clientEventSubscription{0};
 
     // FTXUI
     ftxui::ScreenInteractive m_screen;

@@ -30,13 +30,13 @@ MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : ScreenInterface(clien
 
     auto buttons = ftxui::Container::Vertical({
         ftxui::Button("  Singleplayer  ", [&] {
-            m_clientPanel.handleCommandResult(
+            m_clientPanel.handleStatus(
                 m_clientPanel.gameClient().enterSingleplayerSetup(),
                 "Unable to open singleplayer setup"
             );
         }, buttonOption),
         ftxui::Button("  Multiplayer   ", [&] {
-            m_clientPanel.handleCommandResult(
+            m_clientPanel.handleStatus(
                 m_clientPanel.gameClient().enterMultiplayerSetup(),
                 "Unable to open multiplayer setup"
             );
