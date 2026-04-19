@@ -40,7 +40,7 @@ namespace Chess {
 
             std::ios &(* isValidMove())(std::ios &);
 
-            // Testing functions
+            /* Testing functions */
             void printMoveOffset();
             void printMoves();
             void displayBoard();
@@ -59,8 +59,8 @@ namespace Chess {
             std::vector<bool> m_defended;
             std::vector<bool> m_attackedWhite;
             std::vector<bool> m_attackedBlack;
-            std::vector<CriticalPiece> m_pinnedVec;
             std::set<ID> m_pinnedIdSet;
+            std::array<Pos, 32*6> m_pinnedArr;
 
             std::array<std::pair<int,int>, 8> m_mods;
             std::array<std::pair<int,int>, 2> m_pawnMods;

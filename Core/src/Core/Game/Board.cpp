@@ -74,7 +74,6 @@ namespace Chess {
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
-        m_pinnedVec(),
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
@@ -93,11 +92,11 @@ namespace Chess {
             for(int i = 1; i < m_pieceArr.size(); i++) {
                 m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
             }
-            m_pinnedVec.reserve(MAX_PINNED);
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
             m_moves.fill({8,8});
+            m_pinnedArr.fill({8,8});
         }
 
     Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : 
@@ -108,7 +107,6 @@ namespace Chess {
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
-        m_pinnedVec(),
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
@@ -127,11 +125,11 @@ namespace Chess {
             for(int i = 1; i < m_pieceArr.size(); i++) {
                 m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
             }
-            m_pinnedVec.reserve(MAX_PINNED);
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
             m_moves.fill({8,8});
+            m_pinnedArr.fill({8,8});
     }
 
     Board::~Board() {}
@@ -176,7 +174,7 @@ namespace Chess {
 
         const int castedId = (int)id - 1;
         const Pos old = m_pieceArr[castedId].position;
-        const ID oldId = getIdAt(old);
+        const ID oldId = getIdAt(pos);
         if( oldId != EMPTY ) {
             const int castedOldId = (int) oldId - 1;
             m_pieceArr[castedOldId].position = Pos{8,8};
@@ -499,13 +497,23 @@ namespace Chess {
             temp[COL] += mod.second;
             tempColor = getColor(tempId);
             tempId = getIdAt(temp);
+            Pos pinnedPos;
+            ID pinnedId;
             while( isInBoard(pos) && matchingOnLane < 2) {
                 if( kingColor != tempColor ) {
                     if( tempColor != COLOR::EMPTY && matchingOnLane == 0 ) {
                         break;
                     } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp))) {
-                        m_pinnedIdSet.emplace(tempId);
-                        m_pinnedVec.push_back({tempId, directionCast(-i)});
+                        m_pinnedIdSet.emplace(pinnedId);
+                        Pos pinningPos = temp;
+                        Direction tempDirection = directionCast(-i);
+                        mod = getMod(tempDirection);
+                        int j = 0;
+                        while( pinnedPos != pinningPos ) {
+                            m_pinnedArr[(int)pinnedId-1 + j] = pinningPos;
+                            pinningPos[ROW] += mod.first;
+                            pinningPos[COL] += mod.second;
+                        }
                         break;
                     }
                     temp[ROW] += mod.first;
@@ -514,7 +522,8 @@ namespace Chess {
                     tempColor = getColor(tempId);
                 } else {
                     matchingOnLane++;
-                    break;
+                    pinnedPos = temp;
+                    pinnedId = getIdAt(pinnedPos);
                 }
             }
             direction = directionCast(-i);
@@ -529,7 +538,15 @@ namespace Chess {
                         break;
                     } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp))) {
                         m_pinnedIdSet.emplace(tempId);
-                        m_pinnedVec.push_back({tempId, directionCast(-i)});
+                        Pos pinningPos = temp;
+                        Direction tempDirection = directionCast(-i);
+                        mod = getMod(tempDirection);
+                        int j = 0;
+                        while( pinnedPos != pinningPos ) {
+                            m_pinnedArr[(int)pinnedId-1 + j] = pinningPos;
+                            pinningPos[ROW] += mod.first;
+                            pinningPos[COL] += mod.second;
+                        }
                         break;
                     }
                     temp[ROW] += mod.first;
@@ -538,7 +555,8 @@ namespace Chess {
                     tempColor = getColor(tempId);
                 } else {
                     matchingOnLane++;
-                    break;
+                    pinnedPos = temp;
+                    pinnedId = getIdAt(pinnedPos);
                 }
             }
         }
@@ -606,6 +624,9 @@ namespace Chess {
     }
 
     void Board::addDiagonalMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         using enum Direction;
         int i = 0;
         diagonalHelper(initial, NORTHEAST, i);
@@ -675,6 +696,9 @@ namespace Chess {
     
 
     void Board::addCardinalMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         using enum Direction;
         int i = 0;
         cardinalHelper(initial, NORTH, i);
@@ -685,6 +709,9 @@ namespace Chess {
     }
 
     void Board::addQueenMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         using enum Direction;
         int i = 0;
         cardinalHelper(initial, NORTH, i);
@@ -699,6 +726,9 @@ namespace Chess {
     }
 
     void Board::addKnightMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         int x, y, idx = 0;
         std::uint8_t temp_row, temp_col;
         const ID initialId = getIdAt(initial);
@@ -745,6 +775,9 @@ namespace Chess {
     }
 
     void Board::addKingMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
         int i = 0;
@@ -770,6 +803,9 @@ namespace Chess {
     }
 
     void Board::addPawnMoves(const Pos& initial) {
+        if( posTranslate(initial) > 63 ) {
+            return;
+        }
         const ID initialId = getIdAt(initial);
         const COLOR color = getColor(initialId);
         const int pawnRow = getPawnRow(color);
