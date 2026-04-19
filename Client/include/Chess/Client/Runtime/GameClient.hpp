@@ -126,10 +126,14 @@ public:
     [[nodiscard]] ClientStatus enterMultiplayerSetup();
     [[nodiscard]] ClientStatus requestMultiplayerConnect(const ServerInfo& server);
     [[nodiscard]] ClientStatus requestMultiplayerDisconnect();
+    [[nodiscard]] ClientStatus submitMultiplayerGlobalChat(std::string text);
+    [[nodiscard]] ClientStatus submitMultiplayerGameChat(std::string text);
 
     // Multiplayer Info
     [[nodiscard]] MultiplayerState multiplayerState() const noexcept {return m_multiplayerClient.state();}
     [[nodiscard]] MultiplayerView multiplayerView() const noexcept {return m_multiplayerClient.view();}
+    [[nodiscard]] const ThreadSafeClientChatLog& multiplayerGlobalChat() const noexcept {return m_multiplayerClient.globalChatLog();}
+    [[nodiscard]] const ThreadSafeClientChatLog& multiplayerGameChat() const noexcept {return m_multiplayerClient.gameChatLog();}
 
 private:
     void transitionTo(ClientState newState);
@@ -169,6 +173,9 @@ private:
     // Events
     EventQueue<ClientEvent> m_eventQueue;
     CallbackRegistry<const ClientEvent&> m_eventRegistry;
+
+    // Chats (Multiplayer Only)
+
 };
 }
 

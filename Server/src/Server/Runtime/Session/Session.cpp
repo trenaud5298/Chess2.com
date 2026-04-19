@@ -11,7 +11,7 @@
 #include <Chess/Server/Runtime/GameServer.hpp>
 #include <Chess/Server/Runtime/Session/SessionManager.hpp>
 #include <Chess/Server/Runtime/Session/Target.hpp>
-
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // ASIO Includes
 
@@ -21,8 +21,8 @@
 namespace Chess {
 
 Session::Session(GameServer& gameServer, asio::ip::tcp::socket&& socket, SessionID id)
-: m_gameServer(gameServer), m_socket(std::move(socket)), m_strand(asio::make_strand(m_socket.get_executor())), m_sessionInfo(id) {
-    m_gameServer.loggingManager().log(LogEntry::Info("Session[" + std::to_string(m_sessionInfo.id) + "] Connected"));
+: m_gameServer(gameServer), m_socket(std::move(socket)), m_strand(asio::make_strand(m_socket.get_executor())), m_id(id) {
+    m_gameServer.loggingManager().log(LogEntry::Info("Session[" + std::to_string(getId()) + "] Connected"));
 }
 
 Session::~Session() {}
@@ -120,16 +120,35 @@ void Session::doReadBody() {
 
 void Session::abortSession() {
     if (m_state == LifecycleState::RUNNING) {
-        m_gameServer.sessionManager().removeSession(Target::Id({m_sessionInfo.id}));
+        m_gameServer.sessionManager().removeSession(Target::Id({getId()}));
     }
 }
 
 SessionID Session::getId() const {
-    return m_sessionInfo.id;
+    return m_id;
 }
 
-SessionInfo Session::getInfo() const {
-    return m_sessionInfo;
+SessionState Session::getSessionState() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_sessionState;
+}
+
+std::string Session::getName() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_name;
+}
+
+SessionView Session::getView() const {
+    std::lock_guard lock(m_viewMutex);
+    return {
+        .id = m_id,
+        .sessionState = m_sessionState,
+        .name = m_name
+    };
+}
+
+bool Session::isAuthenticated() const {
+    return getSessionState() != SessionState::LOGIN_REQUIRED;
 }
 
 // Below Starts Message Processing. It is safe to assume
@@ -174,31 +193,63 @@ void Session::dispatchIncomingMessage() {
 }
 
 void Session::handle(const LoginRequest& payload) {
-    if (m_sessionState != SessionState::LOGIN_REQUIRED) {
+    if (getSessionState() != SessionState::LOGIN_REQUIRED) {
         abortSession();
         return;
     }
     std::string serverPassword = m_gameServer.persistenceManager().settings().general.serverPassword;
     if (payload.password != serverPassword) {
-        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Bad Password: " + payload.password));
+        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(getId()) + "] login attempt failed. Bad Password: " + payload.password));
         send(LoginResponse(false, "Incorrect Password").toSharedMessage());
         abortSession();
         return;
     }
-    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt passed."));
+    {
+        std::lock_guard lock(m_viewMutex);
+        m_name = payload.username;
+        m_sessionState = SessionState::IDLE;
+    }
+    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(getId()) + "]/" + payload.username + " login attempt passed."));
     send(LoginResponse(true, "").toSharedMessage());
-    m_sessionInfo.name = payload.username;
-    m_sessionState = SessionState::IDLE;
 }
 
 void Session::handle(const Chat& payload) {
-    if (m_sessionState == SessionState::LOGIN_REQUIRED) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
         abortSession();
         return;
     }
-    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "]/" + m_sessionInfo.name + " " + payload.message));
 
-    send(Chat("Server Received Your Message!").toSharedMessage());
+    if (payload.message.empty()) {
+        return;
+    }
+
+    Chat outbound{
+        .scope = payload.scope,
+        .message = std::format("[{}][{}] {}", presentLocalTime(), m_name, payload.message)
+    };
+
+    Target target = Target::Predicate([](const Session& session) {
+        return session.isAuthenticated();
+    });
+
+    switch (outbound.scope) {
+        case ChatScope::Global:
+            m_gameServer.sessionManager().messageSession(target, outbound.toSharedMessage());
+            break;
+
+        case ChatScope::Game:
+            m_gameServer.sessionManager().messageSession(target, outbound.toSharedMessage());
+            break;
+    }
+
+    std::string scopeLabel = (outbound.scope == ChatScope::Global) ? "Global" : "Game";
+
+    m_gameServer.loggingManager().log(LogEntry::Message(
+        "Session[" + std::to_string(view.id) + "]/" +
+        view.name + " [" + scopeLabel + "] " + outbound.message
+    ));
+
 }
 
 void Session::handle(const Command& payload) {

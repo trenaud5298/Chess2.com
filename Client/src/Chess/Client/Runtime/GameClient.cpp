@@ -271,7 +271,32 @@ ClientStatus GameClient::requestMultiplayerDisconnect() {
         setFatalError(StatusCode::RuntimeException, e.what());
         return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
     }
+}
 
+ClientStatus GameClient::submitMultiplayerGlobalChat(std::string text) {
+    if (m_state != ClientState::MultiplayerLobby && m_state != ClientState::MultiplayerInGame) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Global Chat Unavailable");
+    }
+
+    try {
+        return m_multiplayerClient.requestSendGlobalChat(std::move(text));
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::submitMultiplayerGameChat(std::string text) {
+    if (m_state != ClientState::MultiplayerInGame) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Game Chat Unavailable");
+    }
+
+    try {
+        return m_multiplayerClient.requestSendGameChat(std::move(text));
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
 }
 
 // Helpers

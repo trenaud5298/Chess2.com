@@ -18,13 +18,14 @@
 
 // C++ Includes
 #include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace Chess {
 
 class GameServer;
 class Session;
-struct SessionInfo;
+struct SessionView;
 class Message;
 class Target;
 
@@ -51,11 +52,12 @@ public:
     [[nodiscard]] bool empty() const;
     [[nodiscard]] SessionID sessionCount() const;
     [[nodiscard]] std::vector<SessionID> idSnapshot(const Target& target) const;
-    [[nodiscard]] std::vector<SessionInfo> infoSnapshot(const Target& target) const;
+    [[nodiscard]] std::vector<SessionView> infoSnapshot(const Target& target) const;
 
 private:
     void startAccept();
     void createSession(asio::ip::tcp::socket&& socket);
+
 private:
     GameServer& m_gameServer;
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};

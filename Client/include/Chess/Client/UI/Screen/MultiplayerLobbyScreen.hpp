@@ -20,20 +20,34 @@
 
 // C++ Includes
 #include <cstdint>
+#include <memory>
 
 namespace Chess {
 
 class ClientPanel;
+class ChatPane;
 
 class MultiplayerLobbyScreen : public ScreenInterface {
 public:
     explicit MultiplayerLobbyScreen(ClientPanel& clientPanel);
     ~MultiplayerLobbyScreen();
+
     ftxui::Component getComponent() override;
 
+    void onEnter() override;
+    void onLeave() override;
+
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override { return "Disconnect";}
+    void requestExit() override;
+
 private:
-    ;
+    ftxui::Component buildComponent();
+
+private:
+    std::unique_ptr<ChatPane> m_globalChatPane;
     ftxui::Component m_component;
+
     static constexpr Screen SCREEN_TYPE = Screen::Multiplayer_Lobby;
 };
 

@@ -28,15 +28,16 @@ namespace Chess {
 
 class GameServer;
 
-struct SessionInfo {
-    SessionID id;
-    std::string name;
-};
-
 enum SessionState {
     LOGIN_REQUIRED,
     IDLE,
     IN_MATCH
+};
+
+struct SessionView {
+    SessionID id;
+    SessionState sessionState;
+    std::string name;
 };
 
 class Session : public std::enable_shared_from_this<Session> {
@@ -58,7 +59,10 @@ public:
 
     // Queries
     SessionID getId() const;
-    SessionInfo getInfo() const;
+    SessionState getSessionState() const;
+    std::string getName() const;
+    SessionView getView() const;
+    bool isAuthenticated() const;
 
 private:
     void doReadHeader();
@@ -91,14 +95,16 @@ private:
 
     // State
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
-    std::atomic<SessionState> m_sessionState{SessionState::LOGIN_REQUIRED};
+
+    mutable std::mutex m_viewMutex;
+    const SessionID m_id; // Id is constant and can thus not use mutex
+    SessionState m_sessionState{SessionState::LOGIN_REQUIRED};
+    std::string m_name{};
 
     // Networking
     asio::ip::tcp::socket m_socket;
     asio::strand<asio::any_io_executor> m_strand;
 
-    // Info
-    SessionInfo m_sessionInfo;
 
     // Reading
     Message m_incomingMessage{MessageType::None};

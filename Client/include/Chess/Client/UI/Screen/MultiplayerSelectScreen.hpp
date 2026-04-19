@@ -46,6 +46,7 @@ public:
 private:
     void addServerEntry(ServerInfo serverInfo);
     void removeSelectedServer();
+    bool canJoinServer();
     void joinSelectedServer();
     ftxui::Component buildComponent();
 

@@ -21,7 +21,8 @@
 // C++ Includes
 #include <system_error>
 #include <utility>
-
+#include <chrono>
+#include <format>
 
 namespace {
     constexpr std::uint16_t DEFAULT_SERVER_PORT = 24377;
@@ -75,6 +76,38 @@ ClientStatus MultiplayerClient::requestDisconnect() {
     return ClientStatus::Success();
 }
 
+ClientStatus MultiplayerClient::requestSendGlobalChat(std::string text) {
+    if (text.empty()) {
+        return ClientStatus::Error(StatusCode::InvalidArgument, "Global Chat Message is empty");
+    }
+
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestSendGlobalChat, this, std::move(text)
+    ));
+
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestSendGameChat(std::string text) {
+    if (text.empty()) {
+        return ClientStatus::Error(StatusCode::InvalidArgument, "Game Chat Message is empty");
+    }
+
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestSendGameChat, this, std::move(text)
+    ));
+
+    return ClientStatus::Success();
+}
+
 // View
 MultiplayerView MultiplayerClient::view() const {
     std::lock_guard lock(m_viewMutex);
@@ -84,6 +117,14 @@ MultiplayerView MultiplayerClient::view() const {
 MultiplayerState MultiplayerClient::state() const {
     std::lock_guard lock(m_viewMutex);
     return m_viewSnapshot.state;
+}
+
+const ThreadSafeClientChatLog& MultiplayerClient::globalChatLog() const {
+    return m_globalChatLog;
+}
+
+const ThreadSafeClientChatLog& MultiplayerClient::gameChatLog() const {
+    return m_gameChatLog;
 }
 
 
@@ -152,6 +193,7 @@ void MultiplayerClient::terminateSession(EventType type, ClientStatus status, Mu
     closeTransport();
     clearConnectionState();
     transitionTo(nextState);
+    resetChatsForConnection();
     emitResult(type, std::move(status));
 }
 
@@ -220,6 +262,48 @@ void MultiplayerClient::doRequestDisconnect() {
         ClientStatus::Success("Disconnected")
     );
 }
+
+
+void MultiplayerClient::doRequestSendGlobalChat(std::string text) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(
+            EventType::MultiplayerTransport,
+            ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server")
+        );
+        return;
+    }
+
+    Chat chat{
+        .scope = ChatScope::Global,
+        .message = std::move(text),
+    };
+
+    ClientStatus status = queueSend(chat.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerTransport, std::move(status));
+    }
+}
+
+void MultiplayerClient::doRequestSendGameChat(std::string text) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(
+            EventType::MultiplayerTransport,
+            ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server")
+        );
+        return;
+    }
+
+    Chat chat{
+        .scope = ChatScope::Game,
+        .message = std::move(text),
+    };
+
+    ClientStatus status = queueSend(chat.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerTransport, std::move(status));
+    }
+}
+
 
 ClientStatus MultiplayerClient::queueSend(std::shared_ptr<const Message> message) {
     if (!message) {
@@ -382,6 +466,9 @@ void MultiplayerClient::onIncomingMessage(Message message) {
         case MessageType::LoginResponse:
             onLoginResponse(message);
             break;
+        case MessageType::Chat:
+            onChatMessage(message);
+            break;
         default:
             terminateSession(
                 EventType::MultiplayerDisconnect,
@@ -413,6 +500,8 @@ void MultiplayerClient::onLoginResponse(Message& message) {
         m_loginAccepted = true;
         transitionTo(MultiplayerState::Connected);
 
+        resetChatsForConnection();
+
         emitResult(
             EventType::MultiplayerLogin,
             ClientStatus::Success("Login Accepted")
@@ -430,6 +519,63 @@ void MultiplayerClient::onLoginResponse(Message& message) {
 }
 
 
+void MultiplayerClient::onChatMessage(Message& message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerLogin,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received ChatMessage when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<Chat> chat = Chat::fromMessage(message);
+    if (!chat.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse ChatMessage")
+        );
+        return;
+    }
+
+    ClientChatEntry chatEntry{
+        .text = chat->message,
+    };
+
+    switch (chat->scope) {
+        case ChatScope::Global:
+            m_globalChatLog.append(std::move(chatEntry));
+            break;
+        case ChatScope::Game:
+            m_gameChatLog.append(std::move(chatEntry));
+            break;
+    }
 
 
+}
+
+
+void MultiplayerClient::resetChatsForConnection() {
+    m_globalChatLog.clear();
+    m_gameChatLog.clear();
+}
+
+void MultiplayerClient::resetChatsForGame() {
+    m_gameChatLog.clear();
+}
+
+std::string MultiplayerClient::chatTimestampNow() const {
+    return std::format("{:%H:%M:%S}", std::chrono::system_clock::now());
+}
+
+void MultiplayerClient::appendGlobalSystemChat(std::string text) {
+    m_globalChatLog.append(ClientChatEntry{
+        .text = std::format("[{}][{}] {}", chatTimestampNow(), "System", text),
+    });
+}
+
+void MultiplayerClient::appendGameSystemChat(std::string text) {
+    m_gameChatLog.append(ClientChatEntry{
+        .text = std::format("[{}][{}] {}", chatTimestampNow(), "System", text),
+    });
+}
 }

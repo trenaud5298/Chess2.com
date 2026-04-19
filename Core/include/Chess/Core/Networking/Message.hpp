@@ -54,7 +54,8 @@ namespace Chess {
  *   - std::string reason
  *
  * @c MessageType::Chat                 (3)  | Direction: Both
- *   - std::string message
+ *   - ChatScope scope  // (Global or Game)
+ *   - std::string message // ([<Timestamp>][<Sender>] <Message>)
  *
  * @c MessageType::Command              (4)  | Direction: Client -> Server
  *   - std::string command

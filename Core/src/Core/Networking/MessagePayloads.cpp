@@ -82,12 +82,14 @@ std::optional<LoginResponse> LoginResponse::fromMessage(Message& msg) {
 // Chat
 Message Chat::toMessage() const {
     Message msg(MessageType::Chat);
+    msg.push(scope);
     msg.pushString(message);
     return msg;
 }
 
 std::shared_ptr<Message> Chat::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::Chat);
+    msg->push(scope);
     msg->pushString(message);
     return msg;
 }
@@ -99,7 +101,7 @@ std::optional<Chat> Chat::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     Chat data;
 
-    if (!msg.tryReadString(data.message)) {
+    if (!msg.tryRead(data.scope) || !msg.tryReadString(data.message)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }

@@ -80,11 +80,19 @@ void MultiplayerSelectScreen::removeSelectedServer() {
     rebuildServerEntries();
 }
 
+bool MultiplayerSelectScreen::canJoinServer() {
+    return hasSelectedServerEntry() && m_clientPanel.gameClient().state() == ClientState::MultiplayerSetup;
+}
+
 void MultiplayerSelectScreen::joinSelectedServer() {
-    if (!hasSelectedServerEntry()) {
+    m_clientPanel.gameClient().loggingManager().log(
+        LogEntry::Info(
+            "joinSelectedServer called; canJoin=" + std::string(canJoinServer() ? "true" : "false")
+        )
+    );
+    if (!canJoinServer()) {
         return;
     }
-
     m_clientPanel.handleStatus(
         m_clientPanel.gameClient().requestMultiplayerConnect(m_servers[*m_selectedServer]),
         "Unable to join server",
@@ -107,7 +115,7 @@ ftxui::Component MultiplayerSelectScreen::buildComponent() {
             if (handled) {
                 activateCursor();
             } else {
-                m_selectedServer = std::nullopt;
+                // m_selectedServer = std::nullopt;
             }
             return handled;
         }
@@ -117,7 +125,7 @@ ftxui::Component MultiplayerSelectScreen::buildComponent() {
     ftxui::ButtonOption serverRequiredButtonOption = ftxui::ButtonOption::Animated();
     auto originalRequiredTransform = serverRequiredButtonOption.transform;
     serverRequiredButtonOption.transform = [this, originalRequiredTransform](const ftxui::EntryState& state) {
-        if (!hasSelectedServerEntry()) {
+        if (!canJoinServer()) {
             return ftxui::text(state.label) | ftxui::center | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20)
                 | ftxui::color(ftxui::Color::GrayDark) | ftxui::bgcolor(ftxui::Color::Black);
         }
@@ -145,9 +153,6 @@ ftxui::Component MultiplayerSelectScreen::buildComponent() {
     }, serverRequiredButtonOption);
 
     auto joinButton = ftxui::Button("Join Server", [this]() {
-        if (!hasSelectedServerEntry()) {
-            return;
-        }
         joinSelectedServer();
     }, serverRequiredButtonOption);
 

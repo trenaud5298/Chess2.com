@@ -44,9 +44,11 @@ struct LoginResponse {
     static std::optional<LoginResponse> fromMessage(Message& msg);
 };
 
+enum class ChatScope : std::uint8_t {Global = 0, Game = 1};
 struct Chat {
     static constexpr MessageType type = MessageType::Chat;
 
+    ChatScope scope{ChatScope::Global};
     std::string message;
 
     Message toMessage() const;

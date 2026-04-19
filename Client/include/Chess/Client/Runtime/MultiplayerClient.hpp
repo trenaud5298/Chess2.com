@@ -13,8 +13,8 @@
 #include <Chess/Client/Common/ClientStatus.hpp>
 #include <Chess/Client/Common/ClientEvent.hpp>
 #include <Chess/Client/Common/ServerInfo.hpp>
-#include <Chess/Client/Runtime/MultiplayerTypes.hpp>
 #include <Chess/Core/Networking/Message.hpp>
+#include <Chess/Client/Common/ClientChat.hpp>
 
 // ASIO Includes
 #include <asio/io_context.hpp>
@@ -31,6 +31,20 @@
 
 namespace Chess {
 
+enum class MultiplayerState : std::uint8_t {
+    Idle = 0,
+    ConnectingNetwork,
+    AwaitingLogin,
+    Connected
+};
+
+struct MultiplayerView {
+    MultiplayerState state{MultiplayerState::Idle};
+    std::optional<ServerInfo> serverInfo;
+    bool socketConnected{false};
+    bool loginAccepted{false};
+};
+
 class MultiplayerClient {
 public:
     explicit MultiplayerClient(asio::io_context& context, std::function<void(ClientEvent)> emitEvent);
@@ -44,10 +58,14 @@ public:
     // Commands
     [[nodiscard]] ClientStatus requestConnect(const ServerInfo& serverInfo, std::string username);
     [[nodiscard]] ClientStatus requestDisconnect();
+    [[nodiscard]] ClientStatus requestSendGlobalChat(std::string text);
+    [[nodiscard]] ClientStatus requestSendGameChat(std::string text);
 
     // View
     [[nodiscard]] MultiplayerView view() const;
     [[nodiscard]] MultiplayerState state() const;
+    [[nodiscard]] const ThreadSafeClientChatLog& globalChatLog() const;
+    [[nodiscard]] const ThreadSafeClientChatLog& gameChatLog() const;
 
 private:
     // Thread Safe Functions
@@ -67,9 +85,11 @@ private:
     // Strand Version Of Public Functions (Public Functions Publish To Strand)
     void doRequestConnect(ServerInfo serverInfo, std::string username);
     void doRequestDisconnect();
-    ClientStatus queueSend(std::shared_ptr<const Message> message);
+    void doRequestSendGlobalChat(std::string text);
+    void doRequestSendGameChat(std::string text);
 
     // Strand Async Transport Functions
+    ClientStatus queueSend(std::shared_ptr<const Message> message);
     void doReadHeader();
     void doReadBody();
     void doWrite();
@@ -77,7 +97,15 @@ private:
     // Strand Protocol Handling
     void onTransportConnected();
     void onIncomingMessage(Message message);
-    void onLoginResponse(Message& message);
+        void onLoginResponse(Message& message);
+        void onChatMessage(Message& message);
+
+    // Chat Message Helpers
+    void resetChatsForConnection();
+    void resetChatsForGame();
+    std::string chatTimestampNow() const;
+    void appendGlobalSystemChat(std::string text);
+    void appendGameSystemChat(std::string text);
 
 private:
     std::function<void(ClientEvent)> m_emitEvent;
@@ -100,6 +128,10 @@ private:
     // Main Thread Snapshot (Mutex Protected, Updated By Strand)
     mutable std::mutex m_viewMutex;
     MultiplayerView m_viewSnapshot;
+
+    // Chat Logs (Thread-Safe So Main Thread Can Access For Slice Copying)
+    ThreadSafeClientChatLog m_globalChatLog;
+    ThreadSafeClientChatLog m_gameChatLog;
 };
 
 } // namespace Chess
