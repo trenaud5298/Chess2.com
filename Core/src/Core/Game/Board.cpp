@@ -1202,8 +1202,10 @@ jump:
 
     std::array<ID, 64> Board::genBoardLiteral(const std::vector<IdPos>& in) {
         std::array<ID, 64> res;
-        if( res.size() > 64 || res.size() == 0) {
-            for(int i = 0; i < res.size(); i++) {
+        const int resSize = res.size();
+        const int inSize = in.size();
+        if( inSize > 64 || inSize == 0) {
+            for(int i = 0; i < resSize; i++) {
                 res[i] = ID::EMPTY;
             }
         } else {
