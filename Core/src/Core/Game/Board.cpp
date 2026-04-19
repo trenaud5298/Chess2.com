@@ -204,6 +204,14 @@ namespace Chess {
         return flag;
     }
 
+    bool Board::isValidMod(const int& val, const int& mod) {
+        bool res = false;
+        if( ROW_LOWER_BOUND < val + mod && val + mod < ROW_UPPER_BOUND ) {
+            res = true;
+        }
+        return res;
+    }
+
     void Board::setTurn(bool isWhite) {
         m_isWhiteTurn = isWhite;
     }
@@ -215,6 +223,7 @@ namespace Chess {
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
         m_moves.fill(Pos{8,8});
+        m_pinnedArr.fill(Pos{8,8});
         std::fill(m_defended.begin(), m_defended.end(), false);
         std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
         std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
@@ -493,8 +502,10 @@ namespace Chess {
             std::pair<int,int> mod = getMod(direction);
             set = getMatchingSet(direction); // only needs to be called once since -Direction is still the same axis
             temp = kingPos;
-            temp[ROW] += mod.first;
-            temp[COL] += mod.second;
+            if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+            } else { goto jump; }
             tempColor = getColor(tempId);
             tempId = getIdAt(temp);
             Pos pinnedPos;
@@ -510,14 +521,17 @@ namespace Chess {
                         mod = getMod(tempDirection);
                         int j = 0;
                         while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[(int)pinnedId-1 + j] = pinningPos;
+                            m_pinnedArr[((int)pinnedId-1)*6 + j] = pinningPos;
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
+                            j++;
                         }
                         break;
                     }
-                    temp[ROW] += mod.first;
-                    temp[COL] += mod.second;
+                    if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                        temp[ROW] += mod.first;
+                        temp[COL] += mod.second;
+                    } else { goto jump; }
                     tempId = getIdAt(pos);
                     tempColor = getColor(tempId);
                 } else {
@@ -526,31 +540,41 @@ namespace Chess {
                     pinnedId = getIdAt(pinnedPos);
                 }
             }
+// I couldn't find another simple way to implement this behavior, so
+//  this is reached either when the first part of the loop is done executing
+//  or when a position we are iterating over in the first part of the loop is
+//  out of bounds
+jump:
             direction = directionCast(-i);
             temp = kingPos;
-            temp[ROW] += mod.first;
-            temp[COL] += mod.second;
+            if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+            } else { continue; }
             tempColor = getColor(tempId);
             tempId = getIdAt(temp);
             while( isInBoard(pos) && matchingOnLane < 2) {
                 if( kingColor != tempColor ) {
                     if( tempColor != COLOR::EMPTY && matchingOnLane == 0 ) {
                         break;
-                    } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp))) {
+                    } else if( tempColor != COLOR::EMPTY && matchingOnLane == 1 && set->contains(getTypeAt(temp)) ) {
                         m_pinnedIdSet.emplace(tempId);
                         Pos pinningPos = temp;
                         Direction tempDirection = directionCast(-i);
                         mod = getMod(tempDirection);
                         int j = 0;
                         while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[(int)pinnedId-1 + j] = pinningPos;
+                            m_pinnedArr[((int)pinnedId-1)*6 + j] = pinningPos;
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
+                            j++;
                         }
                         break;
                     }
-                    temp[ROW] += mod.first;
-                    temp[COL] += mod.second;
+                    if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                        temp[ROW] += mod.first;
+                        temp[COL] += mod.second;
+                    } else { continue; }
                     tempId = getIdAt(pos);
                     tempColor = getColor(tempId);
                 } else {
@@ -596,7 +620,7 @@ namespace Chess {
         if( card %2 == 1 ) {
             y = -y;
         }
-        if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+        if( isValidMod(pos[ROW], x) && isValidMod(pos[COL], y) ) {
             pos[ROW] += x;
             pos[COL] += y;
         } else { return; }
@@ -610,7 +634,7 @@ namespace Chess {
                 if( posColor != COLOR::EMPTY ) {
                     return;
                 }
-                if(  ROW_LOWER_BOUND < (int) pos[ROW] + x && (int) pos[ROW] + x < ROW_UPPER_BOUND && COL_LOWER_BOUND < (int) pos[COL] + y && (int) pos[COL] + y < COL_UPPER_BOUND ) {
+        if( isValidMod(pos[ROW], x) && isValidMod(pos[COL], y) ) {
                     pos[ROW] += x;
                     pos[COL] += y;
                 } else { return; }
@@ -668,8 +692,7 @@ namespace Chess {
         if( card %2 == 1 ) { //determine the direction we are incrementing the dimension in
             inc = -1;
         }
-        int castedDim = (int) pos[dim] + inc;
-        if(  castedDim > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+        if( isValidMod(pos[dim], inc) ) {
             pos[dim] += inc;
         } else { return; }
 
@@ -682,7 +705,7 @@ namespace Chess {
                 if(posColor != COLOR::EMPTY) {
                     return;
                 }
-                if( (int) pos[dim] + inc > ROW_LOWER_BOUND && castedDim < ROW_UPPER_BOUND ) {
+                if( isValidMod(pos[dim], inc) ) {
                     pos[dim] += inc;
                 } else { return; }
                 posId = getIdAt(pos);
@@ -1177,7 +1200,7 @@ namespace Chess {
         }
     }
 
-    std::array<ID, 64> Board::genBoardLiteral(std::vector<IdPos> in) {
+    std::array<ID, 64> Board::genBoardLiteral(const std::vector<IdPos>& in) {
         std::array<ID, 64> res;
         if( res.size() > 64 || res.size() == 0) {
             for(int i = 0; i < res.size(); i++) {
@@ -1194,14 +1217,14 @@ namespace Chess {
                         nextIdx = posTranslate(in[inIdx].pos);
                     }
                 } else {
-                    res[i] = EMPTY;
+                    res[i] = ID::EMPTY;
                 }
             }
         }
         return res;
     }
 
-    std::array<Piece, 32> Board::genPieces(std::vector<IdPos> in) {
+    std::array<Piece, 32> Board::genPieces(const std::vector<IdPos>& in) {
         std::array<Piece, 32> res( {
                 {Pos({0,0}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
                 {Pos({0,7}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
@@ -1239,20 +1262,20 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         });
-        int resSize = res.size();
-        int inLength = in.size();
-        if(  inLength > 0 && inLength <= 32 ) {
+        const int resSize = res.size();
+        const int inLength = in.size();
+        if( inLength > 0 && inLength <= 32 ) {
             int inIdx = 0;
             int nextIdx = (int) in[inIdx].id -1;
             for(int i = 0; i < resSize; i++) {
                 if( i == nextIdx ) {
                     res[i].position = in[inIdx].pos;
-                    if( inIdx != resSize ) {
-                        inIdx++;
+                    inIdx++;
+                    if( inIdx != inLength ) {
                         nextIdx = (int) in[inIdx].id -1;
                     }
                 } else {
-                    res[i].position = Pos{8,8}; // could by hardcoding these
+                    res[i].position = Pos{8,8}; // could be faster by hardcoding these
                                                 // and only looping to write the in ids,
                                                 // but I am lazy for now
                 }
@@ -1270,5 +1293,9 @@ namespace Chess {
             std::cout << p.movesIdx << '\n';
         }
         std::cout << std::endl;
+    }
+
+    void Board::printPinnedSet() {
+
     }
 }

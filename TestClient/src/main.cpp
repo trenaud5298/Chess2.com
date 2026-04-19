@@ -4,9 +4,8 @@
 
 int main() {
     Chess::Board board;
-    //board.printMoveOffset();
+    /*
     board.genMoves();
-    //board.printMoves();
     board.move(ID::W_PAWN1, Pos{3,0});
     board.move(ID::W_ROOK1, Pos{2,0});
     board.move(ID::W_ROOK1, Pos{2,1});
@@ -22,7 +21,17 @@ int main() {
     board.nextTurn();
     board.genMoves();
     board.printMoves();
-    std::cout << "isValidMove() " << board.isValidMove(ID::W_PAWN1, Pos{4,0});
+    */
+
+    std::vector<IdPos> state = { IdPos({ID::W_KING, Pos{0,0}}) };
+    //std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
+    std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
+    std::cout << "HERE" << std::endl;
+    /*
+    board = Chess::Board(boardLiteral, piecesLiteral);
+    board.displayBoard();
+    board.genPinned();
+    */
 
     return 0;
 }
