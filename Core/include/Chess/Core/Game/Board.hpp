@@ -35,7 +35,7 @@ namespace Chess {
             bool isValidMove(const ID& id, const Pos& target);
             bool getTurn() const;
             static int posTranslate(const Pos& pos);
-            static std::array<Piece, 32> genPieces(const std::vector<IdPos>& in);
+            static std::array<Piece, 32> genPieces( std::vector<IdPos>& in);
             static std::array<ID, 64> genBoardLiteral(const std::vector<IdPos>& in);
             static std::string idToString(const ID& id);
 
@@ -57,6 +57,9 @@ namespace Chess {
             void printPinnedSet();
             static void printPiecesPos(std::array<Piece, 32>& pieceArr);
             static void printPosition(const Piece& piece);
+            static void printPosition(const Pos& pos);
+            static void idPosSort(std::vector<IdPos>& in);
+            static void printIdPosVec(std::vector<IdPos>& in);
 
         private:
             std::array<ID, 64> m_board;

@@ -26,13 +26,14 @@ int main() {
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{0,0}}),
                                 IdPos({ID::W_BISHOP1, Pos{1,1}}),
+                                IdPos({ID::B_PAWN1, Pos{6,7}}),
                                 IdPos({ID::B_BISHOP1, Pos{7,7}}),
                                 };
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
     Chess::Board::printPiecesPos(piecesLiteral);
     board = Chess::Board(boardLiteral, piecesLiteral);
-    //std::cout << "HERE" << std::endl;
+    board.displayBoard();
     
     //board.genPinned();
 

@@ -1232,7 +1232,7 @@ jump:
         return res;
     }
 
-    std::array<Piece, 32> Board::genPieces(const std::vector<IdPos>& in) {
+    std::array<Piece, 32> Board::genPieces(std::vector<IdPos>& in) {
         std::array<Piece, 32> res( {
                 {Pos({0,0}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
                 {Pos({0,7}), Type::W_ROOK, MAX_MOVES_ROOK, 0},
@@ -1270,12 +1270,15 @@ jump:
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         });
+        idPosSort(in); //sort the in vector by ID
         const int resSize = res.size();
         const int inLength = in.size();
+        std::cout << "inLength: " << inLength << std::endl;
         if( inLength > 0 && inLength <= 32 ) {
             int inIdx = 0;
             int nextIdx = (int) in[inIdx].id -1;
             for(int i = 0; i < resSize; i++) {
+                std::cout << "inIdx: " << inIdx << std::endl;
                 if( i == nextIdx ) {
                     res[i].position = in[inIdx].pos;
                     inIdx++;
@@ -1320,4 +1323,33 @@ jump:
         }
         std::cout << std::endl;
     }
+
+    void Board::printPosition(const Pos& pos) {
+        for( const int& n : pos ) {
+            std::cout << n << ' ';
+        }
+    }
+
+    /* Insertion sort to sort a vector of IdPos objects by ID */
+    void Board::idPosSort(std::vector<IdPos>& in) {
+        const int n = in.size();
+        for (int i = 1; i < n; ++i) {
+            IdPos key = in[i];
+            int j = i - 1;
+
+            while (j >= 0 && (int)in[j].id > (int)key.id) {
+                in[j + 1] = in[j];
+                j = j - 1;
+            }
+            in[j + 1] = key;
+        }
+    }
+    void Board::printIdPosVec(std::vector<IdPos>& in) {
+        for( const IdPos& current : in ) {
+            std::cout << idToString(current.id) << '\n'; 
+            printPosition(current.pos);
+            std::cout << std::endl;
+        }
+    }
+
 }
