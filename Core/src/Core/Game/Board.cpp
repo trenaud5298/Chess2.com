@@ -993,7 +993,7 @@ jump:
     char Board::getGlyph(const ID& id) {
         char32_t res;
         switch(id) {
-            case(EMPTY): {
+            case(ID::EMPTY): {
                 res =  ' ';
                 break;
             }
@@ -1042,11 +1042,13 @@ jump:
     }
 
     void Board::displayBoard() {
+        std::cout << "m_board.size(): " << m_board.size() << std::endl;
         std::string str;
         str.append("------------------------\n");
         for(int i = 1; i < m_board.size()+1; i++) {
             str += '|';
-            str += getGlyph(m_board[i-1]);
+            str += getGlyph(m_board[i-1]); // bug is here 
+            std::cout << "HERE: " << i << std::endl;
             str += '|';
             if( i%8 == 0 )
                 str.append("\n------------------------\n");
@@ -1078,7 +1080,7 @@ jump:
     }
 
     // This is a war crime
-    std::string idToString(const ID& id) {
+    std::string Board::idToString(const ID& id) {
         std::string res;
         switch( id ) {
             case( W_ROOK1 ):
@@ -1223,6 +1225,10 @@ jump:
                 }
             }
         }
+        for( const ID& id : res ) {
+            std::cout << idToString(id) << '\n';
+        }
+        std::cout << std::endl;
         return res;
     }
 
@@ -1277,9 +1283,7 @@ jump:
                         nextIdx = (int) in[inIdx].id -1;
                     }
                 } else {
-                    res[i].position = Pos{8,8}; // could be faster by hardcoding these
-                                                // and only looping to write the in ids,
-                                                // but I am lazy for now
+                    res[i].position = Pos{8,8}; // should hardcode these into res
                 }
             }
         } else {
@@ -1299,5 +1303,21 @@ jump:
 
     void Board::printPinnedSet() {
 
+    }
+
+    void Board::printPiecesPos(std::array<Piece, 32>& pieceArr) {
+        for(int i = 0; i < pieceArr.size() ; ++i) {
+            std::cout << idToString(static_cast<ID>(i+1)) << '\n';
+            printPosition(pieceArr[i]);
+        }
+    }
+
+    void Board::printPosition(const Piece& piece) {
+        const Pos pos = piece.position;
+        std::cout << '\t';
+        for( const int& n : pos ) {
+            std::cout << n << ' ';
+        }
+        std::cout << std::endl;
     }
 }
