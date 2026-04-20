@@ -16,24 +16,65 @@
 // ASIO Includes
 
 // C++ Includes
-#include <atomic>
 #include <cstdint>
-#include <unordered_map>
+#include <optional>
+#include <vector>
 
 namespace Chess {
 
-class GameServer;
-class Move;
-enum GameState {
-    WAITING_FOR_PLAYERS,
-    PLAYER1_TURN,
-    PLAYER2_TURN,
-    GAME_OVER
+enum class GameRoomState : std::uint8_t {
+    WaitingForPlayers = 0,
+    InProgress = 1,
+    GameOver = 2
+};
+
+enum class GameRoomRole : std::uint8_t {
+    None = 0,
+    Player1 = 1,
+    Player2 = 2,
+    Spectator = 3
+};
+
+enum class PlayerSide : std::uint8_t {
+    None = 0,
+    White = 1,
+    Black = 2
+};
+
+enum class JoinRoomResult : std::uint8_t {
+    JoinedAsPlayer = 0,
+    JoinedAsSpectator = 1,
+    AlreadyInRoom = 2,
+    RoomFull = 3,
+    InvalidState = 4
+};
+
+enum class LeaveRoomResult : std::uint8_t {
+    Left = 0,
+    NotInRoom = 1,
+};
+
+enum class MoveResult : std::uint8_t {
+    Success = 0,
+    NotInRoom = 1,
+    NotAPlayer = 2,
+    NotYourTurn = 3,
+    InvalidMove = 4,
+    GameNotActive = 5
+};
+
+struct GameRoomView {
+    RoomID roomID;
+    GameRoomState state;
+    SessionID player1;
+    SessionID player2;
+    std::vector<SessionID> spectators;
+    bool whiteTurnToMove;
 };
 
 class GameRoom {
 public:
-    explicit GameRoom(GameServer& gameServer);
+    explicit GameRoom(RoomID roomID, SessionID creatorSessionID);
     ~GameRoom() = default;
 
     GameRoom(const GameRoom&) = delete;
@@ -41,19 +82,47 @@ public:
     GameRoom(GameRoom&&) = delete;
     GameRoom& operator=(GameRoom&&) = delete;
 
-    // Lifetime Control
-    void start();
-    void stop();
+    // View Helpers
+    [[nodiscard]] RoomID roomID() const noexcept;
+    [[nodiscard]] GameRoomState state() const noexcept;
+    [[nodiscard]] GameRoomRole roleOf(SessionID sessionID) const noexcept;
+    [[nodiscard]] PlayerSide sideOf(SessionID sessionID) const noexcept;
+    [[nodiscard]] bool contains(SessionID sessionID) const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
 
-    bool joinRoom(std::uint64_t sessionID);
-    bool spectateRoom(std::uint64_t sessionID);
-    void leaveRoom(std::uint64_t sessionID);
-    void onMove(std::uint64_t sessionID, Move& move);
+    [[nodiscard]] SessionID player1() const noexcept;
+    [[nodiscard]] SessionID player2() const noexcept;
+    [[nodiscard]] std::vector<SessionID> spectators() const;
+
+    [[nodiscard]] std::vector<SessionID> playerSessionIDs() const;
+    [[nodiscard]] std::vector<SessionID> spectatorSessionIDs() const;
+
+    [[nodiscard]] GameRoomView view() const;
+
+    // Controls
+    [[nodiscard]] JoinRoomResult joinPlayer(SessionID sessionID);
+    [[nodiscard]] JoinRoomResult joinSpectator(SessionID sessionID);
+    [[nodiscard]] LeaveRoomResult leave(SessionID sessionID);
+
+    [[nodiscard]] MoveResult submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
+
 private:
-    GameServer& m_gameServer;
-    SessionID player1;
-    SessionID player2;
-    std::vector<SessionID> spectators;
+    [[nodiscard]] bool canStartGame() const noexcept;
+    void startGameIfReady();
+    [[nodiscard]] bool isPlayersTurn(SessionID sessionID) const noexcept;
+    [[nodiscard]] Pos posFromSquare(std::uint8_t square) const;
+    [[nodiscard]] ID pieceAtSquare(std::uint8_t square) const;
+    [[nodiscard]] bool isPlayersPiece(SessionID sessionID, ID piece) const noexcept;
+
+private:
+    RoomID m_roomID;
+    GameRoomState m_state{GameRoomState::WaitingForPlayers};
+
+    SessionID m_player1{0};
+    SessionID m_player2{0};
+    std::vector<SessionID> m_spectators;
+
+    Board m_board;
 };
 }
 

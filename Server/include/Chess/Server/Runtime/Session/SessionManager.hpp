@@ -52,7 +52,7 @@ public:
     [[nodiscard]] bool empty() const;
     [[nodiscard]] SessionID sessionCount() const;
     [[nodiscard]] std::vector<SessionID> idSnapshot(const Target& target) const;
-    [[nodiscard]] std::vector<SessionView> infoSnapshot(const Target& target) const;
+    [[nodiscard]] std::vector<SessionView> viewSnapshot(const Target& target) const;
 
 private:
     void startAccept();

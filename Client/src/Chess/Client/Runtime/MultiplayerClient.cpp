@@ -522,7 +522,7 @@ void MultiplayerClient::onLoginResponse(Message& message) {
 void MultiplayerClient::onChatMessage(Message& message) {
     if (m_state != MultiplayerState::Connected) {
         terminateSession(
-            EventType::MultiplayerLogin,
+            EventType::MultiplayerDisconnect,
             ClientStatus::Error(StatusCode::ProtocolError, "Received ChatMessage when Not Connected")
         );
         return;

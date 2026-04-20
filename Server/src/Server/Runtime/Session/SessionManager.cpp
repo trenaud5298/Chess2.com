@@ -144,7 +144,7 @@ std::vector<SessionID> SessionManager::idSnapshot(const Target& target) const {
     return ids;
 }
 
-std::vector<SessionView> SessionManager::infoSnapshot(const Target& target) const {
+std::vector<SessionView> SessionManager::viewSnapshot(const Target& target) const {
     std::shared_lock lock(m_sessionMutex);
     std::vector<SessionView> infos;
     target.forEach(m_idToIndex, m_sessions, [&](Session& session) {

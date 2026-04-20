@@ -54,15 +54,35 @@ void Session::stop() {
     });
 }
 
-void Session::send(std::shared_ptr<const Message> message) {
+void Session::send(std::shared_ptr<const Message> message, PostWriteAction action, QueueWriteMethod queueWriteMethod) {
     auto self = shared_from_this();
-    asio::dispatch(m_strand, [this, self, message]() {
-        if (m_state != LifecycleState::RUNNING) { return; }
+    asio::dispatch(m_strand, [this, self, message, action, queueWriteMethod]() {
+        if (m_state != LifecycleState::RUNNING) {
+            return;
+        }
+        if (!message) {
+            abortSession();
+            return;
+        }
+        if (m_terminalWriteQueued) {
+            return;
+        }
+        if (queueWriteMethod == QueueWriteMethod::Overwrite && !m_writeQueue.empty()) {
+            m_writeQueue.erase(std::next(m_writeQueue.begin()), m_writeQueue.end());
+        }
         if (m_writeQueue.size() >= MAX_WRITE_QUEUE_LENGTH) {
             abortSession();
             return;
         }
-        m_writeQueue.push_back(message);
+        if (action == PostWriteAction::AbortSession) {
+            m_terminalWriteQueued = true;
+        }
+
+        m_writeQueue.push_back(OutboundWrite{
+            .message = std::move(message),
+            .action = action,
+        });
+
         if (m_writeQueue.size() == 1) {
             doWrite();
         }
@@ -72,14 +92,25 @@ void Session::send(std::shared_ptr<const Message> message) {
 void Session::doWrite() {
     if (m_writeQueue.empty()) { return; }
     auto self = shared_from_this();
-    asio::async_write(m_socket, m_writeQueue.front()->buffers(), asio::bind_executor(
+    asio::async_write(m_socket, m_writeQueue.front().message->buffers(), asio::bind_executor(
     m_strand, [this, self](std::error_code ec, std::size_t length) {
         if (ec) {
             abortSession();
             return;
         }
 
+        OutboundWrite completed = std::move(m_writeQueue.front());
         m_writeQueue.pop_front();
+
+        switch (completed.action) {
+            case PostWriteAction::AbortSession:
+                m_terminalWriteQueued = false;
+                abortSession();
+                return;
+            case PostWriteAction::None:
+                break;
+        }
+
         if (!m_writeQueue.empty()) {
             doWrite();
         }
@@ -200,8 +231,11 @@ void Session::handle(const LoginRequest& payload) {
     std::string serverPassword = m_gameServer.persistenceManager().settings().general.serverPassword;
     if (payload.password != serverPassword) {
         m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(getId()) + "] login attempt failed. Bad Password: " + payload.password));
-        send(LoginResponse(false, "Incorrect Password").toSharedMessage());
-        abortSession();
+        send(
+            LoginResponse(false, "Incorrect Password").toSharedMessage(),
+            PostWriteAction::AbortSession,
+            QueueWriteMethod::Overwrite
+        );
         return;
     }
     {
@@ -226,7 +260,7 @@ void Session::handle(const Chat& payload) {
 
     Chat outbound{
         .scope = payload.scope,
-        .message = std::format("[{}][{}] {}", presentLocalTime(), m_name, payload.message)
+        .message = std::format("[{}][{}] {}", presentLocalTime(), view.name, payload.message)
     };
 
     Target target = Target::Predicate([](const Session& session) {

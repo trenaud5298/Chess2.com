@@ -23,6 +23,7 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <mutex>
 
 namespace Chess {
 
@@ -40,6 +41,22 @@ struct SessionView {
     std::string name;
 };
 
+// Occurs After All Queued Writes Complete
+enum class PostWriteAction {
+    None,
+    AbortSession
+};
+
+enum class QueueWriteMethod {
+    Append,
+    Overwrite
+};
+
+struct OutboundWrite {
+    std::shared_ptr<const Message> message;
+    PostWriteAction action{PostWriteAction::None};
+};
+
 class Session : public std::enable_shared_from_this<Session> {
 public:
     explicit Session(GameServer& gameServer, asio::ip::tcp::socket&& socket, SessionID id);
@@ -55,7 +72,7 @@ public:
     void stop();
 
     // Controls
-    void send(std::shared_ptr<const Message> message);
+    void send(std::shared_ptr<const Message> message, PostWriteAction action = PostWriteAction::None, QueueWriteMethod queueWriteMethod = QueueWriteMethod::Append);
 
     // Queries
     SessionID getId() const;
@@ -105,12 +122,12 @@ private:
     asio::ip::tcp::socket m_socket;
     asio::strand<asio::any_io_executor> m_strand;
 
-
     // Reading
     Message m_incomingMessage{MessageType::None};
 
     // Writing
-    std::deque<std::shared_ptr<const Message>> m_writeQueue;
+    bool m_terminalWriteQueued{false};
+    std::deque<OutboundWrite> m_writeQueue;
     constexpr static std::size_t MAX_WRITE_QUEUE_LENGTH = 128;
 };
 

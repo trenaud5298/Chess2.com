@@ -1,5 +1,5 @@
-#ifndef CHESS_SERVER_COMMON_TIMEFORMAT_HPP
-#define CHESS_SERVER_COMMON_TIMEFORMAT_HPP
+#ifndef CHESS_CORE_COMMON_TIMEFORMAT_HPP
+#define CHESS_CORE_COMMON_TIMEFORMAT_HPP
 
 /*
  * Chess
@@ -12,7 +12,6 @@
 // Chess Includes
 
 // ASIO Includes
-
 
 // C++ Includes
 #include <chrono>
