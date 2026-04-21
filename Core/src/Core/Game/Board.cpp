@@ -159,6 +159,50 @@ namespace Chess {
         return m_pieceArr[(int)getIdAt(pos)-1].type;
     }
 
+    std::string typeToString(const Type& type) {
+        std::string res;
+        switch(type) {
+            case( Type::W_ROOK):
+                res = "W_ROOK";
+                break;
+            case( Type::W_KNIGHT):
+                res = "W_KNIGHT";
+                break;
+            case( Type::W_BISHOP):
+                res = "W_BISHOP";
+                break;
+            case( Type::W_QUEEN):
+                res = "W_QUEEN";
+                break;
+            case( Type::W_KING):
+                res = "W_KING";
+                break;
+            case( Type::B_KNIGHT):
+                res = "B_KNIGHT";
+                break;
+            case( Type::B_BISHOP):
+                res = "B_BISHOP";
+                break;
+            case( Type::B_ROOK):
+                res = "B_ROOK";
+                break;
+            case( Type::B_QUEEN):
+                res = "B_QUEEN";
+                break;
+            case( Type::B_KING):
+                res = "B_KING";
+                break;
+            case( Type::B_PAWN):
+                res = "B_PAWN";
+                break;
+            case( Type::W_PAWN):
+                res = "W_PAWN";
+                break;
+        }
+        return res;
+
+    }
+
     void Board::move(const ID& id, const Pos& pos) {
         // I was having issues with the move function and noticed an issue
         // or two with an indexing mismatch.
@@ -517,28 +561,39 @@ namespace Chess {
         const std::set<Type>* set;
         ID tempId;
         Direction direction;
-        int matchingOnLane = 0; // counts the pieces matching king color on lane
         Pos temp;
         COLOR tempColor;
 
         for(int i = 1; i < 5; i++) {
+            int matchingOnLane = 0; // counts the pieces matching king color on lane
             direction = directionCast(i);
             std::pair<int,int> mod = getMod(direction);
             set = getMatchingSet(direction); // only needs to be called once since -Direction is still the same axis
             temp = kingPos;
+            std::cout << "i: " << i << "\t    ";;
+            printPosition(temp);
             if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
+                std::cout << "Modded Pos: ";
+                printPosition(temp);
             } else { goto jump; }
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
             Pos pinnedPos;
             ID pinnedId;
             while( isInBoard(temp) && matchingOnLane < 2) {
+                std::cout << "In da loop\n";
+                std::cout << "Matching on lane: " << matchingOnLane << '\n';
+                std::cout << "Modded Pos: ";
+                printPosition(temp);
+                printId(tempId);
+                printColor(tempColor);
                 if( kingColor != tempColor ) {
                     if( matchingOnLane == 0 && tempColor != COLOR::EMPTY ) {
                         break;
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
+                        std::cout << "In da else if\n";
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
                         Direction tempDirection = directionCast(-i);
@@ -548,11 +603,14 @@ namespace Chess {
                             m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
+                            std::cout << "In da nested loop\npinningPos: ";
+                            printPosition(pinningPos);
                             j++;
                         }
                         break;
                     }
                 } else {
+                    std::cout << "In da else\n";
                     matchingOnLane++;
                     pinnedPos = temp;
                     pinnedId = getIdAt(pinnedPos);
@@ -571,34 +629,51 @@ namespace Chess {
         jump:
             direction = directionCast(-i);
             mod = getMod(direction);
+            set = getMatchingSet(direction); 
             temp = kingPos;
             matchingOnLane = 0; 
+            std::cout << "-i: " << -i << "\t    ";;
+            printPosition(temp); 
             if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
+                std::cout << "Modded Pos: ";
+                printPosition(temp);
             } else { continue; }
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
             bool validTemp = true;
             while( validTemp && matchingOnLane < 2) {
+                std::cout << "-i: " << -i << "\t    \n";;
+                std::cout << "In da loop\n";
+                std::cout << "Matching on lane: " << matchingOnLane << '\n';
+                std::cout << "Modded Pos: ";
+                printPosition(temp);
+                printId(tempId);
+                printColor(tempColor);
                 if( kingColor != tempColor ) {
                     if( matchingOnLane == 0 && tempColor != COLOR::EMPTY ) {
                         break;
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp)) ) {
-                        m_pinnedIdSet.emplace(tempId);
+                        printId(pinnedId);
+                        std::cout << "In da else if\n";
+                        m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
-                        Direction tempDirection = directionCast(-i);
+                        Direction tempDirection = directionCast(i);
                         mod = getMod(tempDirection);
                         int j = 0;
                         while( pinnedPos != pinningPos ) {
                             m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
+                            std::cout << "In da nested loop\npinningPos: ";
+                            printPosition(pinningPos);
                             j++;
                         }
                         break;
                     }
                 } else {
+                    std::cout << "In da else\n";
                     matchingOnLane++;
                     pinnedPos = temp;
                     pinnedId = getIdAt(pinnedPos);
@@ -1113,6 +1188,15 @@ namespace Chess {
         }
     }
 
+    void Board::printBool(const bool b) {
+        std::string toPrint = "FALSE";
+        if(b) {
+            toPrint = "TRUE";
+        }
+        std::cout << "Bool: " << toPrint << std::endl;
+    }
+
+
     // This is a war crime
     std::string Board::idToString(const ID& id) {
         std::string res;
@@ -1236,7 +1320,8 @@ namespace Chess {
         }
     }
 
-    std::array<ID, 64> Board::genBoardLiteral(std::vector<IdPos>& in) { // we need to sort in by pos for this one
+    std::array<ID, 64> Board::genBoardLiteral(std::vector<IdPos>& in) { 
+        sortByPos(in);
         std::array<ID, 64> res;
         const int resSize = res.size();
         const int inSize = in.size();
@@ -1300,7 +1385,7 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         });
-        idPosSort(in); //sort the in vector by ID
+        sortById(in); //sort the in vector by ID
         const int resSize = res.size();
         const int inLength = in.size();
         if( inLength > 0 && inLength <= 32 ) {
@@ -1374,8 +1459,8 @@ namespace Chess {
         std::cout << std::endl;
     }
 
-    /* Insertion sort to sort a vector of IdPos objects by ID */
-    void Board::idPosSort(std::vector<IdPos>& in) {
+    /* Insertion sort implementation to sort a vector of IdPos objects by ID */
+    void Board::sortById(std::vector<IdPos>& in) {
         const int n = in.size();
         for (int i = 1; i < n; ++i) {
             IdPos key = in[i];
@@ -1388,6 +1473,30 @@ namespace Chess {
             in[j + 1] = key;
         }
     }
+
+    /* Insertion sort implementation to sort a vector of IdPos objects by Pos */
+    void Board::sortByPos(std::vector<IdPos>& in) {
+        std::vector<int> translated;
+        const int inSize = in.size();
+        translated.reserve(inSize);
+        for(int i = 0; i < inSize; i++) {
+            translated.push_back(posTranslate(in[i].pos));
+        }
+        for (int i = 1; i < inSize; ++i) {
+            IdPos keyStruct = in[i];
+            int key = translated[i];
+            int j = i - 1;
+
+            while (j >= 0 && translated[j] > key) {
+                translated[j + 1] = translated[j];
+                in[j + 1] = in[j];
+                j = j - 1;
+            }
+            in[j + 1] = keyStruct;
+            translated[j + 1] = key;
+        }
+    }
+
     void Board::printIdPosVec(std::vector<IdPos>& in) {
         for( const IdPos& current : in ) {
             std::cout << idToString(current.id) << '\n'; 
