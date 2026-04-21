@@ -28,14 +28,21 @@ int main() {
                                 IdPos({ID::W_BISHOP1, Pos{1,1}}),
                                 IdPos({ID::B_PAWN1, Pos{6,7}}),
                                 IdPos({ID::B_BISHOP1, Pos{7,7}}),
+                                IdPos({ID::W_BISHOP2, Pos{1,0}}),
+                                IdPos({ID::B_BISHOP2, Pos{7,0}}),
                                 };
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
     board = Chess::Board(boardLiteral, piecesLiteral);
-    board.displayBoard();
+    //board.displayBoard();
     
+    /*
     board.genPinned();
     board.printPinnedSet();
+    board.printPinnedArr();
+    */
+    Chess::Board::printBoard(boardLiteral);
+
 
     return 0;
 }

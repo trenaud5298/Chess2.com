@@ -36,7 +36,7 @@ namespace Chess {
             bool getTurn() const;
             static int posTranslate(const Pos& pos);
             static std::array<Piece, 32> genPieces( std::vector<IdPos>& in);
-            static std::array<ID, 64> genBoardLiteral(const std::vector<IdPos>& in);
+            static std::array<ID, 64> genBoardLiteral(std::vector<IdPos>& in);
             static std::string idToString(const ID& id);
 
             void setTurn(bool isWhite);
@@ -51,6 +51,7 @@ namespace Chess {
             void printMoveOffset();
             void printMoves();
             void displayBoard();
+            static void printBoard(const std::array<ID, 64>&);
             void displayBoardUnicode();
             void printPieceIdxs();
             void printPinnedArr();
