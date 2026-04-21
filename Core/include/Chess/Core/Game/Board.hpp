@@ -55,7 +55,9 @@ namespace Chess {
             void printPieceIdxs();
             void printPinnedArr();
             void printPinnedSet();
+            static void printColor(const COLOR& color);
             static void printPiecesPos(std::array<Piece, 32>& pieceArr);
+            static void printId(const ID& id);
             static void printPosition(const Piece& piece);
             static void printPosition(const Pos& pos);
             static void idPosSort(std::vector<IdPos>& in);
@@ -92,6 +94,7 @@ namespace Chess {
             ID getKingId();
             Type getTypeAt(const Pos& pos);
             COLOR getColor(const ID& id);
+            static std::string colorToString(const COLOR& color);
             int getPawnRow(const COLOR& color);
             std::pair<int,int> getMod(const Direction& direction);
             Direction directionCast(const int& i);

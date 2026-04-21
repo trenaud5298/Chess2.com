@@ -31,11 +31,11 @@ int main() {
                                 };
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
-    Chess::Board::printPiecesPos(piecesLiteral);
     board = Chess::Board(boardLiteral, piecesLiteral);
     board.displayBoard();
     
-    //board.genPinned();
+    board.genPinned();
+    board.printPinnedSet();
 
     return 0;
 }
