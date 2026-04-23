@@ -4,9 +4,8 @@
 
 int main() {
     Chess::Board board;
-    //board.printMoveOffset();
+    /*
     board.genMoves();
-    //board.printMoves();
     board.move(ID::W_PAWN1, Pos{3,0});
     board.move(ID::W_ROOK1, Pos{2,0});
     board.move(ID::W_ROOK1, Pos{2,1});
@@ -22,7 +21,30 @@ int main() {
     board.nextTurn();
     board.genMoves();
     board.printMoves();
-    std::cout << "isValidMove() " << board.isValidMove(ID::W_PAWN1, Pos{4,0});
+    */
+
+    std::vector<IdPos> state = { 
+                                IdPos({ID::W_KING, Pos{1,1}}),
+                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_PAWN1, Pos{6,7}}),
+                                IdPos({ID::B_BISHOP1, Pos{7,7}}),
+                                IdPos({ID::W_BISHOP2, Pos{2,1}}),
+                                IdPos({ID::B_ROOK1, Pos{7,1}}),
+                                IdPos({ID::W_ROOK1, Pos{1,2}}),
+                                IdPos({ID::B_QUEEN, Pos{1,7}}),
+                                };
+    std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
+    std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
+    board = Chess::Board(boardLiteral, piecesLiteral);
+    
+    board.genPinned();
+    board.printPinnedArr();
+    //board.printPiecesPos(piecesLiteral);
+    //Chess::Board::printBoard(boardLiteral);
+
+    board.displayBoard();
+    board.printPinnedSet();
+
 
     return 0;
 }
