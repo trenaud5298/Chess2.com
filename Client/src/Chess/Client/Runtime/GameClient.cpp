@@ -179,13 +179,14 @@ ClientStatus GameClient::submitSingleplayerMove(ID from, Pos to) {
     if (m_state.load() != ClientState::SingleplayerInGame) {
         return ClientStatus::Error(StatusCode::InvalidState, "Singleplayer not active");
     }
-
+    m_loggingManager.log(LogEntry::Debug("TEST 1!"));
     try {
         return m_singleplayerClient.tryMove(from, to, std::chrono::steady_clock::now());
     } catch (const std::exception& e) {
         setFatalError(StatusCode::RuntimeException, e.what());
         return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
     }
+    m_loggingManager.log(LogEntry::Debug("TEST 2!"));
 }
 
 ClientStatus GameClient::resignSingleplayer() {

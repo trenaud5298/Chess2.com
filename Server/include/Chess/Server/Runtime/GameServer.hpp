@@ -49,12 +49,12 @@ public:
     LoggingManager& loggingManager() {return m_loggingManager;}
     PersistenceManager& persistenceManager() {return m_persistenceManager;}
     LoginManager& loginManager() {return m_loginManager;}
-    GameManager& gameManager() {return m_gameManager;}
+    // GameManager& gameManager() {return m_gameManager;}
     SessionManager& sessionManager() {return m_sessionManager;}
     [[nodiscard]] const LoggingManager& loggingManager() const {return m_loggingManager;}
     [[nodiscard]] const PersistenceManager& persistenceManager() const {return m_persistenceManager;}
     [[nodiscard]] const LoginManager& loginManager() const {return m_loginManager;}
-    [[nodiscard]] const GameManager& gameManager() const {return m_gameManager;}
+    // [[nodiscard]] const GameManager& gameManager() const {return m_gameManager;}
     [[nodiscard]] const SessionManager& sessionManager() const {return m_sessionManager;}
 
     // Other Accessors
@@ -87,7 +87,7 @@ private:
     LoggingManager m_loggingManager;
     PersistenceManager m_persistenceManager;
     LoginManager m_loginManager;
-    GameManager m_gameManager;
+    // GameManager m_gameManager;
     SessionManager m_sessionManager;
 };
 }
