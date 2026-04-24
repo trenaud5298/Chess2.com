@@ -142,15 +142,11 @@ std::optional<Command> Command::fromMessage(Message& msg) {
 // CreateRoomRequest
 Message CreateRoomRequest::toMessage() const {
     Message msg(MessageType::CreateRoomRequest);
-    msg.push(roomID);
-    msg.pushString(password);
     return msg;
 }
 
 std::shared_ptr<Message> CreateRoomRequest::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::CreateRoomRequest);
-    msg->push(roomID);
-    msg->pushString(password);
     return msg;
 }
 
@@ -160,45 +156,6 @@ std::optional<CreateRoomRequest> CreateRoomRequest::fromMessage(Message& msg) {
 
     std::size_t start = msg.getReadOffset();
     CreateRoomRequest data;
-
-    if (!msg.tryRead(data.roomID) || !msg.tryReadString(data.password)) {
-        msg.setReadOffset(start);
-        return std::nullopt;
-    }
-
-    return data;
-}
-
-
-// CreateRoomResponse
-Message CreateRoomResponse::toMessage() const {
-    Message msg(MessageType::CreateRoomResponse);
-    msg.push(success);
-    msg.push(roomID);
-    msg.pushString(reason);
-    return msg;
-}
-
-std::shared_ptr<Message> CreateRoomResponse::toSharedMessage() const {
-    std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::CreateRoomResponse);
-    msg->push(success);
-    msg->push(roomID);
-    msg->pushString(reason);
-    return msg;
-}
-
-std::optional<CreateRoomResponse> CreateRoomResponse::fromMessage(Message& msg) {
-    if (msg.type() != MessageType::CreateRoomResponse)
-        return std::nullopt;
-
-    std::size_t start = msg.getReadOffset();
-    CreateRoomResponse data;
-
-    if (!msg.tryRead(data.success) || !msg.tryRead(data.roomID) || !msg.tryReadString(data.reason)) {
-        msg.setReadOffset(start);
-        return std::nullopt;
-    }
-
     return data;
 }
 
@@ -207,14 +164,14 @@ std::optional<CreateRoomResponse> CreateRoomResponse::fromMessage(Message& msg) 
 Message JoinRoomRequest::toMessage() const {
     Message msg(MessageType::JoinRoomRequest);
     msg.push(roomID);
-    msg.pushString(password);
+    msg.push(spectator);
     return msg;
 }
 
 std::shared_ptr<Message> JoinRoomRequest::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::JoinRoomRequest);
     msg->push(roomID);
-    msg->pushString(password);
+    msg->push(spectator);
     return msg;
 }
 
@@ -225,7 +182,7 @@ std::optional<JoinRoomRequest> JoinRoomRequest::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     JoinRoomRequest data;
 
-    if (!msg.tryRead(data.roomID) || !msg.tryReadString(data.password)) {
+    if (!msg.tryRead(data.roomID) || !msg.tryRead(data.spectator)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }
@@ -238,6 +195,7 @@ std::optional<JoinRoomRequest> JoinRoomRequest::fromMessage(Message& msg) {
 Message JoinRoomResponse::toMessage() const {
     Message msg(MessageType::JoinRoomResponse);
     msg.push(success);
+    msg.push(roomID);
     msg.pushString(reason);
     return msg;
 }
@@ -245,6 +203,7 @@ Message JoinRoomResponse::toMessage() const {
 std::shared_ptr<Message> JoinRoomResponse::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::JoinRoomResponse);
     msg->push(success);
+    msg->push(roomID);
     msg->pushString(reason);
     return msg;
 }
@@ -256,7 +215,7 @@ std::optional<JoinRoomResponse> JoinRoomResponse::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     JoinRoomResponse data;
 
-    if (!msg.tryRead(data.success) || !msg.tryReadString(data.reason)) {
+    if (!msg.tryRead(data.success) || !msg.tryRead(data.roomID) || !msg.tryReadString(data.reason)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }

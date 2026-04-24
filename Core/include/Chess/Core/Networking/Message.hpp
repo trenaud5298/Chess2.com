@@ -61,20 +61,14 @@ namespace Chess {
  *   - std::string command
  *
  * @c MessageType::CreateRoomRequest    (5)  | Direction: Client -> Server
- *   - std::uint64_t roomID
- *   - std::string roomPassword
- *
- * @c MessageType::CreateRoomResponse   (6)  | Direction: Server -> Client
- *   - bool success
- *   - std::uint64_t roomID
- *   - std::string reason
  *
  * @c MessageType::JoinRoomRequest      (7)  | Direction: Client -> Server
- *   - std::uint64_t roomID
- *   - std::string roomPassword
+ *   - RoomID roomID
+ *   - bool spectator
  *
  * @c MessageType::JoinRoomResponse     (8)  | Direction: Server -> Client
  *   - bool success
+ *   - RoomID roomID
  *   - std::string reason
  *
  * @c MessageType::LeaveRoom            (9)  | Direction: Both

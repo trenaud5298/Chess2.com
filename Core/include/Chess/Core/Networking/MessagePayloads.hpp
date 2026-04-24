@@ -11,6 +11,7 @@
 
 // Chess Includes
 #include <Chess/Core/Networking/Message.hpp>
+#include <Chess/Core/Common/Types.hpp>
 
 // ASIO Includes
 
@@ -19,6 +20,8 @@
 #include <optional>
 #include <string>
 #include <memory>
+
+#include "Chess/Core/Common/Types.hpp"
 
 namespace Chess {
 
@@ -69,31 +72,16 @@ struct Command {
 struct CreateRoomRequest {
     static constexpr MessageType type = MessageType::CreateRoomRequest;
 
-    std::uint64_t roomID;
-    std::string password;
-
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
     static std::optional<CreateRoomRequest> fromMessage(Message& msg);
 };
 
-struct CreateRoomResponse {
-    static constexpr MessageType type = MessageType::CreateRoomResponse;
-
-    bool success;
-    std::uint64_t roomID;
-    std::string reason;
-
-    Message toMessage() const;
-    std::shared_ptr<Message> toSharedMessage() const;
-    static std::optional<CreateRoomResponse> fromMessage(Message& msg);
-};
-
 struct JoinRoomRequest {
     static constexpr MessageType type = MessageType::JoinRoomRequest;
 
-    std::uint64_t roomID;
-    std::string password;
+    RoomID roomID;
+    bool spectator{false};
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -103,7 +91,8 @@ struct JoinRoomRequest {
 struct JoinRoomResponse {
     static constexpr MessageType type = MessageType::JoinRoomResponse;
 
-    bool success;
+    bool success{false};
+    RoomID roomID{0};
     std::string reason;
 
     Message toMessage() const;

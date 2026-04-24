@@ -64,7 +64,7 @@ private:
     asio::ip::tcp::acceptor m_acceptor;
 
     // Session Storage
-    std::atomic<SessionID> m_nextSessionId;
+    std::atomic<SessionID> m_nextSessionId{0};
     mutable std::shared_mutex m_sessionMutex;
     std::unordered_map<SessionID, std::uint64_t> m_idToIndex;
     std::vector<std::shared_ptr<Session>> m_sessions;

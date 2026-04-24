@@ -67,8 +67,8 @@ public:
     void requestCreateRoom(SessionID sessionID, SessionNotifyCallback callback = {});
     void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, SessionNotifyCallback callback = {});
     void requestLeaveRoom(SessionID sessionID, SessionNotifyCallback callback = {});
-    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, SessionNotifyCallback callback = {});
     void requestGameChat(SessionID sessionID, std::string message, SessionNotifyCallback callback = {});
+    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, SessionNotifyCallback callback = {});
 
 private:
     // Strand Version Of Public Request Functions
@@ -88,6 +88,11 @@ private:
     void sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
     void sendRoomError(SessionID sessionID, std::string reason);
     void sendGameUpdate(const GameRoom& room);
+
+    // Room and ID Helpers
+    [[nodiscard]] std::shared_ptr<GameRoom> roomByID(RoomID roomID);
+    [[nodiscard]] std::shared_ptr<GameRoom> roomBySession(SessionID sessionID);
+    void removeRoomIfEmpty(RoomID roomID);
 
 private:
     GameServer& m_gameServer;

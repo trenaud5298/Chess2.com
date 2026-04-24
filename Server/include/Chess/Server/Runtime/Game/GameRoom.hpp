@@ -75,7 +75,7 @@ struct GameRoomView {
 class GameRoom {
 public:
     explicit GameRoom(RoomID roomID, SessionID creatorSessionID);
-    ~GameRoom() = default;
+    ~GameRoom();
 
     GameRoom(const GameRoom&) = delete;
     GameRoom& operator=(const GameRoom&) = delete;
@@ -92,10 +92,9 @@ public:
 
     [[nodiscard]] SessionID player1() const noexcept;
     [[nodiscard]] SessionID player2() const noexcept;
-    [[nodiscard]] std::vector<SessionID> spectators() const;
-
     [[nodiscard]] std::vector<SessionID> playerSessionIDs() const;
     [[nodiscard]] std::vector<SessionID> spectatorSessionIDs() const;
+    [[nodiscard]] std::vector<SessionID> allSessionsIDs() const;
 
     [[nodiscard]] GameRoomView view() const;
 
