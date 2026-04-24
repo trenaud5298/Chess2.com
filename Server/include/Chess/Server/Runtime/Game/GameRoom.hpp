@@ -10,7 +10,7 @@
  */
 
 // Chess Includes
-#include <Chess/Core/Game/Board.hpp>
+#include <Chess/Core/Game/ChessGame.hpp>
 #include <Chess/Core/Common/Types.hpp>
 
 // ASIO Includes
@@ -54,27 +54,37 @@ enum class LeaveRoomResult : std::uint8_t {
     NotInRoom = 1,
 };
 
-enum class MoveResult : std::uint8_t {
+enum class GameRoomMoveStatus : std::uint8_t {
     Success = 0,
     NotInRoom = 1,
-    NotAPlayer = 2,
-    NotYourTurn = 3,
-    InvalidMove = 4,
-    GameNotActive = 5
+    SpectatorCannotMove = 2,
+    GameRejected = 3
+};
+
+struct GameRoomMoveResult {
+    GameRoomMoveStatus status{GameRoomMoveStatus::GameRejected};
+    ChessGameMoveResult gameResult{};
+
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return status == GameRoomMoveStatus::Success && static_cast<bool>(gameResult);
+    }
 };
 
 struct GameRoomView {
-    RoomID roomID;
-    GameRoomState state;
-    SessionID player1;
-    SessionID player2;
+    RoomID roomID{0};
+    GameRoomState state{GameRoomState::WaitingForPlayers};
+    SessionID player1{0};
+    SessionID player2{0};
     std::vector<SessionID> spectators;
-    bool whiteTurnToMove;
+    COLOR currentTurn{COLOR::WHITE};
+    COLOR winner{COLOR::EMPTY};
+    ChessGameState gameState{ChessGameState::NotStarted};
+    std::uint64_t gameVersion{0};
 };
 
 class GameRoom {
 public:
-    explicit GameRoom(RoomID roomID, SessionID creatorSessionID);
+    explicit GameRoom(RoomID roomID, SessionID creatorSessionID, ChessClockConfig clockConfig = {});
     ~GameRoom();
 
     GameRoom(const GameRoom&) = delete;
@@ -87,6 +97,7 @@ public:
     [[nodiscard]] GameRoomState state() const noexcept;
     [[nodiscard]] GameRoomRole roleOf(SessionID sessionID) const noexcept;
     [[nodiscard]] PlayerSide sideOf(SessionID sessionID) const noexcept;
+    [[nodiscard]] COLOR colorOf(SessionID sessionID) const noexcept;
     [[nodiscard]] bool contains(SessionID sessionID) const noexcept;
     [[nodiscard]] bool empty() const noexcept;
 
@@ -97,21 +108,23 @@ public:
     [[nodiscard]] std::vector<SessionID> allSessionsIDs() const;
 
     [[nodiscard]] GameRoomView view() const;
+    [[nodiscard]] const ChessGame& game() const noexcept;
+    [[nodiscard]] ChessGame& game() noexcept;
 
     // Controls
-    [[nodiscard]] JoinRoomResult joinPlayer(SessionID sessionID);
+    [[nodiscard]] JoinRoomResult joinPlayer(SessionID sessionID, std::chrono::steady_clock::time_point now);
     [[nodiscard]] JoinRoomResult joinSpectator(SessionID sessionID);
-    [[nodiscard]] LeaveRoomResult leave(SessionID sessionID);
+    [[nodiscard]] LeaveRoomResult leave(SessionID sessionID, std::chrono::steady_clock::time_point now);
 
-    [[nodiscard]] MoveResult submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
+    [[nodiscard]] GameRoomMoveResult submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, std::chrono::steady_clock::time_point now);
+
+    [[nodiscard]] bool resign(SessionID sessionID, std::chrono::steady_clock::time_point now);
+    void tick(std::chrono::steady_clock::time_point now);
 
 private:
     [[nodiscard]] bool canStartGame() const noexcept;
-    void startGameIfReady();
-    [[nodiscard]] bool isPlayersTurn(SessionID sessionID) const noexcept;
-    [[nodiscard]] Pos posFromSquare(std::uint8_t square) const;
-    [[nodiscard]] ID pieceAtSquare(std::uint8_t square) const;
-    [[nodiscard]] bool isPlayersPiece(SessionID sessionID, ID piece) const noexcept;
+    void startGameIfReady(std::chrono::steady_clock::time_point now);
+    void updateRoomStateFromGame() noexcept;
 
 private:
     RoomID m_roomID;
@@ -121,7 +134,7 @@ private:
     SessionID m_player2{0};
     std::vector<SessionID> m_spectators;
 
-    Board m_board;
+    ChessGame m_game;
 };
 }
 
