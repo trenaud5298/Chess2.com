@@ -83,7 +83,7 @@ std::vector<SessionID> GameRoom::spectatorSessionIDs() const {
     return m_spectators;
 }
 
-std::vector<SessionID> GameRoom::allSessionsIDs() const {
+std::vector<SessionID> GameRoom::allSessionIDs() const {
     std::vector<SessionID> out = m_spectators;
     if (m_player1 != 0) { out.push_back(m_player1); }
     if (m_player2 != 0) { out.push_back(m_player2); }

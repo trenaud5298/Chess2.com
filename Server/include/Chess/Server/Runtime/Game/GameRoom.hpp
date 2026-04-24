@@ -105,7 +105,7 @@ public:
     [[nodiscard]] SessionID player2() const noexcept;
     [[nodiscard]] std::vector<SessionID> playerSessionIDs() const;
     [[nodiscard]] std::vector<SessionID> spectatorSessionIDs() const;
-    [[nodiscard]] std::vector<SessionID> allSessionsIDs() const;
+    [[nodiscard]] std::vector<SessionID> allSessionIDs() const;
 
     [[nodiscard]] GameRoomView view() const;
     [[nodiscard]] const ChessGame& game() const noexcept;

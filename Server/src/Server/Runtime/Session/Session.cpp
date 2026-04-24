@@ -204,8 +204,8 @@ void Session::dispatchIncomingMessage() {
         case MessageType::JoinRoomRequest:
             dispatchAs<JoinRoomRequest>();
             break;
-        case MessageType::LeaveRoom:
-            dispatchAs<LeaveRoom>();
+        case MessageType::LeaveRoomRequest:
+            dispatchAs<LeaveRoomRequest>();
             break;
         case MessageType::MakeMove:
             dispatchAs<MakeMove>();
@@ -298,7 +298,7 @@ void Session::handle(const JoinRoomRequest& payload) {
 
 }
 
-void Session::handle(const LeaveRoom& payload) {
+void Session::handle(const LeaveRoomRequest& payload) {
 
 }
 

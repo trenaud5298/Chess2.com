@@ -102,7 +102,7 @@ private:
     void handle(const Command& payload);
     void handle(const CreateRoomRequest& payload);
     void handle(const JoinRoomRequest& payload);
-    void handle(const LeaveRoom& payload);
+    void handle(const LeaveRoomRequest& payload);
     void handle(const MakeMove& payload);
     void handle(const ErrorMessage& payload);
 

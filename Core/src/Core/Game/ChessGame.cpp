@@ -375,9 +375,9 @@ void ChessGame::advanceTurn(std::chrono::steady_clock::time_point now) {
     commitElapsedToActiveSide(now);
     if (m_clockConfig.enabled) {
         if (m_currentTurn == COLOR::WHITE) {
-            m_whiteTimeRemaining += m_clockConfig.incrememnt;
+            m_whiteTimeRemaining += m_clockConfig.increment;
         } else {
-            m_blackTimeRemaining += m_clockConfig.incrememnt;
+            m_blackTimeRemaining += m_clockConfig.increment;
         }
     }
     m_currentTurn = oppositeColor(m_currentTurn);

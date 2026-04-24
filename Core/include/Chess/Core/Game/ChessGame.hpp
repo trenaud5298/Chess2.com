@@ -51,7 +51,7 @@ enum class ChessGameMoveStatus : std::uint8_t {
 struct ChessClockConfig {
     bool enabled{false};
     std::chrono::milliseconds initialTime{0};
-    std::chrono::milliseconds incrememnt{0};
+    std::chrono::milliseconds increment{0};
 };
 
 struct ChessGameSnapshot {

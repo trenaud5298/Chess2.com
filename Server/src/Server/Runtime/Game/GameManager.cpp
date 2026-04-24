@@ -112,6 +112,10 @@ void GameManager::requestJoinRoom(SessionID sessionID, RoomID roomID, bool spect
     asio::post(m_strand, std::bind_front(&GameManager::doRequestJoinRoom, this, sessionID, roomID, spectator));
 }
 
+void GameManager::requestListRooms(SessionID sessionID) {
+    asio::post(m_strand, std::bind_front(&GameManager::doRequestListRooms, this, sessionID));
+}
+
 void GameManager::requestLeaveRoom(SessionID sessionID) {
     asio::post(m_strand, std::bind_front(&GameManager::doRequestLeaveRoom, this, sessionID));
 }
@@ -130,7 +134,7 @@ void GameManager::doRequestCreateRoom(SessionID sessionID) {
     }
 
     if (sessionAlreadyInRoom(sessionID)) {
-        sendCreateRoomResponse(sessionID, false, 0, "Session is already in a room");
+        sendCreateRoomResponse(sessionID, false, 0, RoomMemberType::None, COLOR::EMPTY, "Session is already in a room");
         return;
     }
 
@@ -144,7 +148,8 @@ void GameManager::doRequestCreateRoom(SessionID sessionID) {
         "Game Manager Created Room " + std::to_string(roomID) + " for Session " + std::to_string(sessionID)
     ));
 
-    sendCreateRoomResponse(sessionID, true, roomID, "");
+    sendCreateRoomResponse(sessionID, true, roomID, RoomMemberType::Player, COLOR::WHITE, "");
+    sendGameUpdate(*room);
 }
 
 void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator) {
@@ -153,13 +158,13 @@ void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spe
     }
 
     if (sessionAlreadyInRoom(sessionID)) {
-        sendJoinRoomResponse(sessionID, false, roomID, "Session is already in a room");
+        sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Session is already in a room");
         return;
     }
 
     std::shared_ptr<GameRoom> room = roomByID(roomID);
     if (!room) {
-        sendJoinRoomResponse(sessionID, false, roomID, "Room does not exist");
+        sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room does not exist");
         return;
     }
 
@@ -167,24 +172,43 @@ void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spe
 
     switch (joinResult) {
         case JoinRoomResult::JoinedAsPlayer:
+            bindSessionToRoom(sessionID, roomID);
+            sendJoinRoomResponse(sessionID, true, roomID, RoomMemberType::Player, room->colorOf(sessionID), "");
+            sendGameUpdate(*room);
+            break;
         case JoinRoomResult::JoinedAsSpectator:
             bindSessionToRoom(sessionID, roomID);
-            sendJoinRoomResponse(sessionID, true, roomID, "");
+            sendJoinRoomResponse(sessionID, true, roomID, RoomMemberType::Spectator, COLOR::EMPTY, "");
             sendGameUpdate(*room);
             break;
 
         case JoinRoomResult::AlreadyInRoom:
-            sendJoinRoomResponse(sessionID, false, roomID, "Room is already in a room");
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Session is already in this room");
             break;
 
         case JoinRoomResult::RoomFull:
-            sendJoinRoomResponse(sessionID, false, roomID, "Room is already full");
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room is full");
             break;
 
         case JoinRoomResult::InvalidState:
-            sendJoinRoomResponse(sessionID, false, roomID, "Room is not joinable");
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room is not joinable");
             break;
     }
+}
+
+void GameManager::doRequestListRooms(SessionID sessionID) {
+    if (m_state != LifecycleState::RUNNING) {
+        return;
+    }
+
+    std::vector<RoomSummary> rooms;
+    rooms.reserve(m_roomIDToRoom.size());
+
+    for (const auto& room : m_roomIDToRoom | std::views::values) {
+        rooms.push_back(makeRoomSummary(*room));
+    }
+
+    sendListRoomsResponse(sessionID, std::move(rooms));
 }
 
 void GameManager::doRequestLeaveRoom(SessionID sessionID) {
@@ -194,7 +218,7 @@ void GameManager::doRequestLeaveRoom(SessionID sessionID) {
 
     std::shared_ptr<GameRoom> room = roomBySession(sessionID);
     if (!room) {
-        sendRoomError(sessionID, "Sessions is not in a room");
+        sendLeaveRoomResponse(sessionID, false, 0, "Sessions is not in a room");
         return;
     }
 
@@ -202,11 +226,12 @@ void GameManager::doRequestLeaveRoom(SessionID sessionID) {
     LeaveRoomResult leaveResult = room->leave(sessionID, std::chrono::steady_clock::now());
 
     if (leaveResult == LeaveRoomResult::NotInRoom) {
-        sendRoomError(sessionID, "Session is not in this room");
+        sendLeaveRoomResponse(sessionID, false, roomID, "Session is not in this room");
         return;
     }
 
     unbindSessionFromRoom(sessionID);
+    sendLeaveRoomResponse(sessionID, true, roomID, "");
 
     if (!room->empty()) {
         sendGameUpdate(*room);
@@ -340,21 +365,43 @@ void GameManager::sendToRoomPlayers(const GameRoom& room, std::shared_ptr<const 
 }
 
 void GameManager::sendToRoomAll(const GameRoom &room, std::shared_ptr<const Message> message) {
-    sendToSessions(room.allSessionsIDs(), std::move(message));
+    sendToSessions(room.allSessionIDs(), std::move(message));
 }
 
-void GameManager::sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason) {
-    JoinRoomResponse response{
+void GameManager::sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason) {
+    CreateRoomResponse response{
         .success = success,
         .roomID = roomID,
+        .memberType = memberType,
+        .color = color,
         .reason = std::move(reason)
     };
 
     sendToSession(sessionID, response.toSharedMessage());
 }
 
-void GameManager::sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason) {
+void GameManager::sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason) {
     JoinRoomResponse response{
+        .success = success,
+        .roomID = roomID,
+        .memberType = memberType,
+        .color = color,
+        .reason = std::move(reason)
+    };
+
+    sendToSession(sessionID, response.toSharedMessage());
+}
+
+void GameManager::sendListRoomsResponse(SessionID sessionID, std::vector<RoomSummary> rooms) {
+    ListRoomsResponse response{
+        .rooms = std::move(rooms)
+    };
+
+    sendToSession(sessionID, response.toSharedMessage());
+}
+
+void GameManager::sendLeaveRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason) {
+    LeaveRoomResponse response{
         .success = success,
         .roomID = roomID,
         .reason = std::move(reason)
@@ -372,13 +419,46 @@ void GameManager::sendRoomError(SessionID sessionID, std::string reason) {
     sendToSession(sessionID, response.toSharedMessage());
 }
 
-void GameManager::sendGameUpdate(const GameRoom &room) {
-    //TODO: Implement with say
-    // GameUpdate update{
-    //     .roomID = room.roomId(),
-    //     .snapshot = room.snapshow(now)
-    // }
+void GameManager::sendGameUpdate(const GameRoom& room) {
+    sendToRoomAll(room, makeGameUpdate(room).toSharedMessage());
 }
+
+
+RoomSummary GameManager::makeRoomSummary(const GameRoom& room) const {
+    return {
+        .roomID = room.roomID(),
+        .whitePlayerName = sessionName(room.player1()),
+        .blackPlayerName = sessionName(room.player2()),
+        .spectatorCount = static_cast<std::uint16_t>(room.spectatorSessionIDs().size()),
+        .hasOpenPlayerSeat = (room.player1() == 0 || room.player2() == 0),
+        .inProgress = (room.state() == GameRoomState::InProgress)
+    };
+}
+
+GameUpdate GameManager::makeGameUpdate(const GameRoom& room) const {
+    return {
+        .roomID = room.roomID(),
+        .roomVersion = 0,
+        .whitePlayerName = sessionName(room.player1()),
+        .blackPlayerName = sessionName(room.player2()),
+        .spectatorCount = static_cast<std::uint16_t>(room.spectatorSessionIDs().size()),
+        .snapshot = room.game().snapshot(std::chrono::steady_clock::now())
+    };
+}
+
+std::string GameManager::sessionName(SessionID sessionID) const {
+    if (sessionID == 0) {
+        return "";
+    }
+
+    std::vector<SessionView> views = m_gameServer.sessionManager().viewSnapshot(Target::Id({sessionID}));
+    if (views.empty()) {
+        return "";
+    }
+
+    return views.front().name;
+}
+
 
 std::shared_ptr<GameRoom> GameManager::roomByID(RoomID roomID) {
     auto it = m_roomIDToRoom.find(roomID);

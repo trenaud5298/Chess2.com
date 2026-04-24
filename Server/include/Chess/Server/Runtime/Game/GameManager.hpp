@@ -29,6 +29,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Chess/Core/Networking/MessagePayloads.hpp"
+
 namespace Chess {
 
 class GameServer;
@@ -51,6 +53,7 @@ public:
     // Thread Safe Request Functions
     void requestCreateRoom(SessionID sessionID);
     void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
+    void requestListRooms(SessionID sessionID);
     void requestLeaveRoom(SessionID sessionID);
     void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
     void requestGameChat(SessionID sessionID, std::string message);
@@ -59,6 +62,7 @@ private:
     // Strand Version Of Public Request Functions
     void doRequestCreateRoom(SessionID sessionID);
     void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
+    void doRequestListRooms(SessionID sessionID);
     void doRequestLeaveRoom(SessionID sessionID);
     void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
     void doRequestGameChat(SessionID sessionID, std::string message);
@@ -73,10 +77,17 @@ private:
     void sendToRoomPlayers(const GameRoom& room, std::shared_ptr<const Message> message);
     void sendToRoomAll(const GameRoom& room, std::shared_ptr<const Message> message);
 
-    void sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
-    void sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
+    void sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason);
+    void sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason);
+    void sendListRoomsResponse(SessionID sessionID, std::vector<RoomSummary> rooms);
+    void sendLeaveRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
     void sendRoomError(SessionID sessionID, std::string reason);
     void sendGameUpdate(const GameRoom& room);
+
+    // Response Helpers
+    [[nodiscard]] RoomSummary makeRoomSummary(const GameRoom& room) const;
+    [[nodiscard]] GameUpdate makeGameUpdate(const GameRoom& room) const;
+    [[nodiscard]] std::string sessionName(SessionID sessionID) const;
 
     // Room and ID Helpers
     [[nodiscard]] std::shared_ptr<GameRoom> roomByID(RoomID roomID);
