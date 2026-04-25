@@ -15,7 +15,6 @@
 //      * Add "full" king movement logic with isAttacked() and isDefended()
 //
 //      *   Testing TODO
-//          * genPinned, genChecked
 
 
 namespace Chess {
@@ -270,6 +269,7 @@ namespace Chess {
         m_isWhiteTurn = !m_isWhiteTurn;
         m_moves.fill(Pos{8,8});
         m_pinnedArr.fill(Pos{8,8});
+        m_checked = CriticalPiece({EMPTY, Direction::NORTH});
         std::fill(m_defended.begin(), m_defended.end(), false);
         std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
         std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
@@ -491,6 +491,7 @@ namespace Chess {
                 }
             }
         }
+        /* Don't need this but may keep for faster search on adjacent squares for certain pieces
         //King squares
         for(const std::pair<int,int>& mod : m_mods) {
             temp = kingPos;
@@ -505,8 +506,9 @@ namespace Chess {
                 }
             }
         }
+        */
         //Pawn squares
-        if( kingColor == COLOR::WHITE ) {
+        if( kingColor == COLOR::BLACK ) {
             m_pawnMods[0] = m_mods[6];
             m_pawnMods[1] = m_mods[7];
         } else {
