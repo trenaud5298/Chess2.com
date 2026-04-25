@@ -15,7 +15,7 @@
 //      * Add "full" king movement logic with isAttacked() and isDefended()
 //
 //      *   Testing TODO
-//          * Test genPinned, genChecked
+//          * genPinned, genChecked
 
 
 namespace Chess {
@@ -77,6 +77,7 @@ namespace Chess {
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -110,6 +111,7 @@ namespace Chess {
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -370,8 +372,8 @@ namespace Chess {
         m_moves[idx] = pos;
     }
 
-    void Board::setChecked(const ID& id, const Direction direction) {
-        m_checked.id = id;
+    void Board::setChecked(const ID& checked, const Direction direction) {
+        m_checked.id = checked;
         m_checked.direction = direction;
     }
 
@@ -385,6 +387,17 @@ namespace Chess {
         } else {
             return BLACK_PAWN_ROW;
         }
+    }
+
+    bool Board::isMatchingType(const ID& id, const Type type) {
+        bool flag = false; 
+        switch(id) {
+            case(EMPTY):
+                break;
+            default:
+                flag = getTypeAt(m_pieceArr[(int)id-1].position) == type;
+        }
+        return flag;
     }
 
     std::pair<int,int> Board::getMod(const Direction& direction) {
@@ -442,7 +455,6 @@ namespace Chess {
         Pos pos = kingPos;
         ID tempId;
         Direction direction;
-        m_checked.direction = NORTH; //default direction
 
         //Knight squares
         int x, y;
@@ -456,20 +468,24 @@ namespace Chess {
             if( i%2 == 1 ) {
                 y = -y;
             }
-            temp = Pos({castHelper(kingPos[ROW], x), castHelper(kingPos[COL], y)});
-            tempColor = getColor(getIdAt(temp));
-            tempId = getIdAt(temp);
-            if( isInBoard(temp) ) {
-                if( kingColor != tempColor && getTypeAt(temp) == Type::W_KNIGHT || getTypeAt(temp) == Type::B_KNIGHT) {
+            temp = kingPos;;
+            if( isValidMod(temp[ROW], x) && isValidMod(temp[COL], y) ) {
+                temp[ROW] += x;
+                temp[COL] += y;
+                tempColor = getColor(getIdAt(temp));
+                tempId = getIdAt(temp);
+                if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
                     setChecked(tempId, m_checked.direction);
                     return;
                 }
             }
-            temp = Pos({castHelper(kingPos[ROW], y), castHelper(kingPos[COL], x)});
-            tempColor = getColor(getIdAt(temp));
-            tempId = getIdAt(temp);
-            if( isInBoard(temp) ) {
-                if( kingColor != tempColor && getTypeAt(temp) == Type::W_KNIGHT || getTypeAt(temp) == Type::B_KNIGHT) {
+            temp = kingPos;
+            if( isValidMod(temp[ROW], y) && isValidMod(temp[COL], x) ) {
+                temp[ROW] += y;
+                temp[COL] += x;
+                tempColor = getColor(getIdAt(temp));
+                tempId = getIdAt(temp);
+                if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
                     setChecked(tempId, m_checked.direction);
                     return;
                 }
@@ -477,11 +493,13 @@ namespace Chess {
         }
         //King squares
         for(const std::pair<int,int>& mod : m_mods) {
-            temp = Pos({castHelper(kingPos[ROW], mod.first), castHelper(kingPos[COL], mod.second)});
-            tempColor = getColor(getIdAt(temp));
-            tempId = getIdAt(temp);
-            if( isInBoard(temp) ) {
-                if( kingColor != tempColor && getTypeAt(temp) == Type::W_KING || getTypeAt(temp) == Type::B_KING) {
+            temp = kingPos;
+            if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+                tempColor = getColor(getIdAt(temp));
+                tempId = getIdAt(temp);
+                if( kingColor != tempColor && isMatchingType(tempId, Type::W_KING) || isMatchingType(tempId, Type::B_KING)) {
                     setChecked(tempId, m_checked.direction);
                     return;
                 }
@@ -496,61 +514,59 @@ namespace Chess {
             m_pawnMods[1] = m_mods[5];
         }
         for(const std::pair<int,int>& mod : m_pawnMods) {
-            temp = Pos({castHelper(kingPos[ROW], mod.first), castHelper(kingPos[COL], mod.second)});
-            tempColor = getColor(getIdAt(temp));
-            tempId = getIdAt(temp);
-            if( isInBoard(temp) ) {
-                if( kingColor != tempColor && getTypeAt(temp) == Type::W_PAWN || getTypeAt(temp) == Type::B_PAWN ) {
+            temp = kingPos;
+            if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
+                temp[ROW] += mod.first;
+                temp[COL] += mod.second;
+                tempColor = getColor(getIdAt(temp));
+                tempId = getIdAt(temp);
+                if( kingColor != tempColor && isMatchingType(tempId, Type::W_PAWN) || isMatchingType(tempId, Type::B_PAWN) ) {
                     setChecked(tempId, m_checked.direction);
                     return;
                 }
             }
-            //Diagonal & Cardinal squares
-            for(int i = 1; i < 5; i++) {
-                direction = directionCast(i);
-                std::pair<int,int> mod = getMod(direction);
-                set = getMatchingSet(direction);
-                temp = kingPos;
+        }
+        //Diagonal & Cardinal squares
+        for(int i = 1; i < 5; i++) {
+            direction = directionCast(i);
+            std::pair<int,int> mod = getMod(direction);
+            set = getMatchingSet(direction);
+            temp = kingPos;
+
+            while( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
-                tempColor = getColor(tempId);
                 tempId = getIdAt(temp);
-                while( isInBoard(pos) ) {
-                    if( kingColor != tempColor ) {
-                        if( tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
-                            setChecked(tempId, directionCast(-i));
-                            return;
-                        }
-                        temp[ROW] += mod.first;
-                        temp[COL] += mod.second;
-                        tempId = getIdAt(pos);
-                        tempColor = getColor(tempId);
-                    } else {
-                        break;
-                    }
+                tempColor = getColor(tempId);
+                if( kingColor != tempColor && tempColor != COLOR::EMPTY ) {
+                    if( set->contains(getTypeAt(temp)) ) {
+                        setChecked(tempId, directionCast(-i));
+                        return;
+                    } else {break;}
+                } else if( kingColor == tempColor ) {
+                    break;
                 }
-                direction = directionCast(-i);
-                temp = kingPos;
+            }
+
+            direction = directionCast(-i);
+            mod = getMod(direction);
+            temp = kingPos;
+            while( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
-                tempColor = getColor(tempId);
                 tempId = getIdAt(temp);
-                while( isInBoard(pos) ) {
-                    if( kingColor != tempColor ) {
-                        if( tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
-                            setChecked(tempId, directionCast(i));
-                            return;
-                        }
-                        temp[ROW] += mod.first;
-                        temp[COL] += mod.second;
-                        tempId = getIdAt(pos);
-                        tempColor = getColor(tempId);
-                    } else {
-                        break;
-                    }
+                tempColor = getColor(tempId);
+                if( kingColor != tempColor && tempColor != COLOR::EMPTY ) {
+                    if( set->contains(getTypeAt(temp)) ) {
+                        setChecked(tempId, directionCast(-i));
+                        return;
+                    } else {break;}
+                } else if( kingColor == tempColor ) {
+                    break;
                 }
             }
         }
+        //std::cout << "HERE" << std::endl;
     }
 
     void Board::genPinned() {
@@ -570,30 +586,19 @@ namespace Chess {
             std::pair<int,int> mod = getMod(direction);
             set = getMatchingSet(direction); // only needs to be called once since -Direction is still the same axis
             temp = kingPos;
-            std::cout << "i: " << i << "\t    ";;
-            printPosition(temp);
             if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
-                std::cout << "Modded Pos: ";
-                printPosition(temp);
             } else { goto jump; }
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
             Pos pinnedPos;
             ID pinnedId;
             while( isInBoard(temp) && matchingOnLane < 2) {
-                std::cout << "In da loop\n";
-                std::cout << "Matching on lane: " << matchingOnLane << '\n';
-                std::cout << "Modded Pos: ";
-                printPosition(temp);
-                printId(tempId);
-                printColor(tempColor);
                 if( kingColor != tempColor ) {
                     if( matchingOnLane == 0 && tempColor != COLOR::EMPTY ) {
                         break;
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
-                        std::cout << "In da else if\n";
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
                         Direction tempDirection = directionCast(-i);
@@ -603,14 +608,11 @@ namespace Chess {
                             m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
-                            std::cout << "In da nested loop\npinningPos: ";
-                            printPosition(pinningPos);
                             j++;
                         }
                         break;
                     }
                 } else {
-                    std::cout << "In da else\n";
                     matchingOnLane++;
                     pinnedPos = temp;
                     pinnedId = getIdAt(pinnedPos);
@@ -632,31 +634,18 @@ namespace Chess {
             set = getMatchingSet(direction); 
             temp = kingPos;
             matchingOnLane = 0; 
-            std::cout << "-i: " << -i << "\t    ";;
-            printPosition(temp); 
             if( isValidMod(temp[ROW], mod.first) && isValidMod(temp[COL], mod.second) ) {
                 temp[ROW] += mod.first;
                 temp[COL] += mod.second;
-                std::cout << "Modded Pos: ";
-                printPosition(temp);
             } else { continue; }
             tempId = getIdAt(temp);
             tempColor = getColor(tempId);
             bool validTemp = true;
             while( validTemp && matchingOnLane < 2) {
-                std::cout << "-i: " << -i << "\t    \n";;
-                std::cout << "In da loop\n";
-                std::cout << "Matching on lane: " << matchingOnLane << '\n';
-                std::cout << "Modded Pos: ";
-                printPosition(temp);
-                printId(tempId);
-                printColor(tempColor);
                 if( kingColor != tempColor ) {
                     if( matchingOnLane == 0 && tempColor != COLOR::EMPTY ) {
                         break;
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp)) ) {
-                        printId(pinnedId);
-                        std::cout << "In da else if\n";
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
                         Direction tempDirection = directionCast(i);
@@ -666,14 +655,11 @@ namespace Chess {
                             m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
                             pinningPos[ROW] += mod.first;
                             pinningPos[COL] += mod.second;
-                            std::cout << "In da nested loop\npinningPos: ";
-                            printPosition(pinningPos);
                             j++;
                         }
                         break;
                     }
                 } else {
-                    std::cout << "In da else\n";
                     matchingOnLane++;
                     pinnedPos = temp;
                     pinnedId = getIdAt(pinnedPos);
@@ -1303,6 +1289,11 @@ namespace Chess {
         }
         return res;
     }
+
+    void Board::printCheckedPiece() {
+        std::cout << "Checking Piece: " << idToString(m_checked.id) << std::endl;
+    }
+
 
     void Board::printMoves() {
         int offsetIdx = 0;

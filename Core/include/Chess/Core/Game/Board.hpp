@@ -5,7 +5,7 @@
 
 #include <vector>
 #include <array>
-#include <complex.h>
+#include <string>
 #include <set>
 
 
@@ -47,6 +47,7 @@ namespace Chess {
 
             std::ios &(* isValidMove())(std::ios &);
 
+            COLOR winner();
             /* Testing functions */
             void printMoveOffset();
             void printMoves();
@@ -56,6 +57,7 @@ namespace Chess {
             void printPieceIdxs();
             void printPinnedArr();
             void printPinnedSet();
+            void printCheckedPiece();
             static void printBool(const bool b);
             static void printColor(const COLOR& color);
             static void printPiecesPos(std::array<Piece, 32>& pieceArr);
@@ -65,6 +67,8 @@ namespace Chess {
             static void sortById(std::vector<IdPos>& in);
             static void sortByPos(std::vector<IdPos>& in);
             static void printIdPosVec(std::vector<IdPos>& in);
+            bool isMatchingType(const ID& id, const Type type);
+
 
         private:
             std::array<ID, 64> m_board;
@@ -114,7 +118,7 @@ namespace Chess {
             void setMovesIdx(const ID& id, const int& i);
             void setAttackedAt(const Pos& pos);
             void setDefendedAt(const Pos& pos);
-            void setChecked(const ID& id, const Direction direction);
+            void setChecked(const ID& checked, const Direction direction);
 
             void diagonalHelper(const Pos& initial, const Direction& direction, int& i);
             void addDiagonalMoves(const Pos& initial);
