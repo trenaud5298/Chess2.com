@@ -108,8 +108,8 @@ void ChessBoardDisplay::handleSelect(int displayRow, int displayCol) {
         if (!isEmpty(id)) { m_selected = boardPos;}
     } else {
         Pos from = m_selected.value();
-        if (from != boardPos) {
-            onMove(getAt(from[ROW], from[COL]), boardPos);
+        if (from != boardPos && onMove) {
+            onMove(from, boardPos);
         }
         m_selected.reset();
     }
@@ -239,7 +239,7 @@ bool ChessBoardDisplay::OnEvent(ftxui::Event event) {
     return false;
 }
 
-ftxui::Component MakeChessBoard() {
+ftxui::Component MakeChessBoardDisplay() {
     return ftxui::Make<ChessBoardDisplay>();
 }
 

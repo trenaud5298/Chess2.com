@@ -396,9 +396,9 @@ ftxui::Component MultiplayerLobbyScreen::buildComponent() {
                 ftxui::text("Global Chat") | ftxui::bold,
                 ftxui::separator(),
                 m_globalChatPane->component()->Render() | ftxui::flex | ftxui::yflex
-            }) | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 38) | ftxui::yflex,
-            ftxui::text(" "),
-            rightPane | ftxui::border
+            }) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 38) | ftxui::yflex,
+            ftxui::separator(),
+            rightPane
         }) | ftxui::flex;
     });
 }
