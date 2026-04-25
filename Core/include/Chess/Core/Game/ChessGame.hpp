@@ -36,6 +36,14 @@ enum class ChessGameEndReason : std::uint8_t {
     Draw = 4
 };
 
+enum class PromotionPiece : std::uint8_t {
+    None = 0,
+    Queen = 1,
+    Rook = 2,
+    Bishop = 3,
+    Knight = 4,
+};
+
 enum class ChessGameMoveStatus : std::uint8_t {
     Success = 0,
     GameNotStarted = 1,
@@ -45,7 +53,9 @@ enum class ChessGameMoveStatus : std::uint8_t {
     SquareOutOfBounds = 5,
     EmptySquare = 6,
     WrongPieceColor = 7,
-    InvalidMove = 8
+    InvalidMove = 8,
+    PromotionRequired = 9,
+    PromotionNotSupported = 10
 };
 
 struct ChessClockConfig {
@@ -97,7 +107,7 @@ public:
     void tick(std::chrono::steady_clock::time_point now);
     void applySnapshot(const ChessGameSnapshot& snapshot, std::chrono::steady_clock::time_point now);
 
-    [[nodiscard]] ChessGameMoveResult submitMove(COLOR side, std::uint8_t from, std::uint8_t to, std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ChessGameMoveResult submitMove(COLOR side, std::uint8_t from, std::uint8_t to, PromotionPiece promotion, std::chrono::steady_clock::time_point now);
     [[nodiscard]] bool resign(COLOR side, std::chrono::steady_clock::time_point now);
 
     // View
@@ -132,9 +142,11 @@ private:
     void commitElapsedToActiveSide(std::chrono::steady_clock::time_point now);
 
     [[nodiscard]] bool isColor(ID piece, COLOR side) const noexcept;
+    [[nodiscard]] bool requiresPromotion(ID piece, COLOR side, const Pos& target) const noexcept;
     [[nodiscard]] static Pos posFromSquare(std::uint8_t square) noexcept;
     [[nodiscard]] static std::vector<IdPos> collectPieces(const std::array<ID, 64>& boardRaw);
-
+    [[nodiscard]] static bool isPawn(ID piece) noexcept;
+    [[nodiscard]] static bool isPromotionRank(COLOR side, const Pos& target) noexcept;
 private:
 
     Board m_board{};

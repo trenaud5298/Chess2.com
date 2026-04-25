@@ -32,6 +32,10 @@ GameRoomState GameRoom::state() const noexcept {
     return m_state;
 }
 
+std::uint64_t GameRoom::roomVersion() const noexcept {
+    return m_roomVersion;
+}
+
 GameRoomRole GameRoom::roleOf(SessionID sessionID) const noexcept {
     if (sessionID == m_player1) { return GameRoomRole::Player1; }
     if (sessionID == m_player2) { return GameRoomRole::Player2; }
@@ -100,6 +104,7 @@ GameRoomView GameRoom::view() const {
         .currentTurn = m_game.currentTurn(),
         .winner = m_game.winner(),
         .gameState = m_game.state(),
+        .roomVersion = m_roomVersion,
         .gameVersion = m_game.version()
     };
 }
@@ -124,6 +129,7 @@ JoinRoomResult GameRoom::joinPlayer(SessionID sessionID, std::chrono::steady_clo
         return JoinRoomResult::RoomFull;
     }
 
+    incrementRoomVersion();
     startGameIfReady(now);
     updateRoomStateFromGame();
     return JoinRoomResult::JoinedAsPlayer;
@@ -134,6 +140,7 @@ JoinRoomResult GameRoom::joinSpectator(SessionID sessionID) {
     if (m_state == GameRoomState::GameOver) { return JoinRoomResult::InvalidState; }
 
     m_spectators.push_back(sessionID);
+    incrementRoomVersion();
     return JoinRoomResult::JoinedAsSpectator;
 }
 
@@ -145,6 +152,7 @@ LeaveRoomResult GameRoom::leave(SessionID sessionID, std::chrono::steady_clock::
                 (void)m_game.resign(COLOR::WHITE, now);
             }
             m_player1 = 0;
+            incrementRoomVersion();
             updateRoomStateFromGame();
             return LeaveRoomResult::Left;
 
@@ -153,10 +161,12 @@ LeaveRoomResult GameRoom::leave(SessionID sessionID, std::chrono::steady_clock::
                 (void)m_game.resign(COLOR::BLACK, now);
             }
             m_player2 = 0;
+            incrementRoomVersion();
             updateRoomStateFromGame();
             return LeaveRoomResult::Left;
         case GameRoomRole::Spectator:
             m_spectators.erase(std::remove(m_spectators.begin(), m_spectators.end(), sessionID),m_spectators.end());
+            incrementRoomVersion();
             return LeaveRoomResult::Left;
         case GameRoomRole::None:
             return LeaveRoomResult::NotInRoom;
@@ -164,7 +174,7 @@ LeaveRoomResult GameRoom::leave(SessionID sessionID, std::chrono::steady_clock::
     return LeaveRoomResult::NotInRoom;
 }
 
-GameRoomMoveResult GameRoom::submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, std::chrono::steady_clock::time_point now) {
+GameRoomMoveResult GameRoom::submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion, std::chrono::steady_clock::time_point now) {
     GameRoomRole role = roleOf(sessionID);
 
     if (role == GameRoomRole::None) {
@@ -181,7 +191,7 @@ GameRoomMoveResult GameRoom::submitMove(SessionID sessionID, std::uint8_t from, 
         };
     }
 
-    ChessGameMoveResult gameResult = m_game.submitMove(colorOf(sessionID), from, to, now);
+    ChessGameMoveResult gameResult = m_game.submitMove(colorOf(sessionID), from, to, promotion, now);
     updateRoomStateFromGame();
 
     return {
@@ -205,6 +215,10 @@ bool GameRoom::resign(SessionID sessionID, std::chrono::steady_clock::time_point
 void GameRoom::tick(std::chrono::steady_clock::time_point now) {
     m_game.tick(now);
     updateRoomStateFromGame();
+}
+
+void GameRoom::incrementRoomVersion() {
+    ++m_roomVersion;
 }
 
 bool GameRoom::canStartGame() const noexcept {

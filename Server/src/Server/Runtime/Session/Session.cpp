@@ -46,6 +46,7 @@ void Session::stop() {
         if (!m_state.compare_exchange_strong(expected, LifecycleState::STOPPING)) {
             return;
         }
+        m_gameServer.gameManager().requestLeaveRoom(m_id);
         asio::error_code ec;
         m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
         m_socket.close(ec);
@@ -204,6 +205,9 @@ void Session::dispatchIncomingMessage() {
         case MessageType::JoinRoomRequest:
             dispatchAs<JoinRoomRequest>();
             break;
+        case MessageType::ListRoomsRequest:
+            dispatchAs<ListRoomsRequest>();
+            break;
         case MessageType::LeaveRoomRequest:
             dispatchAs<LeaveRoomRequest>();
             break;
@@ -218,6 +222,8 @@ void Session::dispatchIncomingMessage() {
         case MessageType::GameUpdate:
         case MessageType::CreateRoomResponse:
         case MessageType::LoginResponse:
+        case MessageType::ListRoomsResponse:
+        case MessageType::LeaveRoomResponse:
             abortSession();
             break;
     }
@@ -262,26 +268,24 @@ void Session::handle(const Chat& payload) {
         .scope = payload.scope,
         .message = std::format("[{}][{}] {}", presentLocalTime(), view.name, payload.message)
     };
-
-    Target target = Target::Predicate([](const Session& session) {
+    static Target target = Target::Predicate([](const Session& session) {
         return session.isAuthenticated();
     });
 
-    switch (outbound.scope) {
+    switch (payload.scope) {
         case ChatScope::Global:
             m_gameServer.sessionManager().messageSession(target, outbound.toSharedMessage());
             break;
-
         case ChatScope::Game:
-            m_gameServer.sessionManager().messageSession(target, outbound.toSharedMessage());
+            m_gameServer.gameManager().requestGameChat(view.id, outbound.toSharedMessage());
             break;
     }
 
-    std::string scopeLabel = (outbound.scope == ChatScope::Global) ? "Global" : "Game";
+    std::string scopeLabel = (payload.scope == ChatScope::Global) ? "Global" : "Game";
 
     m_gameServer.loggingManager().log(LogEntry::Message(
         "Session[" + std::to_string(view.id) + "]/" +
-        view.name + " [" + scopeLabel + "] " + outbound.message
+        view.name + " [" + scopeLabel + "] " + payload.message
     ));
 
 }
@@ -291,19 +295,53 @@ void Session::handle(const Command& payload) {
 }
 
 void Session::handle(const CreateRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
 
+    m_gameServer.gameManager().requestCreateRoom(view.id);
 }
 
 void Session::handle(const JoinRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
 
+    m_gameServer.gameManager().requestJoinRoom(view.id, payload.roomID, payload.spectator);
+}
+
+void Session::handle(const ListRoomsRequest &payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestListRooms(view.id);
 }
 
 void Session::handle(const LeaveRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
 
+    m_gameServer.gameManager().requestLeaveRoom(view.id);
 }
 
 void Session::handle(const MakeMove& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
 
+    m_gameServer.gameManager().requestMove(view.id, payload.from, payload.to, payload.promotion);
 }
 
 void Session::handle(const ErrorMessage& payload) {

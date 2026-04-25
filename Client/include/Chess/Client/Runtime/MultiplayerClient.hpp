@@ -15,6 +15,8 @@
 #include <Chess/Client/Common/ServerInfo.hpp>
 #include <Chess/Core/Networking/Message.hpp>
 #include <Chess/Client/Common/ClientChat.hpp>
+#include <Chess/Core/Common/Types.hpp>
+#include <Chess/Core/Networking/MessagePayloads.hpp>
 
 // ASIO Includes
 #include <asio/io_context.hpp>
@@ -29,6 +31,7 @@
 #include <string>
 #include <mutex>
 
+
 namespace Chess {
 
 enum class MultiplayerState : std::uint8_t {
@@ -38,11 +41,37 @@ enum class MultiplayerState : std::uint8_t {
     Connected
 };
 
+struct MultiplayerLobbyView {
+    std::vector<RoomSummary> rooms;
+    bool refreshInProgress{false};
+};
+
+struct MultiplayerRoomView {
+    bool joined{false};
+    RoomID roomID{0};
+    RoomMemberType memberType{RoomMemberType::None};
+    COLOR color{COLOR::EMPTY};
+    std::string whitePlayerName;
+    std::string blackPlayerName;
+    std::uint16_t spectatorCount{0};
+    std::uint64_t roomVersion{0};
+};
+
+struct MultiplayerGameView {
+    bool hasSnapshot{false};
+    std::optional<GameUpdate> latestUpdate;
+};
+
+
 struct MultiplayerView {
     MultiplayerState state{MultiplayerState::Idle};
     std::optional<ServerInfo> serverInfo;
     bool socketConnected{false};
     bool loginAccepted{false};
+
+    MultiplayerLobbyView lobby;
+    MultiplayerRoomView room;
+    MultiplayerGameView game;
 };
 
 class MultiplayerClient {
@@ -60,6 +89,12 @@ public:
     [[nodiscard]] ClientStatus requestDisconnect();
     [[nodiscard]] ClientStatus requestSendGlobalChat(std::string text);
     [[nodiscard]] ClientStatus requestSendGameChat(std::string text);
+    [[nodiscard]] ClientStatus requestCreateRoom();
+    [[nodiscard]] ClientStatus requestRefreshRooms();
+    [[nodiscard]] ClientStatus requestJoinRoomAsPlayer(RoomID roomID);
+    [[nodiscard]] ClientStatus requestJoinRoomAsSpectator(RoomID roomID);
+    [[nodiscard]] ClientStatus requestLeaveRoom();
+    [[nodiscard]] ClientStatus requestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
 
     // View
     [[nodiscard]] MultiplayerView view() const;
@@ -73,7 +108,11 @@ private:
     void emitInfo(EventType type, std::string message);
     void emitResult(EventType type, ClientStatus status);
 
-    // Snapshot Helpers
+    // Snapshot & Update Helpers
+    void resetLobbyState();
+    void resetRoomState();
+    void applyRoomJoined(RoomID roomID, RoomMemberType memberType, COLOR color);
+    void applyGameUpdate(const GameUpdate& gameUpdate);
     void refreshViewSnapshot();
 
     // Strand-Only Lifecycle Helpers
@@ -87,6 +126,12 @@ private:
     void doRequestDisconnect();
     void doRequestSendGlobalChat(std::string text);
     void doRequestSendGameChat(std::string text);
+    void doRequestCreateRoom();
+    void doRequestRefreshRooms();
+    void doRequestJoinRoomAsPlayer(RoomID roomID);
+    void doRequestJoinRoomAsSpectator(RoomID roomID);
+    void doRequestLeaveRoom();
+    void doRequestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
 
     // Strand Async Transport Functions
     ClientStatus queueSend(std::shared_ptr<const Message> message);
@@ -99,6 +144,12 @@ private:
     void onIncomingMessage(Message message);
         void onLoginResponse(Message& message);
         void onChatMessage(Message& message);
+        void onCreateRoomResponse(Message& message);
+        void onListRoomsResponse(Message& message);
+        void onJoinRoomResponse(Message& message);
+        void onLeaveRoomResponse(Message& message);
+        void onGameUpdate(Message& message);
+        void onErrorMessage(Message& message);
 
     // Chat Message Helpers
     void resetChatsForConnection();
@@ -106,6 +157,7 @@ private:
     std::string chatTimestampNow() const;
     void appendGlobalSystemChat(std::string text);
     void appendGameSystemChat(std::string text);
+
 
 private:
     std::function<void(ClientEvent)> m_emitEvent;
@@ -120,6 +172,16 @@ private:
     std::string m_username;
     bool m_socketConnected{false};
     bool m_loginAccepted{false};
+
+    std::vector<RoomSummary> m_rooms;
+    bool m_refreshRoomsInProgress{false};
+
+    bool m_joinedRoom{false};
+    RoomID m_joinedRoomID{0};
+    RoomMemberType m_memberType{RoomMemberType::None};
+    COLOR m_memberColor{COLOR::EMPTY};
+
+    std::optional<GameUpdate> m_latestGameUpdate;
 
     Message m_incomingMessage{MessageType::None};
     std::deque<std::shared_ptr<const Message>> m_writeQueue;

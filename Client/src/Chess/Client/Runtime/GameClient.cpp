@@ -299,6 +299,84 @@ ClientStatus GameClient::submitMultiplayerGameChat(std::string text) {
     }
 }
 
+ClientStatus GameClient::requestMultiplayerCreateRoom() {
+    if (m_state != ClientState::MultiplayerLobby) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
+    }
+
+    try {
+        return m_multiplayerClient.requestCreateRoom();
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::requestMultiplayerRefreshRooms() {
+    if (m_state != ClientState::MultiplayerLobby) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
+    }
+
+    try {
+        return m_multiplayerClient.requestRefreshRooms();
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::requestMultiplayerJoinRoomAsPlayer(RoomID roomID) {
+    if (m_state != ClientState::MultiplayerLobby) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
+    }
+
+    try {
+        return m_multiplayerClient.requestJoinRoomAsPlayer(roomID);
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::requestMultiplayerJoinRoomAsSpectator(RoomID roomID) {
+    if (m_state != ClientState::MultiplayerLobby) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
+    }
+
+    try {
+        return m_multiplayerClient.requestJoinRoomAsSpectator(roomID);
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::requestMultiplayerLeaveRoom() {
+    if (m_state != ClientState::MultiplayerInGame) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer game");
+    }
+
+    try {
+        return m_multiplayerClient.requestLeaveRoom();
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
+ClientStatus GameClient::submitMultiplayerMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion) {
+    if (m_state != ClientState::MultiplayerInGame) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer game");
+    }
+
+    try {
+        return m_multiplayerClient.requestSubmitMove(from, to, promotion);
+    } catch (const std::exception& e) {
+        setFatalError(StatusCode::RuntimeException, e.what());
+        return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
+    }
+}
+
 // Helpers
 void GameClient::transitionTo(ClientState newState) {
     ClientState oldState = m_state.exchange(newState);
@@ -382,6 +460,13 @@ void GameClient::handleSingleplayerEvent(const ClientEvent& event) {
         case EventType::MultiplayerTransport:
         case EventType::MultiplayerLogin:
         case EventType::MultiplayerDisconnect:
+        case EventType::MultiplayerRoomsRefresh:
+        case EventType::MultiplayerRoomCreate:
+        case EventType::MultiplayerRoomJoin:
+        case EventType::MultiplayerRoomLeave:
+        case EventType::MultiplayerMove:
+        case EventType::MultiplayerGameSync:
+        case EventType::MultiplayerServerError:
         case EventType::SettingsSave:
             break;
     }
@@ -401,6 +486,25 @@ void GameClient::handleMultiplayerEvent(const ClientEvent& event) {
         case EventType::MultiplayerDisconnect:
             handleMultiplayerDisconnectEvent(event);
             break;
+        case EventType::MultiplayerRoomCreate:
+        case EventType::MultiplayerRoomJoin:
+            if (event.isSuccess()) {
+                transitionTo(ClientState::MultiplayerInGame);
+            }
+            break;
+        case EventType::MultiplayerRoomLeave:
+            if (event.isSuccess()) {
+                transitionTo(ClientState::MultiplayerLobby);
+            }
+            break;
+        case EventType::MultiplayerGameSync:
+            if (m_state.load() == ClientState::MultiplayerLobby && m_multiplayerClient.view().room.joined) {
+                transitionTo(ClientState::MultiplayerInGame);
+            }
+            break;
+        case EventType::MultiplayerMove:
+        case EventType::MultiplayerServerError:
+        case EventType::MultiplayerRoomsRefresh:
         case EventType::None:
         case EventType::SingleplayerStart:
         case EventType::SingleplayerMove:

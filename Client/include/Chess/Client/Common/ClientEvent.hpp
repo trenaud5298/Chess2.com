@@ -46,10 +46,17 @@ enum class EventType : std::uint8_t {
     MultiplayerTransport = 21,
     MultiplayerLogin = 22,
     MultiplayerDisconnect = 23,
+    MultiplayerRoomsRefresh = 24,
+    MultiplayerRoomCreate = 25,
+    MultiplayerRoomJoin = 26,
+    MultiplayerRoomLeave = 27,
+    MultiplayerMove = 28,
+    MultiplayerGameSync = 29,
+    MultiplayerServerError = 30,
 
 
     // Persistence Event Types
-    SettingsSave = 30
+    SettingsSave = 40
 };
 
 constexpr std::string_view toString(EventSource source) noexcept {
@@ -83,10 +90,18 @@ constexpr std::string_view toString(EventType type) noexcept {
         case EventType::MultiplayerTransport: return "MultiplayerTransport";
         case EventType::MultiplayerLogin: return "MultiplayerLogin";
         case EventType::MultiplayerDisconnect: return "MultiplayerDisconnect";
+        case EventType::MultiplayerRoomsRefresh: return "MultiplayerRoomsRefresh";
+        case EventType::MultiplayerRoomCreate: return "MultiplayerRoomCreate";
+        case EventType::MultiplayerRoomJoin: return "MultiplayerRoomJoin";
+        case EventType::MultiplayerRoomLeave: return "MultiplayerRoomLeave";
+        case EventType::MultiplayerMove: return "MultiplayerMove";
+        case EventType::MultiplayerGameSync: return "MultiplayerGameSync";
+        case EventType::MultiplayerServerError: return "MultiplayerServerError";
         case EventType::SettingsSave: return "SettingsSave";
     }
     return "Unknown";
 }
+
 
 struct ClientEvent {
     EventSource source{EventSource::None};

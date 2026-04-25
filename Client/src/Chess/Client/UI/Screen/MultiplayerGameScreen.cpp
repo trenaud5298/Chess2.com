@@ -29,6 +29,24 @@ ftxui::Component MultiplayerGameScreen::getComponent() {
     return m_component;
 }
 
+void MultiplayerGameScreen::onEnter() {
+    m_clientPanel.setTickRate(std::chrono::milliseconds(50));
+}
+
+void MultiplayerGameScreen::onLeave() {
+    m_clientPanel.setTickRate(std::nullopt);
+}
+
+void MultiplayerGameScreen::onTick() {
+
+}
+
+void MultiplayerGameScreen::requestExit() {
+    m_clientPanel.handleStatus(
+        m_clientPanel.gameClient().requestMultiplayerLeaveRoom(),
+        "Unable To Leave Room", ResultPolicy::Modal
+    );
+}
 
 
 } // namespace Chess

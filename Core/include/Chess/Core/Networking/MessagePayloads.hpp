@@ -30,14 +30,6 @@ enum class RoomMemberType : std::uint8_t {
     Spectator = 2
 };
 
-enum class PromotionPiece : std::uint8_t {
-    None = 0,
-    Queen = 1,
-    Rook = 2,
-    Bishop = 3,
-    Knight = 4
-};
-
 struct RoomSummary {
     RoomID roomID{0};
     std::string whitePlayerName;

@@ -29,7 +29,16 @@ class MultiplayerGameScreen : public ScreenInterface {
 public:
     explicit MultiplayerGameScreen(ClientPanel& clientPanel);
     ~MultiplayerGameScreen();
+
     ftxui::Component getComponent() override;
+
+    void onEnter() override;
+    void onLeave() override;
+    void onTick() override;
+
+    bool canRequestExit() const override {return true;}
+    std::string exitLabel() const override { return "Exit Room";}
+    void requestExit() override;
 
 
 private:

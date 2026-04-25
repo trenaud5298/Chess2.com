@@ -56,6 +56,8 @@ namespace {
         case ChessGameMoveStatus::EmptySquare: return "Empty Square";
         case ChessGameMoveStatus::WrongPieceColor: return "Wrong Piece Color";
         case ChessGameMoveStatus::InvalidMove: return "Invalid Move";
+        case ChessGameMoveStatus::PromotionRequired: return "Promotion Required";
+        case ChessGameMoveStatus::PromotionNotSupported: return "Promotion Not Supported";
     }
     return "";
 }
@@ -120,11 +122,11 @@ void GameManager::requestLeaveRoom(SessionID sessionID) {
     asio::post(m_strand, std::bind_front(&GameManager::doRequestLeaveRoom, this, sessionID));
 }
 
-void GameManager::requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to) {
-    asio::post(m_strand, std::bind_front(&GameManager::doRequestMove, this, sessionID, from, to));
+void GameManager::requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion) {
+    asio::post(m_strand, std::bind_front(&GameManager::doRequestMove, this, sessionID, from, to, promotion));
 }
 
-void GameManager::requestGameChat(SessionID sessionID, std::string message) {
+void GameManager::requestGameChat(SessionID sessionID, std::shared_ptr<const Message> message) {
     asio::post(m_strand, std::bind_front(&GameManager::doRequestGameChat, this, sessionID, message));
 }
 
@@ -207,7 +209,9 @@ void GameManager::doRequestListRooms(SessionID sessionID) {
     for (const auto& room : m_roomIDToRoom | std::views::values) {
         rooms.push_back(makeRoomSummary(*room));
     }
-
+    std::sort(rooms.begin(), rooms.end(), [](const RoomSummary& a, const RoomSummary& b) {
+        return a.roomID < b.roomID;
+    });
     sendListRoomsResponse(sessionID, std::move(rooms));
 }
 
@@ -240,7 +244,7 @@ void GameManager::doRequestLeaveRoom(SessionID sessionID) {
     removeRoomIfEmpty(roomID);
 }
 
-void GameManager::doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to) {
+void GameManager::doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion) {
     if (m_state != LifecycleState::RUNNING) {
         return;
     }
@@ -251,7 +255,7 @@ void GameManager::doRequestMove(SessionID sessionID, std::uint8_t from, std::uin
         return;
     }
 
-    GameRoomMoveResult result = room->submitMove(sessionID, from, to, std::chrono::steady_clock::now());
+    GameRoomMoveResult result = room->submitMove(sessionID, from, to, promotion, std::chrono::steady_clock::now());
     switch (result.status) {
         case GameRoomMoveStatus::Success:
             sendGameUpdate(*room);
@@ -268,12 +272,8 @@ void GameManager::doRequestMove(SessionID sessionID, std::uint8_t from, std::uin
     }
 }
 
-void GameManager::doRequestGameChat(SessionID sessionID, std::string message) {
+void GameManager::doRequestGameChat(SessionID sessionID, std::shared_ptr<const Message> message) {
     if (m_state != LifecycleState::RUNNING) {
-        return;
-    }
-
-    if (message.empty()) {
         return;
     }
 
@@ -288,29 +288,7 @@ void GameManager::doRequestGameChat(SessionID sessionID, std::string message) {
         return;
     }
 
-    std::string senderName;
-    {
-        std::vector<SessionView> views = m_gameServer.sessionManager().viewSnapshot(Target::Id({sessionID}));
-        if (!views.empty()) {
-            senderName = views.front().name;
-        }
-    }
-
-    if (senderName.empty()) {
-        senderName = "Unknown";
-    }
-
-    Chat chat{
-        .scope = ChatScope::Game,
-        .message = std::format("[{}][{}] {}", presentLocalTime(), senderName, message)
-    };
-
-    sendToRoomAll(*room, chat.toSharedMessage());
-
-    m_gameServer.loggingManager().log(LogEntry::Message(
-        "GameManager room " + std::to_string(room->roomID()) + " chat from session " +
-        std::to_string(sessionID) + " [" + scopeLabel(chat.scope) + "] " + chat.message
-    ));
+    sendToRoomAll(*room, message);
 }
 
 void GameManager::scheduleTick() {
@@ -438,7 +416,7 @@ RoomSummary GameManager::makeRoomSummary(const GameRoom& room) const {
 GameUpdate GameManager::makeGameUpdate(const GameRoom& room) const {
     return {
         .roomID = room.roomID(),
-        .roomVersion = 0,
+        .roomVersion = room.roomVersion(),
         .whitePlayerName = sessionName(room.player1()),
         .blackPlayerName = sessionName(room.player2()),
         .spectatorCount = static_cast<std::uint16_t>(room.spectatorSessionIDs().size()),

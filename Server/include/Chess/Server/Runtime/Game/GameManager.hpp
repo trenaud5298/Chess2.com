@@ -55,8 +55,8 @@ public:
     void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
     void requestListRooms(SessionID sessionID);
     void requestLeaveRoom(SessionID sessionID);
-    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
-    void requestGameChat(SessionID sessionID, std::string message);
+    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
+    void requestGameChat(SessionID sessionID, std::shared_ptr<const Message> message);
 
 private:
     // Strand Version Of Public Request Functions
@@ -64,8 +64,8 @@ private:
     void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
     void doRequestListRooms(SessionID sessionID);
     void doRequestLeaveRoom(SessionID sessionID);
-    void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to);
-    void doRequestGameChat(SessionID sessionID, std::string message);
+    void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
+    void doRequestGameChat(SessionID sessionID, std::shared_ptr<const Message> message);
 
     // Timer Based Ticks
     void scheduleTick();

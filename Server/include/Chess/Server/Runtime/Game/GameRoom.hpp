@@ -20,6 +20,8 @@
 #include <optional>
 #include <vector>
 
+#include "Chess/Core/Networking/MessagePayloads.hpp"
+
 namespace Chess {
 
 enum class GameRoomState : std::uint8_t {
@@ -79,6 +81,7 @@ struct GameRoomView {
     COLOR currentTurn{COLOR::WHITE};
     COLOR winner{COLOR::EMPTY};
     ChessGameState gameState{ChessGameState::NotStarted};
+    std::uint64_t roomVersion{0};
     std::uint64_t gameVersion{0};
 };
 
@@ -95,6 +98,7 @@ public:
     // View Helpers
     [[nodiscard]] RoomID roomID() const noexcept;
     [[nodiscard]] GameRoomState state() const noexcept;
+    [[nodiscard]] std::uint64_t roomVersion() const noexcept;
     [[nodiscard]] GameRoomRole roleOf(SessionID sessionID) const noexcept;
     [[nodiscard]] PlayerSide sideOf(SessionID sessionID) const noexcept;
     [[nodiscard]] COLOR colorOf(SessionID sessionID) const noexcept;
@@ -116,12 +120,13 @@ public:
     [[nodiscard]] JoinRoomResult joinSpectator(SessionID sessionID);
     [[nodiscard]] LeaveRoomResult leave(SessionID sessionID, std::chrono::steady_clock::time_point now);
 
-    [[nodiscard]] GameRoomMoveResult submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, std::chrono::steady_clock::time_point now);
+    [[nodiscard]] GameRoomMoveResult submitMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion, std::chrono::steady_clock::time_point now);
 
     [[nodiscard]] bool resign(SessionID sessionID, std::chrono::steady_clock::time_point now);
     void tick(std::chrono::steady_clock::time_point now);
 
 private:
+    void incrementRoomVersion();
     [[nodiscard]] bool canStartGame() const noexcept;
     void startGameIfReady(std::chrono::steady_clock::time_point now);
     void updateRoomStateFromGame() noexcept;
@@ -129,6 +134,7 @@ private:
 private:
     RoomID m_roomID;
     GameRoomState m_state{GameRoomState::WaitingForPlayers};
+    std::uint64_t m_roomVersion{0};
 
     SessionID m_player1{0};
     SessionID m_player2{0};

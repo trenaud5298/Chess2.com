@@ -109,7 +109,7 @@ void ChessGame::applySnapshot(const ChessGameSnapshot &snapshot, std::chrono::st
     refreshBoardDerivedState();
 }
 
-ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::uint8_t to, std::chrono::steady_clock::time_point now) {
+ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::uint8_t to, PromotionPiece promotion, std::chrono::steady_clock::time_point now) {
     ChessGameState preState = m_state;
     std::uint64_t preVersion = m_version;
 
@@ -200,6 +200,28 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
     if (!m_board.isValidMove(piece, target)) {
         return {
             .status = ChessGameMoveStatus::InvalidMove,
+            .stateChanged = (m_state != preState || m_version != preVersion),
+            .turnAdvanced = false,
+            .gameFinished = (m_state == ChessGameState::Finished),
+            .winner = m_winner,
+            .endReason = m_endReason
+        };
+    }
+
+    if (requiresPromotion(piece, side, target)) {
+        if (promotion == PromotionPiece::None) {
+            return {
+                .status = ChessGameMoveStatus::PromotionRequired,
+                .stateChanged = (m_state != preState || m_version != preVersion),
+                .turnAdvanced = false,
+                .gameFinished = (m_state == ChessGameState::Finished),
+                .winner = m_winner,
+                .endReason = m_endReason
+            };
+        }
+
+        return {
+            .status = ChessGameMoveStatus::PromotionNotSupported,
             .stateChanged = (m_state != preState || m_version != preVersion),
             .turnAdvanced = false,
             .gameFinished = (m_state == ChessGameState::Finished),
@@ -418,6 +440,10 @@ bool ChessGame::isColor(ID piece, COLOR side) const noexcept {
     return false;
 }
 
+bool ChessGame::requiresPromotion(ID piece, COLOR side, const Pos &target) const noexcept {
+    return isPawn(piece) && isPromotionRank(side, target);
+}
+
 Pos ChessGame::posFromSquare(std::uint8_t square) noexcept {
     return Pos{
         static_cast<std::uint8_t>(square / 8),
@@ -446,4 +472,18 @@ std::vector<IdPos> ChessGame::collectPieces(const std::array<ID, 64>& boardRaw) 
     return out;
 }
 
+bool ChessGame::isPawn(ID piece) noexcept {
+    int value = static_cast<int>(piece);
+    return (value >= static_cast<int>(ID::W_PAWN1) && value < static_cast<int>(ID::W_PAWN8)) ||
+           (value >= static_cast<int>(ID::B_PAWN1) && value < static_cast<int>(ID::B_PAWN8));
+}
+
+bool ChessGame::isPromotionRank(COLOR side, const Pos &target) noexcept {
+    switch (side) {
+        case COLOR::WHITE: return target[0] == 7;
+        case COLOR::BLACK: return target[0] == 0;
+        case COLOR::EMPTY: return false;
+    }
+    return false;
+}
 }

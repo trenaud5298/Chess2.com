@@ -458,7 +458,7 @@ std::optional<LeaveRoomResponse> LeaveRoomResponse::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     LeaveRoomResponse data;
 
-    if (!msg.tryRead(data.success) || !msg.tryRead(data.roomID) || !msg.tryReadString(data.reason) ||) {
+    if (!msg.tryRead(data.success) || !msg.tryRead(data.roomID) || !msg.tryReadString(data.reason)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }

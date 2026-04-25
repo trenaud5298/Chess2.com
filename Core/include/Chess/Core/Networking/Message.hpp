@@ -177,7 +177,7 @@ constexpr std::string_view toString(MessageType type) {
         case MessageType::JoinRoomResponse: return "JoinRoomResponse";
         case MessageType::ListRoomsRequest: return "ListRoomsRequest";
         case MessageType::ListRoomsResponse: return "ListRoomsResponse";
-        case MessageType::LeaveRoomRequest: return "LeaveRoom";
+        case MessageType::LeaveRoomRequest: return "LeaveRoomRequest";
         case MessageType::LeaveRoomResponse: return "LeaveRoomResponse";
         case MessageType::MakeMove: return "MakeMove";
         case MessageType::GameUpdate: return "GameUpdate";
