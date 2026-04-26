@@ -170,6 +170,10 @@ void MultiplayerGameScreen::onLeave() {
     m_clientPanel.setTickRate(std::nullopt);
 }
 
+void MultiplayerGameScreen::onResume() {
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+}
+
 void MultiplayerGameScreen::onTick() {
     refreshSnapshot();
     syncBoardFromSnapshot();

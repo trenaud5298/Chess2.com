@@ -29,13 +29,17 @@ public:
     explicit MainMenuScreen(ClientPanel& clientPanel);
     ~MainMenuScreen();
 
+    void onEnter() override;
+    void onResume() override;
+
     // Exit
     bool canRequestExit() const override {return true;}
     std::string exitLabel() const override {return "Quit";}
     void requestExit() override;
 
     ftxui::Component getComponent() override;
-
+private:
+    void promptForUsernameIfMissing();
 
 private:
     ;

@@ -9,6 +9,8 @@
 // Chess Includes
 #include <Chess/Client/UI/Screen/MainMenuScreen.hpp>
 #include <Chess/Client/UI/ClientPanel.hpp>
+#include <Chess/Client/UI/Modal/SettingsModal.hpp>
+#include <Chess/Client/Runtime/Persistence/Settings.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
@@ -47,8 +49,10 @@ MainMenuScreen::MainMenuScreen(ClientPanel &clientPanel) : ScreenInterface(clien
     });
 
     m_component = ftxui::Renderer(buttons, [&, buttons] {
+        std::string username = m_clientPanel.gameClient().persistenceManager().settings().getUsername();
         auto statusBar = ftxui::hbox({
-            ftxui::text(" ♟ Username") | ftxui::dim,
+            ftxui::text(" ♟ Username: ") | ftxui::dim,
+            ftxui::text((username.empty() ? "(Not Set)" : username)) | (username.empty() ? ftxui::dim : ftxui::bold),
             ftxui::filler(),
         });
 
@@ -64,6 +68,14 @@ MainMenuScreen::~MainMenuScreen() {
 
 }
 
+void MainMenuScreen::onEnter() {
+    promptForUsernameIfMissing();
+}
+
+void MainMenuScreen::onResume() {
+    promptForUsernameIfMissing();
+}
+
 void MainMenuScreen::requestExit() {
     m_clientPanel.quit();
 }
@@ -72,6 +84,13 @@ ftxui::Component MainMenuScreen::getComponent() {
     return m_component;
 }
 
+void MainMenuScreen::promptForUsernameIfMissing() {
+    std::string username = m_clientPanel.gameClient().persistenceManager().settings().getUsername();
 
+    if (!username.empty()) {
+        return;
+    }
 
+    m_clientPanel.pushModal(std::make_unique<SettingsModal>(m_clientPanel));
+}
 }

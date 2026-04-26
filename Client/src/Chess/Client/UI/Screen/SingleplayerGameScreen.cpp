@@ -72,6 +72,8 @@ void SingleplayerGameScreen::onPause() {
 }
 
 void SingleplayerGameScreen::onResume() {
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
     m_clientPanel.handleStatus(
         m_clientPanel.gameClient().resumeSingleplayer(),

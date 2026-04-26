@@ -40,6 +40,7 @@ public:
 
     void onEnter() override;
     void onLeave() override;
+    void onResume() override;
     void onTick() override;
 
     bool canRequestExit() const override {return true;}
