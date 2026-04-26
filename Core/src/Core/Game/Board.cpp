@@ -5,16 +5,36 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <algorithm> // Required for std::rotate
 
 // TODO 
 //      * implement a way to castle
+//          - m_hasCastled boolean private members
 //      * implement a way to promote pawns
 //      * implement a way to en passant
+//          - if last move was a pawn and it moved from its starting position
+//              to be adjacent to a pawn of opposite color on an adjacent lane, then the
+//              pawn of opposite color on the adjacent lane may en passant
 //      * implement checking logic fully
 //      * Fix the indexing mismatch in most of the functions
 //      * Add "full" king movement logic with isAttacked() and isDefended()
+//      * Gamestates
+//          - implement a 50 move long move history array which contains entries describing
+//              the moving piece, the old square, the new square, and if a "take" took place
+//          - for the 50 move no take rule its self explanatory
+//          - for threefold repetition rule it is also self explanatory
 //
 //      *   Testing TODO
+//
+//
+//
+//      Notes for game loop semantics
+//
+//      Flow will be generate pinned pieces
+//                   generate checked pieces, 
+//                   generate attacked vecs and defended member vector,
+//                   if pieces are pinned, filter the pinned pieces moves
+//                   if in check, filter all pieces of the checked color according to the moves of the checking piece
 
 
 namespace Chess {
@@ -77,6 +97,7 @@ namespace Chess {
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
         m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
+        m_moveLog(),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -97,6 +118,7 @@ namespace Chess {
             m_isBlackChecked = false;
             m_moves.fill({8,8});
             m_pinnedArr.fill({8,8});
+            m_moveLog.reserve(50);
         }
 
     Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : 
@@ -111,6 +133,7 @@ namespace Chess {
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
         m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
+        m_moveLog(),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -131,6 +154,7 @@ namespace Chess {
             m_isBlackChecked = false;
             m_moves.fill({8,8});
             m_pinnedArr.fill({8,8});
+            m_moveLog.reserve(50);
     }
 
     Board::~Board() {}
@@ -204,30 +228,35 @@ namespace Chess {
 
     }
 
-    void Board::move(const ID& id, const Pos& pos) {
-        // I was having issues with the move function and noticed an issue
-        // or two with an indexing mismatch.
-        // The IDs start at 1, but are used as an index
-        // into an array and this results in an off by one error.
-        // I have a temporary quick fix thing below for current demo.
-        // I also had to change getPos() for the same reason and noted it there as well
-        // int castedId = (int) id;
-        // Pos old = pos;
-        // m_pieceArr[castedId - 1].position = pos;
-        // setIdAt(pos, id);
-        // setIdAt(old, ID::EMPTY);
-
+    void Board::move(const ID& id, const Pos& target) {
         const int castedId = (int)id - 1;
         const Pos old = m_pieceArr[castedId].position;
-        const ID oldId = getIdAt(pos);
-        if( oldId != EMPTY ) {
-            const int castedOldId = (int) oldId - 1;
-            m_pieceArr[castedOldId].position = Pos{8,8};
-        }
-        m_pieceArr[castedId].position = pos;
-        setIdAt(pos, id);
-        setIdAt(old, ID::EMPTY);
+        const ID idToReplace = getIdAt(target);
 
+        LogEntry entry;
+        entry.id = id;
+        entry.from = old;
+        entry.to = target;
+        if( idToReplace != EMPTY ) {
+            const int castedOldId = (int) idToReplace - 1;
+            m_pieceArr[castedOldId].position = Pos{8,8};
+            entry.taken = true;
+        } else {
+            entry.taken = false;
+        }
+        m_pieceArr[castedId].position = target;
+        setIdAt(target, id);
+        setIdAt(old, ID::EMPTY);
+        updateMoveLog(entry);
+    }
+
+    void Board::updateMoveLog(const LogEntry& entry) {
+        if( m_moveLog.size() != 0 ) {
+            std::rotate(m_moveLog.begin(), m_moveLog.end()-1, m_moveLog.end());
+            m_moveLog[0] = entry;
+        } else {
+            m_moveLog.push_back(entry);
+        }
     }
 
     bool Board::isValidMove(const ID& id, const Pos& target) {
@@ -345,6 +374,7 @@ namespace Chess {
         return static_cast<std::uint8_t>((int)dim + mod);
     }
 
+    /*
     std::vector<bool>& Board::getAttackedVec() {
         if( m_isWhiteTurn ) {
             return m_attackedBlack;
@@ -352,13 +382,31 @@ namespace Chess {
             return m_attackedWhite;
         }
     }
+    */
 
-    void Board::setAttackedAt(const Pos& pos) {
-        getAttackedVec()[posTranslate(pos)] = true;
+    /* Returns the opposite color m_attacked[] for color parameter */
+    std::vector<bool>& Board::getAttackedVec(const COLOR& color) {
+        if( color == COLOR::WHITE ) {
+            return m_attackedWhite;
+        } else {
+            return m_attackedBlack;
+        }
+    }
+
+    void Board::setAttackedAt(const Pos& pos, const COLOR& color ) {
+        getAttackedVec(color)[posTranslate(pos)] = true;
+    }
+
+    bool Board::isAttackedAt(const Pos& pos, const COLOR& color) {
+        return getAttackedVec(color)[posTranslate(pos)];
     }
 
     void Board::setDefendedAt(const Pos& pos) {
         m_defended[posTranslate(pos)] = true;
+    }
+
+    bool Board::isDefendedAt(const Pos& pos) {
+        return m_defended[posTranslate(pos)];
     }
 
     void Board::setMovesIdx(const ID& id, const int& i) {
@@ -491,7 +539,7 @@ namespace Chess {
                 }
             }
         }
-        /* Don't need this but may keep for faster search on adjacent squares for certain pieces
+        /* Don't need this but may keep for faster search on adjacent squares for certain pieces, i.e. queens, bishops, rooks
         //King squares
         for(const std::pair<int,int>& mod : m_mods) {
             temp = kingPos;
@@ -721,7 +769,7 @@ namespace Chess {
         while( isInBoard(pos) ) {
             if( color != posColor ) {
                 setMoveAt(initialId, pos, i);
-                setAttackedAt(pos);
+                setAttackedAt(pos, color);
                 i++;
                 if( posColor != COLOR::EMPTY ) {
                     return;
@@ -791,7 +839,7 @@ namespace Chess {
         posColor = getColor(getIdAt(pos));
         while(isInBoard(pos)) {
             if( color != posColor ) {
-                setAttackedAt(pos);
+                setAttackedAt(pos, color);
                 setMoveAt(initialId, pos, i);
                 i++;
                 if(posColor != COLOR::EMPTY) {
@@ -864,7 +912,7 @@ namespace Chess {
                 if( isInBoard(temp) ) {
                     tempColor = getColor(getIdAt(temp));
                     if( color != tempColor ) {
-                        setAttackedAt(temp);
+                        setAttackedAt(temp, color);
                         setMoveAt(initialId, temp, idx);
                         idx++;
                     } else {
@@ -877,7 +925,7 @@ namespace Chess {
                 if( isInBoard(temp) ) {
                     tempColor = getColor(getIdAt(temp));
                     if( color != tempColor ) {
-                        setAttackedAt(temp);
+                        setAttackedAt(temp, color);
                         setMoveAt(initialId, temp, idx);
                         idx++;
                     } else {
@@ -901,20 +949,22 @@ namespace Chess {
         COLOR tempColor;
 
         for(const std::pair<int,int>& mod : m_mods) {
-            temp = {castHelper(initial[ROW], mod.first), castHelper(initial[COL], mod.second)};
-            if( isInBoard(temp) ) {
+            int rowMod = mod.first;
+            int colMod = mod.second;
+            if( isValidMod(initial[ROW], rowMod) && isValidMod(initial[COL], colMod) ) {
+                temp = Pos({castHelper(initial[ROW], rowMod), castHelper(initial[COL], colMod)});
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
                 if( color != tempColor ) {
-                    setAttackedAt(temp);
+                    setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
                 } else {
                     setDefendedAt(temp);
                 }
             }
-            setMovesIdx(initialId, i);
         }
+        setMovesIdx(initialId, i);
     }
 
     void Board::addPawnMoves(const Pos& initial) {
@@ -964,7 +1014,7 @@ namespace Chess {
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
                 if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
-                    setAttackedAt(temp);
+                    setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
                 } else {
@@ -980,7 +1030,7 @@ namespace Chess {
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
                 if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
-                    setAttackedAt(temp);
+                    setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
                 } else {

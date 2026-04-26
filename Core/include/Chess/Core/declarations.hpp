@@ -118,4 +118,11 @@ struct IdPos {
     Pos pos;
 };
 
+struct LogEntry {
+    ID id;
+    Pos from;
+    Pos to;
+    bool taken;
+};
+
 #endif

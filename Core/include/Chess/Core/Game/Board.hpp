@@ -84,6 +84,7 @@ namespace Chess {
             // the valid moves for a pinned piece are now stored here,
             //  since there may only be maximum 6 valid moves for a piece
             std::array<Pos, 32*6> m_pinnedArr;
+            std::vector<LogEntry> m_moveLog;
 
             std::array<std::pair<int,int>, 8> m_mods;
             std::array<std::pair<int,int>, 2> m_pawnMods;
@@ -107,7 +108,8 @@ namespace Chess {
             std::pair<int,int> getMod(const Direction& direction);
             Direction directionCast(const int& i);
             std::vector<bool>& getAttackedVec();
-            bool isAttackedAt(const Pos& pos);
+            std::vector<bool>& getAttackedVec(const COLOR& color);
+            bool isAttackedAt(const Pos& pos, const COLOR& color);
             bool isDefendedAt(const Pos& pos);
             bool isValidMod(const int& val, const int& mod);
             std::uint8_t castHelper(const std::uint8_t dim, const int& mod);
@@ -116,9 +118,13 @@ namespace Chess {
             void setIdAt(const Pos& pos, const ID& id);
             void setMoveAt(const ID& id, const Pos& pos, const int& i);
             void setMovesIdx(const ID& id, const int& i);
-            void setAttackedAt(const Pos& pos);
+            void setAttackedAt(const Pos& pos, const COLOR& color);
             void setDefendedAt(const Pos& pos);
             void setChecked(const ID& checked, const Direction direction);
+            void promotePawn(const ID& id);
+            void updateMoveLog(const LogEntry& entry);
+
+            COLOR getInvertedColor(const COLOR& color);
 
             void diagonalHelper(const Pos& initial, const Direction& direction, int& i);
             void addDiagonalMoves(const Pos& initial);
