@@ -299,13 +299,13 @@ ClientStatus GameClient::submitMultiplayerGameChat(std::string text) {
     }
 }
 
-ClientStatus GameClient::requestMultiplayerCreateRoom() {
+ClientStatus GameClient::requestMultiplayerCreateRoom(RoomCreateConfig config) {
     if (m_state != ClientState::MultiplayerLobby) {
         return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
     }
 
     try {
-        return m_multiplayerClient.requestCreateRoom();
+        return m_multiplayerClient.requestCreateRoom(std::move(config));
     } catch (const std::exception& e) {
         setFatalError(StatusCode::RuntimeException, e.what());
         return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
@@ -325,26 +325,26 @@ ClientStatus GameClient::requestMultiplayerRefreshRooms() {
     }
 }
 
-ClientStatus GameClient::requestMultiplayerJoinRoomAsPlayer(RoomID roomID) {
+ClientStatus GameClient::requestMultiplayerJoinRoomAsPlayer(RoomID roomID, std::string password) {
     if (m_state != ClientState::MultiplayerLobby) {
         return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
     }
 
     try {
-        return m_multiplayerClient.requestJoinRoomAsPlayer(roomID);
+        return m_multiplayerClient.requestJoinRoomAsPlayer(roomID, std::move(password));
     } catch (const std::exception& e) {
         setFatalError(StatusCode::RuntimeException, e.what());
         return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());
     }
 }
 
-ClientStatus GameClient::requestMultiplayerJoinRoomAsSpectator(RoomID roomID) {
+ClientStatus GameClient::requestMultiplayerJoinRoomAsSpectator(RoomID roomID, std::string password) {
     if (m_state != ClientState::MultiplayerLobby) {
         return ClientStatus::Error(StatusCode::InvalidState, "Not in multiplayer lobby");
     }
 
     try {
-        return m_multiplayerClient.requestJoinRoomAsSpectator(roomID);
+        return m_multiplayerClient.requestJoinRoomAsSpectator(roomID, std::move(password));
     } catch (const std::exception& e) {
         setFatalError(StatusCode::RuntimeException, e.what());
         return ClientStatus::Fatal(StatusCode::RuntimeException, e.what());

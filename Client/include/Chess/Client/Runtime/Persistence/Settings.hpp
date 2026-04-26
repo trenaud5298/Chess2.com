@@ -11,6 +11,7 @@
 
 // Chess Includes
 #include <Chess/Client/Common/ServerInfo.hpp>
+#include <Chess/Core/UI/BoardTheme.hpp>
 
 // TOML Includes
 #include <toml++/toml.hpp>
@@ -22,6 +23,7 @@
 #include <utility>
 #include <vector>
 #include <atomic>
+
 
 namespace Chess {
 class Settings {
@@ -53,8 +55,8 @@ public:
     void setUsername(const std::string& value);
 
     // Board
-    std::uint8_t getBoardScale() const;
-    void setBoardScale(std::uint8_t value);
+    BoardTheme getBoardTheme() const;
+    void setBoardTheme(const BoardTheme& value);
 
     // Network
     std::vector<ServerInfo> getServers() const;

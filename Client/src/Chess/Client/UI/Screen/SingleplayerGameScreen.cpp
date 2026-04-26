@@ -51,6 +51,9 @@ ftxui::Component SingleplayerGameScreen::getComponent() {
 
 void SingleplayerGameScreen::onEnter() {
     SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
+
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+
     m_boardDisplay->setFlipped(view.playerColor == COLOR::BLACK);
     m_boardDisplay->updateBoard(view.board->getBoard());
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));

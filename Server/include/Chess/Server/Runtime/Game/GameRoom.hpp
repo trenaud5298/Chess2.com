@@ -87,7 +87,7 @@ struct GameRoomView {
 
 class GameRoom {
 public:
-    explicit GameRoom(RoomID roomID, SessionID creatorSessionID, ChessClockConfig clockConfig = {});
+    explicit GameRoom(RoomID roomID, SessionID creatorSessionID, RoomCreateConfig config = {});
     ~GameRoom();
 
     GameRoom(const GameRoom&) = delete;
@@ -98,6 +98,8 @@ public:
     // View Helpers
     [[nodiscard]] RoomID roomID() const noexcept;
     [[nodiscard]] GameRoomState state() const noexcept;
+    [[nodiscard]] const RoomCreateConfig& config() const noexcept;
+    [[nodiscard]] PublicRoomConfig publicConfig() const noexcept;
     [[nodiscard]] std::uint64_t roomVersion() const noexcept;
     [[nodiscard]] GameRoomRole roleOf(SessionID sessionID) const noexcept;
     [[nodiscard]] PlayerSide sideOf(SessionID sessionID) const noexcept;
@@ -133,6 +135,7 @@ private:
 
 private:
     RoomID m_roomID;
+    RoomCreateConfig m_config;
     GameRoomState m_state{GameRoomState::WaitingForPlayers};
     std::uint64_t m_roomVersion{0};
 

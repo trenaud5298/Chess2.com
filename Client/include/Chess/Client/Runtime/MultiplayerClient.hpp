@@ -89,10 +89,10 @@ public:
     [[nodiscard]] ClientStatus requestDisconnect();
     [[nodiscard]] ClientStatus requestSendGlobalChat(std::string text);
     [[nodiscard]] ClientStatus requestSendGameChat(std::string text);
-    [[nodiscard]] ClientStatus requestCreateRoom();
+    [[nodiscard]] ClientStatus requestCreateRoom(RoomCreateConfig config);
     [[nodiscard]] ClientStatus requestRefreshRooms();
-    [[nodiscard]] ClientStatus requestJoinRoomAsPlayer(RoomID roomID);
-    [[nodiscard]] ClientStatus requestJoinRoomAsSpectator(RoomID roomID);
+    [[nodiscard]] ClientStatus requestJoinRoomAsPlayer(RoomID roomID, std::string password = {});
+    [[nodiscard]] ClientStatus requestJoinRoomAsSpectator(RoomID roomID, std::string password = {});
     [[nodiscard]] ClientStatus requestLeaveRoom();
     [[nodiscard]] ClientStatus requestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
 
@@ -126,10 +126,10 @@ private:
     void doRequestDisconnect();
     void doRequestSendGlobalChat(std::string text);
     void doRequestSendGameChat(std::string text);
-    void doRequestCreateRoom();
+    void doRequestCreateRoom(RoomCreateConfig config);
     void doRequestRefreshRooms();
-    void doRequestJoinRoomAsPlayer(RoomID roomID);
-    void doRequestJoinRoomAsSpectator(RoomID roomID);
+    void doRequestJoinRoomAsPlayer(RoomID roomID, std::string password);
+    void doRequestJoinRoomAsSpectator(RoomID roomID, std::string password);
     void doRequestLeaveRoom();
     void doRequestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
 

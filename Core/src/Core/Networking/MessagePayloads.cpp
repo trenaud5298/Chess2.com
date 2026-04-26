@@ -33,8 +33,83 @@ bool tryReadDurationMs(Message& msg, std::chrono::milliseconds& value) {
     return true;
 }
 
+void pushSpectatorConfig(Message& msg, const RoomSpectatorConfig& value) {
+    msg.push(value.allowSpectators);
+    msg.push(value.spectatorsCanChat);
+    msg.push(value.maxSpectators);
+    msg.push(value.allowMidgameJoin);
+}
+
+bool tryReadSpectatorConfig(Message& msg, RoomSpectatorConfig& value) {
+    return msg.tryRead(value.allowSpectators) &&
+           msg.tryRead(value.spectatorsCanChat) &&
+           msg.tryRead(value.maxSpectators) &&
+           msg.tryRead(value.allowMidgameJoin);
+}
+
+void pushRoomGameConfig(Message& msg, const RoomGameConfig& value) {
+    msg.push(value.clock.enabled);
+    pushDurationMs(msg, value.clock.initialTime);
+    pushDurationMs(msg, value.clock.increment);
+}
+
+bool tryReadRoomGameConfig(Message& msg, RoomGameConfig& value) {
+    return msg.tryRead(value.clock.enabled) &&
+           tryReadDurationMs(msg, value.clock.initialTime) &&
+           tryReadDurationMs(msg, value.clock.increment);
+}
+
+void pushRoomPresentationConfig(Message& msg, const RoomPresentationConfig& value) {
+    msg.pushString(value.name);
+}
+
+bool tryReadRoomPresentationConfig(Message& msg, RoomPresentationConfig& value) {
+    return msg.tryReadString(value.name);
+}
+
+void pushRoomAccessConfig(Message& msg, const RoomAccessConfig& value) {
+    msg.pushString(value.password);
+    msg.push(value.visibleInLobby);
+}
+
+bool tryReadRoomAccessConfig(Message& msg, RoomAccessConfig& value) {
+    return msg.tryReadString(value.password) &&
+           msg.tryRead(value.visibleInLobby);
+}
+
+void pushRoomCreateConfig(Message& msg, const RoomCreateConfig& value) {
+    pushSpectatorConfig(msg, value.spectator);
+    pushRoomGameConfig(msg, value.game);
+    pushRoomPresentationConfig(msg, value.presentation);
+    pushRoomAccessConfig(msg, value.access);
+}
+
+bool tryReadRoomCreateConfig(Message& msg, RoomCreateConfig& value) {
+    return tryReadSpectatorConfig(msg, value.spectator) &&
+           tryReadRoomGameConfig(msg, value.game) &&
+           tryReadRoomPresentationConfig(msg, value.presentation) &&
+           tryReadRoomAccessConfig(msg, value.access);
+}
+
+void pushPublicRoomConfig(Message& msg, const PublicRoomConfig& value) {
+    pushSpectatorConfig(msg, value.spectator);
+    pushRoomGameConfig(msg, value.game);
+    pushRoomPresentationConfig(msg, value.presentation);
+    msg.push(value.passwordProtected);
+    msg.push(value.visibleInLobby);
+}
+
+bool tryReadPublicRoomConfig(Message& msg, PublicRoomConfig& value) {
+    return tryReadSpectatorConfig(msg, value.spectator) &&
+           tryReadRoomGameConfig(msg, value.game) &&
+           tryReadRoomPresentationConfig(msg, value.presentation) &&
+           msg.tryRead(value.passwordProtected) &&
+           msg.tryRead(value.visibleInLobby);
+}
+
 void pushRoomSummary(Message& msg, const RoomSummary& value) {
     msg.push(value.roomID);
+    pushPublicRoomConfig(msg, value.config);
     msg.pushString(value.whitePlayerName);
     msg.pushString(value.blackPlayerName);
     msg.push(value.spectatorCount);
@@ -44,6 +119,7 @@ void pushRoomSummary(Message& msg, const RoomSummary& value) {
 
 bool tryReadRoomSummary(Message& msg, RoomSummary& value) {
     return msg.tryRead(value.roomID) &&
+           tryReadPublicRoomConfig(msg, value.config) &&
            msg.tryReadString(value.whitePlayerName) &&
            msg.tryReadString(value.blackPlayerName) &&
            msg.tryRead(value.spectatorCount) &&
@@ -217,11 +293,13 @@ std::optional<Command> Command::fromMessage(Message& msg) {
 // CreateRoomRequest
 Message CreateRoomRequest::toMessage() const {
     Message msg(MessageType::CreateRoomRequest);
+    pushRoomCreateConfig(msg, config);
     return msg;
 }
 
 std::shared_ptr<Message> CreateRoomRequest::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::CreateRoomRequest);
+    pushRoomCreateConfig(*msg, config);
     return msg;
 }
 
@@ -231,6 +309,10 @@ std::optional<CreateRoomRequest> CreateRoomRequest::fromMessage(Message& msg) {
 
     std::size_t start = msg.getReadOffset();
     CreateRoomRequest data;
+    if (!tryReadRoomCreateConfig(msg, data.config)) {
+        msg.setReadOffset(start);
+        return std::nullopt;
+    }
     return data;
 }
 
@@ -350,6 +432,7 @@ Message JoinRoomRequest::toMessage() const {
     Message msg(MessageType::JoinRoomRequest);
     msg.push(roomID);
     msg.push(spectator);
+    msg.pushString(password);
     return msg;
 }
 
@@ -357,6 +440,7 @@ std::shared_ptr<Message> JoinRoomRequest::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::JoinRoomRequest);
     msg->push(roomID);
     msg->push(spectator);
+    msg->pushString(password);
     return msg;
 }
 
@@ -367,7 +451,7 @@ std::optional<JoinRoomRequest> JoinRoomRequest::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     JoinRoomRequest data;
 
-    if (!msg.tryRead(data.roomID) || !msg.tryRead(data.spectator)) {
+    if (!msg.tryRead(data.roomID) || !msg.tryRead(data.spectator) || !msg.tryReadString(data.password)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }
@@ -503,6 +587,7 @@ std::optional<MakeMove> MakeMove::fromMessage(Message& msg) {
 Message GameUpdate::toMessage() const {
     Message msg(MessageType::GameUpdate);
     msg.push(roomID);
+    pushPublicRoomConfig(msg, config);
     msg.push(roomVersion);
     msg.pushString(whitePlayerName);
     msg.pushString(blackPlayerName);
@@ -514,6 +599,7 @@ Message GameUpdate::toMessage() const {
 std::shared_ptr<Message> GameUpdate::toSharedMessage() const {
     std::shared_ptr<Message> msg = std::make_shared<Message>(MessageType::GameUpdate);
     msg->push(roomID);
+    pushPublicRoomConfig(*msg, config);
     msg->push(roomVersion);
     msg->pushString(whitePlayerName);
     msg->pushString(blackPlayerName);
@@ -530,9 +616,10 @@ std::optional<GameUpdate> GameUpdate::fromMessage(Message& msg) {
     std::size_t start = msg.getReadOffset();
     GameUpdate data;
 
-    if (!msg.tryRead(data.roomID) || !msg.tryRead(data.roomVersion) ||
-        !msg.tryReadString(data.whitePlayerName) || !msg.tryReadString(data.blackPlayerName) ||
-        !msg.tryRead(data.spectatorCount) || !tryReadChessGameSnapshot(msg, data.snapshot)) {
+    if (!msg.tryRead(data.roomID) || !tryReadPublicRoomConfig(msg, data.config) ||
+        !msg.tryRead(data.roomVersion) || !msg.tryReadString(data.whitePlayerName) ||
+        !msg.tryReadString(data.blackPlayerName) || !msg.tryRead(data.spectatorCount) ||
+        !tryReadChessGameSnapshot(msg, data.snapshot)) {
         msg.setReadOffset(start);
         return std::nullopt;
     }

@@ -16,8 +16,8 @@
 
 namespace Chess {
 
-GameRoom::GameRoom(RoomID roomID, SessionID creatorSessionID, ChessClockConfig chessClockConfig)
-: m_roomID(roomID), m_player1(creatorSessionID), m_game(std::move(chessClockConfig)) {
+GameRoom::GameRoom(RoomID roomID, SessionID creatorSessionID, RoomCreateConfig config)
+: m_roomID(roomID), m_config(std::move(config)), m_player1(creatorSessionID), m_game(m_config.game.clock) {
 }
 
 GameRoom::~GameRoom() {
@@ -30,6 +30,14 @@ RoomID GameRoom::roomID() const noexcept {
 
 GameRoomState GameRoom::state() const noexcept {
     return m_state;
+}
+
+const RoomCreateConfig& GameRoom::config() const noexcept {
+    return m_config;
+}
+
+PublicRoomConfig GameRoom::publicConfig() const noexcept {
+    return PublicRoomConfig(m_config);
 }
 
 std::uint64_t GameRoom::roomVersion() const noexcept {

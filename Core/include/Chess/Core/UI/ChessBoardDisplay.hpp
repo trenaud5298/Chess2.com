@@ -11,6 +11,7 @@
 
 // Chess Includes
 #include <Chess/Core/declarations.hpp>
+#include <Chess/Core/UI/BoardTheme.hpp>
 
 // ASIO Includes
 
@@ -23,7 +24,7 @@
 #include <array>
 #include <functional>
 #include <optional>
-
+#include <string>
 
 namespace Chess {
 
@@ -34,29 +35,40 @@ public:
 
     void updateBoard(const std::array<ID, 64>& board);
     void setFlipped(bool flipped);
-    void setCellSize(int width, int height);
+    void setTheme(const BoardTheme& theme);
+
     std::function<void(Pos from, Pos to)> onMove;
 
     ftxui::Element OnRender() override;
     bool OnEvent(ftxui::Event e) override;
     bool Focusable() const override { return true; }
 
+private:
+    struct RenderMetrics {
+        int cellWidth{6};
+        int cellHeight{3};
+    };
 
 private:
     // Helpers
-    Pos screenToBoard(int displayRow, int displayCol) const;
-    ID getAt(int boardRow, int boardCol) const;
-    bool isEmpty(ID id) const;
-    bool isWhitePiece(ID id) const;
-    static std::string toGlyph(ID id);
+    [[nodiscard]] Pos screenToBoard(int displayRow, int displayCol) const;
+    [[nodiscard]] ID getAt(int boardRow, int boardCol) const;
+    [[nodiscard]] bool isEmpty(ID id) const;
+    [[nodiscard]] bool isWhitePiece(ID id) const;
+    [[nodiscard]] static std::string toGlyph(ID id);
 
     // Event Handling Functions
     void handleSelect(int displayRow, int displayCol);
     void moveCursor(int dRow, int dCol);
 
+    [[nodiscard]] RenderMetrics computeRenderMetrics() const;
+    [[nodiscard]] RenderMetrics renderedMetrics() const;
+    [[nodiscard]] int boardWidth(const RenderMetrics& metrics) const;
+    [[nodiscard]] int boardHeight(const RenderMetrics& metrics) const;
+
     // Rendering Functions
-    ftxui::Element renderBoard() const;
-    ftxui::Element renderCell(int displayRow, int displayCol) const;
+    ftxui::Element renderCell(int displayRow, int displayCol, const RenderMetrics& metrics) const;
+    ftxui::Element renderBoard(const RenderMetrics& metrics) const;
 
 private:
     std::array<ID, 64> m_board{};
@@ -64,11 +76,15 @@ private:
     int m_cursorCol{0};
     std::optional<Pos> m_selected;
     bool m_flipped{false};
-    ftxui::Box m_box;
-    int m_cellWidth{6};
-    int m_cellHeight{3};
+    BoardTheme m_theme{};
 
-    static constexpr int RANK_LABEL_W = 2;
+    ftxui::Box m_outerBox;
+    ftxui::Box m_boardBox;
+
+    static constexpr int RANK_LABEL_WIDTH = 2;
+    static constexpr int FILE_LABEL_HEIGHT = 1;
+    static constexpr int DEFAULT_CELL_WIDTH = 6;
+    static constexpr int DEFAULT_CELL_HEIGHT = 3;
 };
 
 // Ftxui Style Helper

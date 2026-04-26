@@ -51,8 +51,8 @@ public:
     void stop();
 
     // Thread Safe Request Functions
-    void requestCreateRoom(SessionID sessionID);
-    void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
+    void requestCreateRoom(SessionID sessionID, RoomCreateConfig config);
+    void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password);
     void requestListRooms(SessionID sessionID);
     void requestLeaveRoom(SessionID sessionID);
     void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
@@ -60,8 +60,8 @@ public:
 
 private:
     // Strand Version Of Public Request Functions
-    void doRequestCreateRoom(SessionID sessionID);
-    void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator);
+    void doRequestCreateRoom(SessionID sessionID, RoomCreateConfig config);
+    void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password);
     void doRequestListRooms(SessionID sessionID);
     void doRequestLeaveRoom(SessionID sessionID);
     void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);

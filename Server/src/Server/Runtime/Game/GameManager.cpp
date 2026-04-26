@@ -106,12 +106,12 @@ void GameManager::stop() {
     });
 }
 
-void GameManager::requestCreateRoom(SessionID sessionID) {
-    asio::post(m_strand, std::bind_front(&GameManager::doRequestCreateRoom, this, sessionID));
+void GameManager::requestCreateRoom(SessionID sessionID, RoomCreateConfig config) {
+    asio::post(m_strand, std::bind_front(&GameManager::doRequestCreateRoom, this, sessionID, config));
 }
 
-void GameManager::requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator) {
-    asio::post(m_strand, std::bind_front(&GameManager::doRequestJoinRoom, this, sessionID, roomID, spectator));
+void GameManager::requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password) {
+    asio::post(m_strand, std::bind_front(&GameManager::doRequestJoinRoom, this, sessionID, roomID, spectator, std::move(password)));
 }
 
 void GameManager::requestListRooms(SessionID sessionID) {
@@ -130,7 +130,7 @@ void GameManager::requestGameChat(SessionID sessionID, std::shared_ptr<const Mes
     asio::post(m_strand, std::bind_front(&GameManager::doRequestGameChat, this, sessionID, message));
 }
 
-void GameManager::doRequestCreateRoom(SessionID sessionID) {
+void GameManager::doRequestCreateRoom(SessionID sessionID, RoomCreateConfig config) {
     if (m_state != LifecycleState::RUNNING) {
         return;
     }
@@ -141,7 +141,7 @@ void GameManager::doRequestCreateRoom(SessionID sessionID) {
     }
 
     RoomID roomID = m_nextRoomID++;
-    std::shared_ptr<GameRoom> room = std::make_shared<GameRoom>(roomID, sessionID);
+    std::shared_ptr<GameRoom> room = std::make_shared<GameRoom>(roomID, sessionID, std::move(config));
 
     m_roomIDToRoom.emplace(roomID, room);
     bindSessionToRoom(sessionID, roomID);
@@ -154,7 +154,7 @@ void GameManager::doRequestCreateRoom(SessionID sessionID) {
     sendGameUpdate(*room);
 }
 
-void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator) {
+void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password) {
     if (m_state != LifecycleState::RUNNING) {
         return;
     }
@@ -168,6 +168,30 @@ void GameManager::doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spe
     if (!room) {
         sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room does not exist");
         return;
+    }
+
+    const RoomCreateConfig& config = room->config();
+
+    if (!config.access.password.empty() && config.access.password != password) {
+        sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Password does not match");
+        return;
+    }
+
+    if (spectator) {
+        if (!config.spectator.allowSpectators) {
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room does not allow spectator");
+            return;
+        }
+
+        if (!config.spectator.allowMidgameJoin && room->state() == GameRoomState::InProgress) {
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room does not allow spectator midgame");
+            return;
+        }
+
+        if (config.spectator.maxSpectators != 0 && room->spectatorSessionIDs().size() >= config.spectator.maxSpectators) {
+            sendJoinRoomResponse(sessionID, false, roomID, RoomMemberType::None, COLOR::EMPTY, "Room has already reached max spectators");
+            return;
+        }
     }
 
     JoinRoomResult joinResult = spectator ? room->joinSpectator(sessionID) : room->joinPlayer(sessionID, std::chrono::steady_clock::now());
@@ -207,7 +231,9 @@ void GameManager::doRequestListRooms(SessionID sessionID) {
     rooms.reserve(m_roomIDToRoom.size());
 
     for (const auto& room : m_roomIDToRoom | std::views::values) {
-        rooms.push_back(makeRoomSummary(*room));
+        if (room->config().access.visibleInLobby && room->state() != GameRoomState::GameOver) {
+            rooms.push_back(makeRoomSummary(*room));
+        }
     }
     std::sort(rooms.begin(), rooms.end(), [](const RoomSummary& a, const RoomSummary& b) {
         return a.roomID < b.roomID;
@@ -283,7 +309,7 @@ void GameManager::doRequestGameChat(SessionID sessionID, std::shared_ptr<const M
         return;
     }
 
-    if (room->roleOf(sessionID) == GameRoomRole::Spectator) {
+    if (room->roleOf(sessionID) == GameRoomRole::Spectator && !room->config().spectator.spectatorsCanChat) {
         sendRoomError(sessionID, "Spectators cannot send game chat");
         return;
     }
@@ -405,6 +431,7 @@ void GameManager::sendGameUpdate(const GameRoom& room) {
 RoomSummary GameManager::makeRoomSummary(const GameRoom& room) const {
     return {
         .roomID = room.roomID(),
+        .config = room.publicConfig(),
         .whitePlayerName = sessionName(room.player1()),
         .blackPlayerName = sessionName(room.player2()),
         .spectatorCount = static_cast<std::uint16_t>(room.spectatorSessionIDs().size()),
@@ -416,6 +443,7 @@ RoomSummary GameManager::makeRoomSummary(const GameRoom& room) const {
 GameUpdate GameManager::makeGameUpdate(const GameRoom& room) const {
     return {
         .roomID = room.roomID(),
+        .config = room.publicConfig(),
         .roomVersion = room.roomVersion(),
         .whitePlayerName = sessionName(room.player1()),
         .blackPlayerName = sessionName(room.player2()),

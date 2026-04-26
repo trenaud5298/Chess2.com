@@ -144,6 +144,8 @@ void MultiplayerGameScreen::onEnter() {
     m_clientPanel.setTickRate(std::chrono::milliseconds(50));
     m_appliedGameVersion.reset();
 
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+
     refreshSnapshot();
     syncBoardFromSnapshot();
 

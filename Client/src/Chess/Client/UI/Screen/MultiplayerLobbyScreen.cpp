@@ -11,6 +11,8 @@
 #include <Chess/Client/UI/ClientPanel.hpp>
 #include <Chess/Client/UI/Component/ChatPane.hpp>
 #include <Chess/Client/Runtime/GameClient.hpp>
+#include <Chess/Client/UI/Modal/CreateRoomModal.hpp>
+#include <Chess/Client/UI/Modal/JoinRoomModal.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
@@ -20,7 +22,9 @@
 #include <chrono>
 #include <utility>
 
+
 namespace Chess {
+
 MultiplayerLobbyScreen::MultiplayerLobbyScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel) {
     m_globalChatPane = std::make_unique<ChatPane>(ChatPaneConfig{
         .logAccessor = [this]() -> const ThreadSafeClientChatLog& {
@@ -177,7 +181,21 @@ bool MultiplayerLobbyScreen::canJoinAsSpectator() const {
     if (m_view.room.joined) {
         return false;
     }
-    return selectedRoom().has_value();
+    auto room = selectedRoom();
+    if (!room.has_value()) {
+        return false;
+    }
+    if (!room->config.spectator.allowSpectators) {
+        return false;
+    }
+    if (!room->config.spectator.allowMidgameJoin && room->inProgress) {
+        return false;
+    }
+    if (room->config.spectator.maxSpectators != 0 && room->spectatorCount >= room->config.spectator.maxSpectators) {
+        return false;
+    }
+
+    return true;
 }
 
 ftxui::Element MultiplayerLobbyScreen::renderRoomEntry(const ftxui::EntryState &state) {
@@ -190,12 +208,19 @@ ftxui::Element MultiplayerLobbyScreen::renderRoomEntry(const ftxui::EntryState &
     bool isHovered = state.focused;
     bool isSelected = m_selectedRoom.has_value() && *m_selectedRoom == room.roomID;
 
-    std::string stateText = room.inProgress ? "In Progress" : "Waiting";
+    std::string roomLabel = std::to_string(room.roomID);
+    std::string nameLabel = room.config.presentation.name.empty() ? "Untitled Room" : room.config.presentation.name;
+    std::string accessLabel = room.config.passwordProtected ? "Private" : "Public";
+    std::string statusLabel = room.inProgress ? "In Progress" : "Waiting";
 
     ftxui::Element row = ftxui::hbox({
-        ftxui::text("Room " + std::to_string(room.roomID)) | ftxui::bold,
-        ftxui::filler(),
-        ftxui::text(stateText) | (room.inProgress ? ftxui::color(ftxui::Color::Yellow) : ftxui::dim)
+        ftxui::text(roomLabel) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 8),
+        ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+        ftxui::text(nameLabel) | ftxui::flex,
+        ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+        ftxui::text(accessLabel) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 10) | ftxui::color((room.config.passwordProtected ? ftxui::Color::Yellow : ftxui::Color::Green)),
+        ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+        ftxui::text(statusLabel) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 14) | ftxui::color((room.inProgress ? ftxui::Color::Yellow : ftxui::Color::Green)),
     });
 
     if (isHovered) {
@@ -203,12 +228,10 @@ ftxui::Element MultiplayerLobbyScreen::renderRoomEntry(const ftxui::EntryState &
     }
 
     if (isSelected) {
-        row |= ftxui::border;
+        return ftxui::vbox({ftxui::separator(), row, ftxui::separator()});
     } else {
-        row |= ftxui::borderEmpty;
+        return ftxui::vbox({ftxui::separatorEmpty(), row, ftxui::separatorEmpty()});
     }
-
-    return row;
 }
 
 
@@ -287,15 +310,17 @@ ftxui::Component MultiplayerLobbyScreen::buildComponent() {
         if (!canCreateRoom()) {
             return;
         }
-        m_clientPanel.handleStatus(
-            m_clientPanel.gameClient().requestMultiplayerCreateRoom(),
-            "Unable To Create Room", ResultPolicy::Modal
-        );
+        m_clientPanel.pushModal(std::make_unique<CreateRoomModal>(m_clientPanel));
     }, createButtonOption);
 
     auto joinButton = ftxui::Button("Join Player", [this]() {
         std::optional<RoomSummary> room = selectedRoom();
         if (!room.has_value()) {
+            return;
+        }
+
+        if (room->config.passwordProtected) {
+            m_clientPanel.pushModal(std::make_unique<JoinRoomModal>(m_clientPanel, *room, false));
             return;
         }
 
@@ -305,9 +330,14 @@ ftxui::Component MultiplayerLobbyScreen::buildComponent() {
         );
     }, joinButtonOption);
 
-    auto spectateButton = ftxui::Button("Join Specatator", [this]() {
+    auto spectateButton = ftxui::Button("Join Spectator", [this]() {
         std::optional<RoomSummary> room = selectedRoom();
         if (!room.has_value()) {
+            return;
+        }
+
+        if (room->config.passwordProtected) {
+            m_clientPanel.pushModal(std::make_unique<JoinRoomModal>(m_clientPanel, *room, true));
             return;
         }
 
@@ -338,6 +368,16 @@ ftxui::Component MultiplayerLobbyScreen::buildComponent() {
     return ftxui::Renderer(layout, [this, roomMenuEventCatcher, refreshButton, createButton, joinButton, spectateButton]() {
         std::optional<RoomSummary> room = selectedRoom();
 
+        ftxui::Element roomTableHeader = ftxui::hbox({
+            ftxui::text("Room") | ftxui::bold | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 8),
+            ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+            ftxui::text("Name") | ftxui::bold | ftxui::flex,
+            ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+            ftxui::text("Access") | ftxui::bold | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 10),
+            ftxui::separatorEmpty() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 1),
+            ftxui::text("Status") | ftxui::bold | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 14)
+        });
+
         ftxui::Element roomList;
         if (m_view.lobby.refreshInProgress) {
             roomList = ftxui::text("Loading...") | ftxui::dim | ftxui::center | ftxui::flex;
@@ -355,27 +395,30 @@ ftxui::Component MultiplayerLobbyScreen::buildComponent() {
                 ftxui::text("Highlight a room to inspect it") | ftxui::dim
             });
         } else {
+            std::string roomName = room->config.presentation.name.empty() ? "Untitled Room" : room->config.presentation.name;
             std::string whiteName = room->whitePlayerName.empty() ? "Open Seat" : room->whitePlayerName;
             std::string blackName = room->blackPlayerName.empty() ? "Open Seat" : room->blackPlayerName;
-            std::string stateText = room->inProgress ? "In Progress" : "Waiting For Players";
-            std::string seatText = room->hasOpenPlayerSeat ? "Open player seat available" : "No open player seats";
 
             roomDetails = ftxui::hbox({
                 ftxui::vbox({
                     ftxui::text("Room ID: " + std::to_string(room->roomID)),
+                    ftxui::text("Name: " + roomName),
                     ftxui::text("White: " + whiteName),
                     ftxui::text("Black: " + blackName),
                 }),
                 ftxui::filler(),
                 ftxui::vbox({
+                    ftxui::text("Access: " + std::string(room->config.passwordProtected ? "Private" : "Public")),
                     ftxui::text("Spectators: " + std::to_string(room->spectatorCount)),
-                    ftxui::text("Status: " + stateText),
-                    ftxui::text(seatText) | (room->hasOpenPlayerSeat ? ftxui::color(ftxui::Color::Green) : ftxui::dim)
+                    ftxui::text("Open Seat: " + std::string(room->hasOpenPlayerSeat ? "Yes" : "No")),
+                    ftxui::text("Game: " + std::string(room->inProgress ? "In Progress" : "Waiting"))
                 })
             });
         }
 
         auto rightPane = ftxui::vbox({
+            roomTableHeader,
+            ftxui::separator(),
             roomList | ftxui::flex | ftxui::yflex,
             ftxui::separator(),
             roomDetails,

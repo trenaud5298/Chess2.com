@@ -109,12 +109,12 @@ ClientStatus MultiplayerClient::requestSendGameChat(std::string text) {
     return ClientStatus::Success();
 }
 
-ClientStatus MultiplayerClient::requestCreateRoom() {
+ClientStatus MultiplayerClient::requestCreateRoom(RoomCreateConfig config) {
     if (state() != MultiplayerState::Connected) {
         return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
     }
     asio::post(m_strand, std::bind_front(
-        &MultiplayerClient::doRequestCreateRoom, this
+        &MultiplayerClient::doRequestCreateRoom, this, config
     ));
     return ClientStatus::Success();
 }
@@ -129,22 +129,22 @@ ClientStatus MultiplayerClient::requestRefreshRooms() {
     return ClientStatus::Success();
 }
 
-ClientStatus MultiplayerClient::requestJoinRoomAsPlayer(RoomID roomID) {
+ClientStatus MultiplayerClient::requestJoinRoomAsPlayer(RoomID roomID, std::string password) {
     if (state() != MultiplayerState::Connected) {
         return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
     }
     asio::post(m_strand, std::bind_front(
-        &MultiplayerClient::doRequestJoinRoomAsPlayer, this, roomID
+        &MultiplayerClient::doRequestJoinRoomAsPlayer, this, roomID, std::move(password)
     ));
     return ClientStatus::Success();
 }
 
-ClientStatus MultiplayerClient::requestJoinRoomAsSpectator(RoomID roomID) {
+ClientStatus MultiplayerClient::requestJoinRoomAsSpectator(RoomID roomID, std::string password) {
     if (state() != MultiplayerState::Connected) {
         return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
     }
     asio::post(m_strand, std::bind_front(
-        &MultiplayerClient::doRequestJoinRoomAsSpectator, this, roomID
+        &MultiplayerClient::doRequestJoinRoomAsSpectator, this, roomID, std::move(password)
     ));
     return ClientStatus::Success();
 }
@@ -412,7 +412,7 @@ void MultiplayerClient::doRequestSendGameChat(std::string text) {
 }
 
 
-void MultiplayerClient::doRequestCreateRoom() {
+void MultiplayerClient::doRequestCreateRoom(RoomCreateConfig config) {
     if (m_state != MultiplayerState::Connected) {
         emitResult(EventType::MultiplayerRoomCreate, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
         return;
@@ -422,7 +422,7 @@ void MultiplayerClient::doRequestCreateRoom() {
         return;
     }
 
-    ClientStatus status = queueSend(CreateRoomRequest{}.toSharedMessage());
+    ClientStatus status = queueSend(CreateRoomRequest{.config = std::move(config)}.toSharedMessage());
     if (!status) {
         emitResult(EventType::MultiplayerRoomCreate, std::move(status));
     }
@@ -446,7 +446,7 @@ void MultiplayerClient::doRequestRefreshRooms() {
 }
 
 
-void MultiplayerClient::doRequestJoinRoomAsPlayer(RoomID roomID) {
+void MultiplayerClient::doRequestJoinRoomAsPlayer(RoomID roomID, std::string password) {
     if (m_state != MultiplayerState::Connected) {
         emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
         return;
@@ -457,14 +457,14 @@ void MultiplayerClient::doRequestJoinRoomAsPlayer(RoomID roomID) {
         return;
     }
 
-    JoinRoomRequest request{.roomID = roomID, .spectator = false};
+    JoinRoomRequest request{.roomID = roomID, .spectator = false, .password = std::move(password)};
     ClientStatus status = queueSend(request.toSharedMessage());
     if (!status) {
         emitResult(EventType::MultiplayerRoomJoin, std::move(status));
     }
 }
 
-void MultiplayerClient::doRequestJoinRoomAsSpectator(RoomID roomID) {
+void MultiplayerClient::doRequestJoinRoomAsSpectator(RoomID roomID, std::string password) {
     if (m_state != MultiplayerState::Connected) {
         emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
         return;
@@ -475,7 +475,7 @@ void MultiplayerClient::doRequestJoinRoomAsSpectator(RoomID roomID) {
         return;
     }
 
-    JoinRoomRequest request{.roomID = roomID, .spectator = true};
+    JoinRoomRequest request{.roomID = roomID, .spectator = true, .password = std::move(password)};
     ClientStatus status = queueSend(request.toSharedMessage());
     if (!status) {
         emitResult(EventType::MultiplayerRoomJoin, std::move(status));

@@ -301,7 +301,7 @@ void Session::handle(const CreateRoomRequest& payload) {
         return;
     }
 
-    m_gameServer.gameManager().requestCreateRoom(view.id);
+    m_gameServer.gameManager().requestCreateRoom(view.id, payload.config);
 }
 
 void Session::handle(const JoinRoomRequest& payload) {
@@ -311,7 +311,7 @@ void Session::handle(const JoinRoomRequest& payload) {
         return;
     }
 
-    m_gameServer.gameManager().requestJoinRoom(view.id, payload.roomID, payload.spectator);
+    m_gameServer.gameManager().requestJoinRoom(view.id, payload.roomID, payload.spectator, payload.password);
 }
 
 void Session::handle(const ListRoomsRequest &payload) {

@@ -30,8 +30,49 @@ enum class RoomMemberType : std::uint8_t {
     Spectator = 2
 };
 
+struct RoomSpectatorConfig {
+    bool allowSpectators{true};
+    bool spectatorsCanChat{false};
+    std::uint16_t maxSpectators{0}; // 0 is unlimited
+    bool allowMidgameJoin{true};
+};
+
+struct RoomGameConfig {
+    ChessClockConfig clock{};
+};
+
+struct RoomPresentationConfig {
+    std::string name;
+};
+
+struct RoomAccessConfig {
+    std::string password; // Empty is No Password (Public)
+    bool visibleInLobby{true};
+};
+
+struct RoomCreateConfig {
+    RoomSpectatorConfig spectator{};
+    RoomGameConfig game{};
+    RoomPresentationConfig presentation{};
+    RoomAccessConfig access{};
+};
+
+struct PublicRoomConfig {
+    RoomSpectatorConfig spectator{};
+    RoomGameConfig game{};
+    RoomPresentationConfig presentation{};
+    bool passwordProtected{false};
+    bool visibleInLobby{true};
+
+    PublicRoomConfig() = default;
+    explicit PublicRoomConfig(const RoomCreateConfig& config)
+    : spectator(config.spectator), game(config.game), presentation(config.presentation),
+    passwordProtected(!config.access.password.empty()), visibleInLobby(config.access.visibleInLobby) {}
+};
+
 struct RoomSummary {
     RoomID roomID{0};
+    PublicRoomConfig config{};
     std::string whitePlayerName;
     std::string blackPlayerName;
     std::uint16_t spectatorCount{0};
@@ -84,8 +125,11 @@ struct Command {
     static std::optional<Command> fromMessage(Message& msg);
 };
 
+
 struct CreateRoomRequest {
     static constexpr MessageType type = MessageType::CreateRoomRequest;
+
+    RoomCreateConfig config{};
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -129,6 +173,7 @@ struct JoinRoomRequest {
 
     RoomID roomID;
     bool spectator{false};
+    std::string password;
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -185,7 +230,8 @@ struct GameUpdate {
     static constexpr MessageType type = MessageType::GameUpdate;
 
     // define later
-    RoomID roomID;
+    RoomID roomID{0};
+    PublicRoomConfig config{};
     std::uint64_t roomVersion{0};
     std::string whitePlayerName;
     std::string blackPlayerName;
