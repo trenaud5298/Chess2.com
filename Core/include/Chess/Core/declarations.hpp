@@ -25,6 +25,7 @@
 #define MAX_MOVES_QUEEN 27
 #define MAX_MOVES_KING 8
 #define MAX_MOVES (16*MAX_MOVES_PAWN + 4*MAX_MOVES_KNIGHT + 4*MAX_MOVES_BISHOP + 4*MAX_MOVES_ROOK + 2*MAX_MOVES_QUEEN + 2*MAX_MOVES_KING)
+#define MAX_MOVES_THEORETICAL (18*MAX_MOVES_QUEEN + 4*MAX_MOVES_KNIGHT + 4*MAX_MOVES_BISHOP + 4*MAX_MOVES_ROOK + 2*MAX_MOVES_KING) // will never be this large, but I dont feel like calculating the actual value, so this doesn't hurt
 
 // Pos is {row, col} or {a-f(0-7), 0-7}
 using Pos = std::array<std::uint8_t, 2>;
@@ -123,6 +124,11 @@ struct LogEntry {
     Pos from;
     Pos to;
     bool taken;
+};
+
+struct TypeMoves {
+    Type type;
+    std::uint8_t maxMoves;
 };
 
 #endif

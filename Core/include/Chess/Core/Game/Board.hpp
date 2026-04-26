@@ -74,7 +74,8 @@ namespace Chess {
             std::array<ID, 64> m_board;
             //Piece position is indexed at m_pieces[Piece-1]
             std::array<Piece, 32> m_pieceArr;
-            std::array<Pos, MAX_MOVES> m_moves;
+            //std::array<Pos, MAX_MOVES> m_moves;
+            std::vector<Pos> m_moves;
             std::array<int, 32> m_moveOffset;
 
             std::vector<bool> m_defended;
@@ -91,11 +92,15 @@ namespace Chess {
 
             const std::set<Type> m_diagonalSet;
             const std::set<Type> m_cardinalSet;
+            const std::array<Type, 4> m_promotionWhite;
+            const std::array<Type, 4> m_promotionBlack;
+            const std::array<std::uint8_t, 4> m_promotionMoves;
 
             bool m_isWhiteTurn;
             bool m_isWhiteChecked;
             bool m_isBlackChecked;
             CriticalPiece m_checked;
+            std::set<ID> m_promotedPawnSet;
 
             bool isInBoard(const Pos& pos);
             ID& getIdAt(const Pos& pos);
@@ -112,8 +117,12 @@ namespace Chess {
             bool isAttackedAt(const Pos& pos, const COLOR& color);
             bool isDefendedAt(const Pos& pos);
             bool isValidMod(const int& val, const int& mod);
+            bool isPawnPromotable();
+            bool isPawnId(const ID& id);
             std::uint8_t castHelper(const std::uint8_t dim, const int& mod);
             const std::set<Type>* getMatchingSet(const Direction& direction);
+            bool isFiftyMoves();
+            bool isThreefoldRepetition(); // may not even implement
 
             void setIdAt(const Pos& pos, const ID& id);
             void setMoveAt(const ID& id, const Pos& pos, const int& i);
@@ -121,10 +130,12 @@ namespace Chess {
             void setAttackedAt(const Pos& pos, const COLOR& color);
             void setDefendedAt(const Pos& pos);
             void setChecked(const ID& checked, const Direction direction);
-            void promotePawn(const ID& id);
+            void promotePawn();
             void updateMoveLog(const LogEntry& entry);
-
             COLOR getInvertedColor(const COLOR& color);
+            TypeMoves getPromotionChoice(const COLOR& color);
+            const std::array<Type, 4>* getPromotionArr(const COLOR& color);
+            void genMoveOffsets();
 
             void diagonalHelper(const Pos& initial, const Direction& direction, int& i);
             void addDiagonalMoves(const Pos& initial);

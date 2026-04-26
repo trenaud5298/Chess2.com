@@ -88,7 +88,7 @@ namespace Chess {
                 {Pos({6,6}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
                 {Pos({6,7}), Type::B_PAWN, MAX_MOVES_PAWN, 0},
         }),
-        m_moves(),
+        m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
         m_defended(64, false),
         m_attackedWhite(64, false),
@@ -96,6 +96,9 @@ namespace Chess {
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_promotionWhite({Type::W_ROOK, Type::W_KNIGHT, Type::W_BISHOP, Type::W_QUEEN}),
+        m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
+        m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
         m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_moveLog(),
         m_mods({
@@ -109,14 +112,11 @@ namespace Chess {
                 std::pair(-1,-1),
                 })
         {
-            m_moveOffset[0] = 0;
-            for(int i = 1; i < m_pieceArr.size(); i++) {
-                m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
-            }
+            m_moves.reserve(MAX_MOVES_THEORETICAL);
+            genMoveOffsets();
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
-            m_moves.fill({8,8});
             m_pinnedArr.fill({8,8});
             m_moveLog.reserve(50);
         }
@@ -124,7 +124,7 @@ namespace Chess {
     Board::Board(const std::array<ID, 64>& board, const std::array<Piece, 32>& pieces) : 
         m_board(board), 
         m_pieceArr(pieces),
-        m_moves(),
+        m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
         m_defended(64, false),
         m_attackedWhite(64, false),
@@ -132,6 +132,9 @@ namespace Chess {
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_promotionWhite({Type::W_ROOK, Type::W_KNIGHT, Type::W_BISHOP, Type::W_QUEEN}),
+        m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
+        m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
         m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_moveLog(),
         m_mods({
@@ -145,14 +148,11 @@ namespace Chess {
                 std::pair(-1,-1),
                 })
     {
-            m_moveOffset[0] = 0;
-            for(int i = 1; i < m_pieceArr.size(); i++) {
-                m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
-            }
+            m_moves.reserve(MAX_MOVES_THEORETICAL);
+            genMoveOffsets();
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
-            m_moves.fill({8,8});
             m_pinnedArr.fill({8,8});
             m_moveLog.reserve(50);
     }
@@ -182,6 +182,13 @@ namespace Chess {
 
     Type Board::getTypeAt(const Pos& pos) {
         return m_pieceArr[(int)getIdAt(pos)-1].type;
+    }
+
+    void Board::genMoveOffsets() {
+        m_moveOffset[0] = 0;
+        for(int i = 1; i < m_pieceArr.size(); i++) {
+            m_moveOffset[i] = m_moveOffset[i-1] + m_pieceArr[i-1].reserved;
+        }
     }
 
     std::string typeToString(const Type& type) {
@@ -251,12 +258,97 @@ namespace Chess {
     }
 
     void Board::updateMoveLog(const LogEntry& entry) {
-        if( m_moveLog.size() != 0 ) {
+        const int size = m_moveLog.size();
+        if( size != 0 && size == 50) {
             std::rotate(m_moveLog.begin(), m_moveLog.end()-1, m_moveLog.end());
+            m_moveLog[0] = entry;
+        } else if( size != 0 ) {
+            m_moveLog.push_back(m_moveLog[size-1]);
+            if( size > 1 ) {
+                // Shift contents of m_moveLog to the right by one
+                for(int i = size-2; i >= 0; i--) {
+                    m_moveLog[i+1] = m_moveLog[i];
+                }
+            }
             m_moveLog[0] = entry;
         } else {
             m_moveLog.push_back(entry);
         }
+    }
+
+    bool Board::isPawnId(const ID& id) {
+        bool flag = false;
+        const int castedId = (int) id;
+        if( 8 < castedId && castedId < 17 || 24 < castedId && castedId < 33 ) {
+            flag = true;
+        }
+        return flag;
+    }
+
+    /* Returns true if the 50 move no take rule applies to the game state */
+    bool Board::isFiftyMoves() {
+        if( m_moveLog.size() != 50 ) {
+            return false;
+        }
+        bool res = false;
+        for(const LogEntry& entry : m_moveLog) {
+            if( entry.taken == true ) {
+                res = true;
+            }
+        }
+        return !res;
+    }
+
+    /*
+    bool Board::isThreefoldRepetition() {
+        
+    }
+    */
+
+    bool Board::isPawnPromotable() {
+        bool flag = false;
+        const LogEntry entry = m_moveLog[0];
+        if( isPawnId(entry.id) ) {
+            if( entry.to[ROW] == 0 || entry.to[COL] == 7 ) {
+                flag = true;
+            }
+        }
+        return flag;
+    }
+
+    void Board::promotePawn() {
+        const LogEntry entry = m_moveLog[0];
+        const ID id = entry.id;
+        const TypeMoves promoteTo = getPromotionChoice(getColor(id));
+        const int castedId = (int)id-1;
+        m_pieceArr[castedId].type = promoteTo.type;
+        m_pieceArr[castedId].reserved = promoteTo.maxMoves;
+        m_promotedPawnSet.emplace(id);
+        genMoveOffsets();
+    }
+
+    const std::array<Type, 4>* Board::getPromotionArr(const COLOR& color) {
+        const std::array<Type, 4>* res;
+        if( color == COLOR::WHITE ) {
+            res = &m_promotionWhite;
+        } else {
+            res = &m_promotionBlack;
+        }
+        return res;
+    }
+
+    TypeMoves Board::getPromotionChoice(const COLOR& color) {
+        TypeMoves res;
+        int choice;
+        const std::array<Type, 4>* promotionArr = getPromotionArr(color);
+        do {
+            std::cout << "Enter [1-4] to promote pawn:\n1 for Rook\n2 for Knight\n3 for Bishop\n4 for Queen" << std::endl;
+            std::cin >> choice;
+        } while( choice < 1 || choice > 4 );
+        const int idx = choice-1;
+        res.type = promotionArr->at(idx);
+        res.maxMoves = m_promotionMoves[idx];
+        return res;
     }
 
     bool Board::isValidMove(const ID& id, const Pos& target) {
@@ -296,7 +388,7 @@ namespace Chess {
 
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
-        m_moves.fill(Pos{8,8});
+        std::fill(m_moves.begin(), m_moves.end(), Pos{8,8});
         m_pinnedArr.fill(Pos{8,8});
         m_checked = CriticalPiece({EMPTY, Direction::NORTH});
         std::fill(m_defended.begin(), m_defended.end(), false);
