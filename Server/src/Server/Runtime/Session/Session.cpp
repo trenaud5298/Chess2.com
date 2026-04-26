@@ -11,6 +11,7 @@
 #include <Chess/Server/Runtime/GameServer.hpp>
 #include <Chess/Server/Runtime/Session/SessionManager.hpp>
 #include <Chess/Server/Runtime/Session/Target.hpp>
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // ASIO Includes
 
@@ -20,8 +21,8 @@
 namespace Chess {
 
 Session::Session(GameServer& gameServer, asio::ip::tcp::socket&& socket, SessionID id)
-: m_gameServer(gameServer), m_socket(std::move(socket)), m_strand(asio::make_strand(m_socket.get_executor())), m_sessionInfo(id) {
-    m_gameServer.loggingManager().log(LogEntry::Info("Session[" + std::to_string(m_sessionInfo.id) + "] Connected"));
+: m_gameServer(gameServer), m_socket(std::move(socket)), m_strand(asio::make_strand(m_socket.get_executor())), m_id(id) {
+    m_gameServer.loggingManager().log(LogEntry::Info("Session[" + std::to_string(getId()) + "] Connected"));
 }
 
 Session::~Session() {}
@@ -45,6 +46,7 @@ void Session::stop() {
         if (!m_state.compare_exchange_strong(expected, LifecycleState::STOPPING)) {
             return;
         }
+        m_gameServer.gameManager().requestLeaveRoom(m_id);
         asio::error_code ec;
         m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
         m_socket.close(ec);
@@ -53,15 +55,35 @@ void Session::stop() {
     });
 }
 
-void Session::send(std::shared_ptr<const Message> message) {
+void Session::send(std::shared_ptr<const Message> message, PostWriteAction action, QueueWriteMethod queueWriteMethod) {
     auto self = shared_from_this();
-    asio::dispatch(m_strand, [this, self, message]() {
-        if (m_state != LifecycleState::RUNNING) { return; }
-        if (m_writeQueue.size() >= MAX_WRITE_QUEUE_LENGTH) {
-            handleError();
+    asio::dispatch(m_strand, [this, self, message, action, queueWriteMethod]() {
+        if (m_state != LifecycleState::RUNNING) {
             return;
         }
-        m_writeQueue.push_back(message);
+        if (!message) {
+            abortSession();
+            return;
+        }
+        if (m_terminalWriteQueued) {
+            return;
+        }
+        if (queueWriteMethod == QueueWriteMethod::Overwrite && !m_writeQueue.empty()) {
+            m_writeQueue.erase(std::next(m_writeQueue.begin()), m_writeQueue.end());
+        }
+        if (m_writeQueue.size() >= MAX_WRITE_QUEUE_LENGTH) {
+            abortSession();
+            return;
+        }
+        if (action == PostWriteAction::AbortSession) {
+            m_terminalWriteQueued = true;
+        }
+
+        m_writeQueue.push_back(OutboundWrite{
+            .message = std::move(message),
+            .action = action,
+        });
+
         if (m_writeQueue.size() == 1) {
             doWrite();
         }
@@ -71,14 +93,25 @@ void Session::send(std::shared_ptr<const Message> message) {
 void Session::doWrite() {
     if (m_writeQueue.empty()) { return; }
     auto self = shared_from_this();
-    asio::async_write(m_socket, m_writeQueue.front()->buffers(), asio::bind_executor(
+    asio::async_write(m_socket, m_writeQueue.front().message->buffers(), asio::bind_executor(
     m_strand, [this, self](std::error_code ec, std::size_t length) {
         if (ec) {
-            handleError();
+            abortSession();
             return;
         }
 
+        OutboundWrite completed = std::move(m_writeQueue.front());
         m_writeQueue.pop_front();
+
+        switch (completed.action) {
+            case PostWriteAction::AbortSession:
+                m_terminalWriteQueued = false;
+                abortSession();
+                return;
+            case PostWriteAction::None:
+                break;
+        }
+
         if (!m_writeQueue.empty()) {
             doWrite();
         }
@@ -91,11 +124,11 @@ void Session::doReadHeader() {
     asio::async_read(m_socket, m_incomingMessage.headerBuffer(), asio::bind_executor(
     m_strand, [this, self](std::error_code ec, std::size_t length) {
         if (ec) {
-            handleError();
+            abortSession();
             return;
         }
         if (!m_incomingMessage.validateHeader()) {
-            handleError();
+            abortSession();
             return;
         }
         const std::size_t bodyLen = m_incomingMessage.header().bodyLength;
@@ -109,26 +142,45 @@ void Session::doReadBody() {
     asio::async_read(m_socket, m_incomingMessage.bodyBuffer(), asio::bind_executor(
     m_strand, [this, self](std::error_code ec, std::size_t length) {
         if (ec) {
-            handleError();
+            abortSession();
             return;
         }
-        processMessage();
+        dispatchIncomingMessage();
         doReadHeader();
     }));
 }
 
-void Session::handleError() {
+void Session::abortSession() {
     if (m_state == LifecycleState::RUNNING) {
-        m_gameServer.sessionManager().removeSession(Target::Id({m_sessionInfo.id}));
+        m_gameServer.sessionManager().removeSession(Target::Id({getId()}));
     }
 }
 
 SessionID Session::getId() const {
-    return m_sessionInfo.id;
+    return m_id;
 }
 
-SessionInfo Session::getInfo() const {
-    return m_sessionInfo;
+SessionState Session::getSessionState() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_sessionState;
+}
+
+std::string Session::getName() const {
+    std::lock_guard lock(m_viewMutex);
+    return m_name;
+}
+
+SessionView Session::getView() const {
+    std::lock_guard lock(m_viewMutex);
+    return {
+        .id = m_id,
+        .sessionState = m_sessionState,
+        .name = m_name
+    };
+}
+
+bool Session::isAuthenticated() const {
+    return getSessionState() != SessionState::LOGIN_REQUIRED;
 }
 
 // Below Starts Message Processing. It is safe to assume
@@ -136,50 +188,164 @@ SessionInfo Session::getInfo() const {
 // and that the Session will be active until at least the end
 // of the function call.
 
-void Session::processMessage() {
+void Session::dispatchIncomingMessage() {
     switch (m_incomingMessage.type()) {
-        case NONE:
+        case MessageType::LoginRequest:
+            dispatchAs<LoginRequest>();
             break;
-        case LOGIN:
-            handleLogin();
+        case MessageType::Chat:
+            dispatchAs<Chat>();
             break;
-        case CHAT:
-            handleChat();
+        case MessageType::Command:
+            dispatchAs<Command>();
+            break;
+        case MessageType::CreateRoomRequest:
+            dispatchAs<CreateRoomRequest>();
+            break;
+        case MessageType::JoinRoomRequest:
+            dispatchAs<JoinRoomRequest>();
+            break;
+        case MessageType::ListRoomsRequest:
+            dispatchAs<ListRoomsRequest>();
+            break;
+        case MessageType::LeaveRoomRequest:
+            dispatchAs<LeaveRoomRequest>();
+            break;
+        case MessageType::MakeMove:
+            dispatchAs<MakeMove>();
+            break;
+        case MessageType::ErrorMessage:
+            dispatchAs<ErrorMessage>();
+            break;
+        case MessageType::None:
+        case MessageType::JoinRoomResponse:
+        case MessageType::GameUpdate:
+        case MessageType::CreateRoomResponse:
+        case MessageType::LoginResponse:
+        case MessageType::ListRoomsResponse:
+        case MessageType::LeaveRoomResponse:
+            abortSession();
             break;
     }
 }
 
-void Session::handleLogin() {
-    if (m_sessionState != SessionState::LOGIN_REQUIRED) {
-        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Tried to login when already logged in."));
-        handleError();
+void Session::handle(const LoginRequest& payload) {
+    if (getSessionState() != SessionState::LOGIN_REQUIRED) {
+        abortSession();
         return;
     }
-
-    std::string loginServerPassword = m_incomingMessage.readString();
     std::string serverPassword = m_gameServer.persistenceManager().settings().general.serverPassword;
-    if (loginServerPassword != serverPassword) {
-        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt failed. Bad Password: " + loginServerPassword));
-        handleError();
+    if (payload.password != serverPassword) {
+        m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(getId()) + "] login attempt failed. Bad Password: " + payload.password));
+        send(
+            LoginResponse(false, "Incorrect Password").toSharedMessage(),
+            PostWriteAction::AbortSession,
+            QueueWriteMethod::Overwrite
+        );
         return;
     }
-    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "] login attempt passed."));
-    std::string playerName = m_incomingMessage.readString();
-    m_sessionInfo.name = playerName;
-    m_sessionState = SessionState::IDLE;
+    {
+        std::lock_guard lock(m_viewMutex);
+        m_name = payload.username;
+        m_sessionState = SessionState::IDLE;
+    }
+    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(getId()) + "]/" + payload.username + " login attempt passed."));
+    send(LoginResponse(true, "").toSharedMessage());
 }
 
-void Session::handleChat() {
-    if (m_sessionState == SessionState::LOGIN_REQUIRED) {
-        handleError();
+void Session::handle(const Chat& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
         return;
     }
 
-    std::string msg = m_incomingMessage.readString();
-    m_gameServer.loggingManager().log(LogEntry::Message("Session[" + std::to_string(m_sessionInfo.id) + "]/" + m_sessionInfo.name + " " + msg));
-    std::shared_ptr<Message> message = std::make_shared<Message>(MessageType::CHAT);
-    message->pushString("Server received your message");
-    send(message);
+    if (payload.message.empty()) {
+        return;
+    }
+
+    Chat outbound{
+        .scope = payload.scope,
+        .message = std::format("[{}][{}] {}", presentLocalTime(), view.name, payload.message)
+    };
+    static Target target = Target::Predicate([](const Session& session) {
+        return session.isAuthenticated();
+    });
+
+    switch (payload.scope) {
+        case ChatScope::Global:
+            m_gameServer.sessionManager().messageSession(target, outbound.toSharedMessage());
+            break;
+        case ChatScope::Game:
+            m_gameServer.gameManager().requestGameChat(view.id, outbound.toSharedMessage());
+            break;
+    }
+
+    std::string scopeLabel = (payload.scope == ChatScope::Global) ? "Global" : "Game";
+
+    m_gameServer.loggingManager().log(LogEntry::Message(
+        "Session[" + std::to_string(view.id) + "]/" +
+        view.name + " [" + scopeLabel + "] " + payload.message
+    ));
+
+}
+
+void Session::handle(const Command& payload) {
+
+}
+
+void Session::handle(const CreateRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestCreateRoom(view.id, payload.config);
+}
+
+void Session::handle(const JoinRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestJoinRoom(view.id, payload.roomID, payload.spectator, payload.password);
+}
+
+void Session::handle(const ListRoomsRequest &payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestListRooms(view.id);
+}
+
+void Session::handle(const LeaveRoomRequest& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestLeaveRoom(view.id);
+}
+
+void Session::handle(const MakeMove& payload) {
+    SessionView view = getView();
+    if (view.sessionState == SessionState::LOGIN_REQUIRED) {
+        abortSession();
+        return;
+    }
+
+    m_gameServer.gameManager().requestMove(view.id, payload.from, payload.to, payload.promotion);
+}
+
+void Session::handle(const ErrorMessage& payload) {
+
 }
 
 

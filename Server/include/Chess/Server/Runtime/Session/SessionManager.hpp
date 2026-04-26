@@ -10,21 +10,22 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
-#include <Chess/Server/Runtime/Common/Types.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/Types.hpp>
 
 // ASIO Includes
 #include <asio/ip/tcp.hpp>
 
 // C++ Includes
 #include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace Chess {
 
 class GameServer;
 class Session;
-struct SessionInfo;
+struct SessionView;
 class Message;
 class Target;
 
@@ -51,18 +52,19 @@ public:
     [[nodiscard]] bool empty() const;
     [[nodiscard]] SessionID sessionCount() const;
     [[nodiscard]] std::vector<SessionID> idSnapshot(const Target& target) const;
-    [[nodiscard]] std::vector<SessionInfo> infoSnapshot(const Target& target) const;
+    [[nodiscard]] std::vector<SessionView> viewSnapshot(const Target& target) const;
 
 private:
     void startAccept();
     void createSession(asio::ip::tcp::socket&& socket);
+
 private:
     GameServer& m_gameServer;
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
     asio::ip::tcp::acceptor m_acceptor;
 
     // Session Storage
-    std::atomic<SessionID> m_nextSessionId;
+    std::atomic<SessionID> m_nextSessionId{1};
     mutable std::shared_mutex m_sessionMutex;
     std::unordered_map<SessionID, std::uint64_t> m_idToIndex;
     std::vector<std::shared_ptr<Session>> m_sessions;

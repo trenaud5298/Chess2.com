@@ -41,8 +41,10 @@ void GameServer::start() {
     std::size_t threadCount = std::thread::hardware_concurrency();
     threadCount = threadCount > 0 ? threadCount : 1;
     for (std::size_t i = 0; i < threadCount; ++i) {
-        m_threads.emplace_back([this]() {
+        m_threads.emplace_back([this, threadId = i+1]() {
+            m_loggingManager.log(LogEntry::Info("Thread [" + std::to_string(threadId) + "] started"));
             m_context.run();
+            m_loggingManager.log(LogEntry::Info("Thread [" + std::to_string(threadId) + "] stopped"));
         });
     }
 

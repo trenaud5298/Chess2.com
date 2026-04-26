@@ -19,12 +19,13 @@
 // C++ Includes
 #include <deque>
 #include <cstdint>
+#include <mutex>
 
 
 namespace Chess {
 
 class GameServer;
-class ScrollableTextWindow;
+class ScrollableListView;
 struct LogEntry;
 
 class LogTab {
@@ -40,10 +41,16 @@ private:
     // GameServer
     GameServer& m_gameServer;
 
+    // Log Data
+    static constexpr std::size_t MAX_LOG_LINES = 1000;
+    mutable std::mutex m_logLinesMutex;
+    std::deque<std::string> m_logLines;
+
     // UI Components
-    std::shared_ptr<ScrollableTextWindow> m_logWindow;
+    std::shared_ptr<ScrollableListView> m_logView;
     ftxui::Component m_logOptions;
     ftxui::Component m_component;
+
     std::uint64_t m_handlerID;
 };
 

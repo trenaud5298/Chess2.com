@@ -9,7 +9,7 @@
 // Chess Includes
 #include <Chess/Server/Runtime/Persistence/LogFile.hpp>
 #include <Chess/Server/Runtime/GameServer.hpp>
-#include <Chess/Server/Common/TimeFormat.hpp>
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // TOML Includes
 #include <chrono>

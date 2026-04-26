@@ -21,6 +21,8 @@ if (MINGW)
     add_link_options(-static)
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
+
 #--------------------------------------------------------------------
 # Options
 #--------------------------------------------------------------------
@@ -56,12 +58,11 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Client)
 # Server Executable
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Server)
 
+# Test Client Exe
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/TestClient)
+
 #--------------------------------------------------------------------
 # Packaging
 #--------------------------------------------------------------------
 # Packaging Rules
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/ChessPackaging.cmake)
-
-message(STATUS "C++ compiler id: ${CMAKE_CXX_COMPILER_ID}")
-message(STATUS "C++ compiler:    ${CMAKE_CXX_COMPILER}")
-message(STATUS "Host system:     ${CMAKE_HOST_SYSTEM_NAME}")

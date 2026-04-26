@@ -8,9 +8,9 @@
 
 // Chess Includes
 #include <Chess/Server/UI/LogTab.hpp>
-#include <Chess/Core/UI/ScrollableTextWindow.hpp>
+#include <Chess/Core/UI/ScrollableListView.hpp>
 #include <Chess/Server/Runtime/GameServer.hpp>
-#include <Chess/Server/Common/TimeFormat.hpp>
+#include <Chess/Core/Common/TimeFormat.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/event.hpp>
@@ -32,27 +32,49 @@ ftxui::Component LogTab::getComponent() {
 }
 
 void LogTab::build() {
-    m_logWindow = std::make_shared<ScrollableTextWindow>();
-    m_logWindow->addText("Test 1");
+    m_logView = std::make_shared<ScrollableListView>(
+        [this]() {
+            std::lock_guard lock(m_logLinesMutex);
+            return static_cast<int>(m_logLines.size());
+        },
+        [this](int index) {
+            std::lock_guard lock(m_logLinesMutex);
+            return ftxui::text(m_logLines[index]);
+        }
+    );
 
     m_logOptions = ftxui::Button("Test", [&]() {
 
     });
-    m_component = ftxui::Renderer(ftxui::Container::Horizontal({m_logWindow, m_logOptions}), [&]() {
+
+    auto layout = ftxui::Container::Horizontal({
+        m_logView,
+        m_logOptions
+    });
+
+    m_component = ftxui::Renderer(layout, [this]() {
         return ftxui::hbox({
-            m_logWindow->Render() | ftxui::yframe | ftxui::flex,
+            m_logView->Render() | ftxui::flex | ftxui::yflex,
             ftxui::separator(),
-            m_logOptions->Render(),
-        });
+            m_logOptions->Render() | ftxui::yflex,
+        }) | ftxui::flex;
     });
 }
 
 void LogTab::log(const LogEntry& entry) {
-    m_logWindow->addText(std::format("[{}][{}] {}",
-        formatHHMMSS(m_gameServer.totalUptimeAtPoint(entry.timestamp)),
-        logTypeAsString(entry.type),
-        entry.message
-    ));
+    {
+        std::lock_guard lock(m_logLinesMutex);
+        m_logLines.push_back(std::format("[{}][{}] {}",
+            formatHHMMSS(m_gameServer.totalUptimeAtPoint(entry.timestamp)),
+            logTypeAsString(entry.type),
+            entry.message
+        ));
+
+        if (m_logLines.size() > MAX_LOG_LINES) {
+            m_logLines.pop_front();
+        }
+    }
+
 }
 
 }

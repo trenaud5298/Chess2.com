@@ -24,7 +24,7 @@ Message::Message(MessageType type)
     m_header.validation = PROTOCOL_VALIDATION;
     m_header.bodyLength = 0;
     m_header.type = static_cast<std::uint32_t>(type);
-    m_header.reserved = 0;
+    m_header.messageThreadID = 0;
 }
 
 // Header Access
@@ -62,12 +62,6 @@ void Message::clear() noexcept {
     m_header.bodyLength = 0;
 }
 void Message::readReset() noexcept { m_readOffset = 0; }
-void Message::readSet(std::size_t offset) {
-    if (offset > m_body.size()) {
-        throw std::runtime_error("Message read overflow");
-    }
-    m_readOffset = offset;
-}
 
 // Buffers
 asio::mutable_buffer Message::headerBuffer() noexcept {
@@ -105,6 +99,14 @@ void Message::pushString(const std::string& str) {
 }
 
 // Read
+std::size_t Message::getReadOffset() const noexcept {
+    return m_readOffset;
+}
+
+void Message::setReadOffset(std::size_t offset) noexcept {
+    m_readOffset = offset;
+}
+
 void Message::readBytes(void* dest, std::size_t size) {
     if (size > m_body.size() - m_readOffset)
         throw std::runtime_error("Message read overflow");
@@ -122,6 +124,24 @@ std::string Message::readString() {
     std::string result(reinterpret_cast<const char*>(m_body.data() + m_readOffset), length);
     m_readOffset += length;
     return result;
+}
+
+
+bool Message::tryReadString(std::string& str) noexcept {
+    std::uint32_t length = 0;
+    if (!tryRead(length))
+        return false;
+
+    if (m_readOffset + length > m_body.size())
+        return false;
+
+    str.assign(
+        reinterpret_cast<const char*>(m_body.data() + m_readOffset),
+        length
+    );
+
+    m_readOffset += length;
+    return true;
 }
 
 } // namespace Chess

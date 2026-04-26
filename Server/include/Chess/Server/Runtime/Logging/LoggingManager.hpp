@@ -10,7 +10,7 @@
  */
 
 // Chess Includes
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
 #include <Chess/Server/Runtime/Logging/LogHandler.hpp>
 
 // ASIO Includes

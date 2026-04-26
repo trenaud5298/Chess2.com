@@ -1,5 +1,5 @@
-#ifndef CHESS_SERVER__SESSION_SESSION_HPP
-#define CHESS_SERVER__SESSION_SESSION_HPP
+#ifndef CHESS_SERVER_SESSION_SESSION_HPP
+#define CHESS_SERVER_SESSION_SESSION_HPP
 
 /*
  * Chess
@@ -11,8 +11,9 @@
 
 // Chess Includes
 #include <Chess/Core/Networking/Message.hpp>
-#include <Chess/Server/Runtime/Common/Types.hpp>
-#include <Chess/Server/Runtime/Common/LifecycleState.hpp>
+#include <Chess/Core/Common/Types.hpp>
+#include <Chess/Core/Common/LifecycleState.hpp>
+#include <Chess/Core/Networking/MessagePayloads.hpp>
 
 // ASIO Includes
 #include <asio.hpp>
@@ -22,20 +23,38 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <mutex>
 
 namespace Chess {
 
 class GameServer;
 
-struct SessionInfo {
-    SessionID id;
-    std::string name;
-};
-
 enum SessionState {
     LOGIN_REQUIRED,
     IDLE,
     IN_MATCH
+};
+
+struct SessionView {
+    SessionID id;
+    SessionState sessionState;
+    std::string name;
+};
+
+// Occurs After All Queued Writes Complete
+enum class PostWriteAction {
+    None,
+    AbortSession
+};
+
+enum class QueueWriteMethod {
+    Append,
+    Overwrite
+};
+
+struct OutboundWrite {
+    std::shared_ptr<const Message> message;
+    PostWriteAction action{PostWriteAction::None};
 };
 
 class Session : public std::enable_shared_from_this<Session> {
@@ -53,40 +72,63 @@ public:
     void stop();
 
     // Controls
-    void send(std::shared_ptr<const Message> message);
+    void send(std::shared_ptr<const Message> message, PostWriteAction action = PostWriteAction::None, QueueWriteMethod queueWriteMethod = QueueWriteMethod::Append);
 
     // Queries
     SessionID getId() const;
-    SessionInfo getInfo() const;
+    SessionState getSessionState() const;
+    std::string getName() const;
+    SessionView getView() const;
+    bool isAuthenticated() const;
 
 private:
     void doReadHeader();
     void doReadBody();
     void doWrite();
-    void handleError();
-    void processMessage();
-        void handleLogin();
-        void handleChat();
+    void abortSession();
+    void dispatchIncomingMessage();
+    template <typename T>
+    bool dispatchAs() {
+        if (auto payload = T::fromMessage(m_incomingMessage)) {
+            handle(*payload);
+            return true;
+        }
+        abortSession();
+        return false;
+    }
+
+    void handle(const LoginRequest& payload);
+    void handle(const Chat& payload);
+    void handle(const Command& payload);
+    void handle(const CreateRoomRequest& payload);
+    void handle(const JoinRoomRequest& payload);
+    void handle(const ListRoomsRequest& payload);
+    void handle(const LeaveRoomRequest& payload);
+    void handle(const MakeMove& payload);
+    void handle(const ErrorMessage& payload);
+
 private:
     // Server
     GameServer& m_gameServer;
 
     // State
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
-    std::atomic<SessionState> m_sessionState{SessionState::LOGIN_REQUIRED};
+
+    mutable std::mutex m_viewMutex;
+    const SessionID m_id; // Id is constant and can thus not use mutex
+    SessionState m_sessionState{SessionState::LOGIN_REQUIRED};
+    std::string m_name{};
 
     // Networking
     asio::ip::tcp::socket m_socket;
     asio::strand<asio::any_io_executor> m_strand;
 
-    // Info
-    SessionInfo m_sessionInfo;
-
     // Reading
-    Message m_incomingMessage{MessageType::NONE};
+    Message m_incomingMessage{MessageType::None};
 
     // Writing
-    std::deque<std::shared_ptr<const Message>> m_writeQueue;
+    bool m_terminalWriteQueued{false};
+    std::deque<OutboundWrite> m_writeQueue;
     constexpr static std::size_t MAX_WRITE_QUEUE_LENGTH = 128;
 };
 
