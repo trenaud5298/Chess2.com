@@ -1190,8 +1190,51 @@ namespace Chess {
     }
 
     void Board::genMoves() {
+        genChecked();
+        genPinned();
         for(int i = 1; i < m_pieceArr.size() + 1; i++) {
             addMoves(static_cast<ID>(i));
+        }
+        if( !m_pinnedIdSet.empty() ) {
+            for( const ID& pinnedId : m_pinnedIdSet ) {
+                const int castedId = (int)pinnedId-1;
+                const int offset = castedId*6;
+                int pinnedMovesSize = 0;
+                Pos temp2 = m_pinnedArr[offset];
+                while( temp2 != Pos{8,8} ) {
+                    pinnedMovesSize++;
+                    if( offset + pinnedMovesSize < m_pinnedArr.size() ) {
+                        temp2 = m_pinnedArr[offset + pinnedMovesSize];
+                    } else {break;}
+                }
+
+                int tempOffset = m_moveOffset[castedId];
+                Pos temp = m_moves[tempOffset];
+                int movesIdx = m_pieceArr[castedId].movesIdx;
+                int i = 0;
+                temp2 = m_pinnedArr[offset];
+                while( temp != Pos{8,8} ) {
+                    int j = 0;
+                    bool contains = false;
+                    while( j < pinnedMovesSize ) {
+                        if( temp == temp2 ) {
+                            contains = true;
+                        }
+                        j++;
+                        if( offset+j < m_pinnedArr.size() ) {
+                            temp2 = m_pinnedArr[offset+j];
+                        } else {break;} 
+                    }
+                    if( !contains ) {
+                        temp2 = m_moves[tempOffset + movesIdx];
+                        m_moves[tempOffset + i] = temp2;
+                        m_moves[tempOffset + movesIdx--] = {8,8};
+                    } else {i++;}
+                    if( tempOffset+i < m_moves.size() ) {
+                        temp = m_moves[tempOffset+i];
+                    } else {break;}
+                }
+            }
         }
     }
 
