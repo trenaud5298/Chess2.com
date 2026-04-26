@@ -147,7 +147,9 @@ void MultiplayerGameScreen::onEnter() {
     m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
 
     refreshSnapshot();
+    syncProjectedGameFromSnapshot();
     syncBoardFromSnapshot();
+
 
     if (m_globalChat) {
         m_globalChat->onEnter();
@@ -176,6 +178,7 @@ void MultiplayerGameScreen::onResume() {
 
 void MultiplayerGameScreen::onTick() {
     refreshSnapshot();
+    syncProjectedGameFromSnapshot();
     syncBoardFromSnapshot();
 }
 
@@ -203,6 +206,24 @@ void MultiplayerGameScreen::syncBoardFromSnapshot() {
     m_appliedGameVersion = snapshot.version;
     m_boardDisplay->setFlipped(localColor() == COLOR::BLACK);
     m_boardDisplay->updateBoard(latestSnapshot().board);
+}
+
+void MultiplayerGameScreen::syncProjectedGameFromSnapshot() {
+    if (!hasGameUpdate()) {
+        m_projectedGame.reset();
+        return;
+    }
+
+    const ChessGameSnapshot& snapshot = latestSnapshot();
+
+    if (!m_projectedGame.has_value()) {
+        m_projectedGame.emplace(snapshot, std::chrono::steady_clock::now());
+        return;
+    }
+
+    if (m_projectedGame->version() != snapshot.version) {
+        m_projectedGame->applySnapshot(snapshot, std::chrono::steady_clock::now());
+    }
 }
 
 bool MultiplayerGameScreen::hasGameUpdate() const noexcept {
@@ -311,8 +332,23 @@ ftxui::Element MultiplayerGameScreen::renderGameInfo() const {
 
     std::string localStatusText = roomMemberTypeLabel(m_view.room.memberType) + " / " + colorLabel(m_view.room.color);
 
+    auto now = std::chrono::steady_clock::now();
+
+    std::chrono::milliseconds whiteRemaining = snapshot.whiteTimeRemaining;
+    std::chrono::milliseconds blackRemaining = snapshot.blackTimeRemaining;
+
+    if (m_projectedGame.has_value()) {
+        whiteRemaining = m_projectedGame->whiteTimeRemaining(now);
+        blackRemaining = m_projectedGame->blackTimeRemaining(now);
+    }
+
+    ftxui::Element whiteClock = renderClock(whiteRemaining, whiteActive, whiteName);
+    ftxui::Element blackClock = renderClock(blackRemaining, blackActive, blackName);
+
+    bool flipped = localColor() == COLOR::BLACK;
+
     return ftxui::vbox({
-        renderClock(snapshot.blackTimeRemaining, blackActive, blackName),
+        (flipped ? whiteClock : blackClock),
         ftxui::separator(),
         ftxui::text("Room " + std::to_string(update.roomID)) | ftxui::bold | ftxui::center,
         ftxui::text("You: " + localStatusText) | ftxui::center,
@@ -323,8 +359,8 @@ ftxui::Element MultiplayerGameScreen::renderGameInfo() const {
         ftxui::text("Room Version: " + std::to_string(update.roomVersion)) | ftxui::dim | ftxui::center,
         ftxui::text("Game Version: " + std::to_string(snapshot.version)) | ftxui::dim | ftxui::center,
         ftxui::separator(),
-        renderClock(snapshot.whiteTimeRemaining, whiteActive, whiteName),
-    }) | ftxui::yflex;
+        (flipped ? blackClock : whiteClock),
+    }) | ftxui::flex | ftxui::center;
 }
 
 ftxui::Element MultiplayerGameScreen::renderChatPane() const {
@@ -334,7 +370,7 @@ ftxui::Element MultiplayerGameScreen::renderChatPane() const {
         m_chatTabToggle->Render(),
         ftxui::separator(),
         m_chatTabContainer->Render() | ftxui::flex | ftxui::yflex
-    }) | ftxui::yflex;
+    }) | ftxui::flex;
 }
 
 
@@ -357,7 +393,7 @@ ftxui::Component MultiplayerGameScreen::buildComponent() {
     });
 
     return ftxui::Renderer(interactiveContainer, [this]() {
-        ftxui::Element chatPanel = renderChatPane() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 38) | ftxui::yflex;
+        ftxui::Element chatPanel = renderChatPane() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 30) | ftxui::yflex;
 
         ftxui::Element boardPanel;
         if (!hasGameUpdate()) {
@@ -370,7 +406,7 @@ ftxui::Component MultiplayerGameScreen::buildComponent() {
             boardPanel = m_boardDisplay->Render() | ftxui::flex | ftxui::yflex;
         }
 
-        ftxui::Element infoPanel = renderGameInfo() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 30) | ftxui::yflex;
+        ftxui::Element infoPanel = renderGameInfo() | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 24) | ftxui::yflex;
 
 
         return ftxui::hbox({

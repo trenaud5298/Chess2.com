@@ -13,6 +13,7 @@
 // Chess Includes
 #include <Chess/Client/UI/Screen/ScreenInterface.hpp>
 #include <Chess/Client/Runtime/MultiplayerClient.hpp>
+#include <Chess/Core/Game/ChessGame.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
@@ -51,6 +52,7 @@ public:
 private:
     void refreshSnapshot();
     void syncBoardFromSnapshot();
+    void syncProjectedGameFromSnapshot();
 
     [[nodiscard]] bool hasGameUpdate() const noexcept;
     [[nodiscard]] const GameUpdate& latestUpdate() const;
@@ -70,6 +72,7 @@ private:
 private:
     MultiplayerView m_view{};
     std::optional<std::uint64_t> m_appliedGameVersion;
+    std::optional<ChessGame> m_projectedGame;
 
     std::shared_ptr<ChessBoardDisplay> m_boardDisplay{};
     std::unique_ptr<ChatPane> m_globalChat;
