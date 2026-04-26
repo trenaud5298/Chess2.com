@@ -95,11 +95,13 @@ namespace Chess {
             const std::array<Type, 4> m_promotionWhite;
             const std::array<Type, 4> m_promotionBlack;
             const std::array<std::uint8_t, 4> m_promotionMoves;
+            const std::set<Type> m_lanePieceSet;
 
             bool m_isWhiteTurn;
             bool m_isWhiteChecked;
             bool m_isBlackChecked;
-            CriticalPiece m_checked;
+            ID m_checkedId;
+            std::array<Pos, 7> m_checkedArr;
             std::set<ID> m_promotedPawnSet;
 
             bool isInBoard(const Pos& pos);
@@ -129,7 +131,7 @@ namespace Chess {
             void setMovesIdx(const ID& id, const int& i);
             void setAttackedAt(const Pos& pos, const COLOR& color);
             void setDefendedAt(const Pos& pos);
-            void setChecked(const ID& checked, const Direction direction);
+            void setChecked(const ID& checked);
             void promotePawn();
             void updateMoveLog(const LogEntry& entry);
             COLOR getInvertedColor(const COLOR& color);
@@ -145,6 +147,7 @@ namespace Chess {
             void addKingMoves(const Pos& initial);
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
+            void addMoves(const ID& id);
 
             char32_t getGlyphUnicode(const ID& id);
             char getGlyph(const ID& id);

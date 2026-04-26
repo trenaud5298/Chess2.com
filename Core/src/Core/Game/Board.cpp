@@ -31,7 +31,7 @@
 //      Notes for game loop semantics
 //
 //      Flow will be generate pinned pieces
-//                   generate checked pieces, 
+//                   generate checked pieces, (maybe swap these so pinned would have less work to do when in check)
 //                   generate attacked vecs and defended member vector,
 //                   if pieces are pinned, filter the pinned pieces moves
 //                   if in check, filter all pieces of the checked color according to the moves of the checking piece
@@ -90,16 +90,17 @@ namespace Chess {
         }),
         m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
+        m_checkedArr({8,8}),
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
         m_pinnedIdSet(),
         m_diagonalSet({Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_cardinalSet({Type::W_ROOK, Type::B_ROOK, Type::W_QUEEN, Type::B_QUEEN}),
+        m_lanePieceSet({Type::W_ROOK, Type::B_ROOK, Type::W_BISHOP, Type::B_BISHOP, Type::W_QUEEN, Type::B_QUEEN}),
         m_promotionWhite({Type::W_ROOK, Type::W_KNIGHT, Type::W_BISHOP, Type::W_QUEEN}),
         m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
         m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
-        m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_moveLog(),
         m_mods({
                 std::pair(1,0),
@@ -118,6 +119,7 @@ namespace Chess {
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
             m_pinnedArr.fill({8,8});
+            m_checkedId = EMPTY;
             m_moveLog.reserve(50);
         }
 
@@ -126,6 +128,7 @@ namespace Chess {
         m_pieceArr(pieces),
         m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
+        m_checkedArr({8,8}),
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
@@ -135,7 +138,6 @@ namespace Chess {
         m_promotionWhite({Type::W_ROOK, Type::W_KNIGHT, Type::W_BISHOP, Type::W_QUEEN}),
         m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
         m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
-        m_checked(CriticalPiece({EMPTY, Direction::NORTH})),
         m_moveLog(),
         m_mods({
                 std::pair(1,0),
@@ -153,6 +155,7 @@ namespace Chess {
             m_isWhiteTurn = true;
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
+            m_checkedId = EMPTY;
             m_pinnedArr.fill({8,8});
             m_moveLog.reserve(50);
     }
@@ -321,8 +324,12 @@ namespace Chess {
         const ID id = entry.id;
         const TypeMoves promoteTo = getPromotionChoice(getColor(id));
         const int castedId = (int)id-1;
+
         m_pieceArr[castedId].type = promoteTo.type;
-        m_pieceArr[castedId].reserved = promoteTo.maxMoves;
+        const int reserved = promoteTo.maxMoves;
+
+        m_pieceArr[castedId].reserved = reserved;
+        m_moves.resize(m_moves.size() - MAX_MOVES_PAWN + reserved);
         m_promotedPawnSet.emplace(id);
         genMoveOffsets();
     }
@@ -390,7 +397,8 @@ namespace Chess {
         m_isWhiteTurn = !m_isWhiteTurn;
         std::fill(m_moves.begin(), m_moves.end(), Pos{8,8});
         m_pinnedArr.fill(Pos{8,8});
-        m_checked = CriticalPiece({EMPTY, Direction::NORTH});
+        m_checkedArr.fill(Pos{8,8});
+        m_checkedId = EMPTY;
         std::fill(m_defended.begin(), m_defended.end(), false);
         std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
         std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
@@ -512,9 +520,8 @@ namespace Chess {
         m_moves[idx] = pos;
     }
 
-    void Board::setChecked(const ID& checked, const Direction direction) {
-        m_checked.id = checked;
-        m_checked.direction = direction;
+    void Board::setChecked(const ID& checked) {
+        m_checkedId = checked;
     }
 
     Direction Board::directionCast(const int& i) {
@@ -595,6 +602,7 @@ namespace Chess {
         Pos pos = kingPos;
         ID tempId;
         Direction direction;
+        int j = 0;
 
         //Knight squares
         int x, y;
@@ -615,7 +623,8 @@ namespace Chess {
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
                 if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
-                    setChecked(tempId, m_checked.direction);
+                    setChecked(tempId);
+                    m_checkedArr[j] = temp;
                     return;
                 }
             }
@@ -626,7 +635,8 @@ namespace Chess {
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
                 if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
-                    setChecked(tempId, m_checked.direction);
+                    setChecked(tempId);
+                    m_checkedArr[j] = temp;
                     return;
                 }
             }
@@ -663,7 +673,8 @@ namespace Chess {
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
                 if( kingColor != tempColor && isMatchingType(tempId, Type::W_PAWN) || isMatchingType(tempId, Type::B_PAWN) ) {
-                    setChecked(tempId, m_checked.direction);
+                    setChecked(tempId);
+                    m_checkedArr[j] = temp;
                     return;
                 }
             }
@@ -682,7 +693,15 @@ namespace Chess {
                 tempColor = getColor(tempId);
                 if( kingColor != tempColor && tempColor != COLOR::EMPTY ) {
                     if( set->contains(getTypeAt(temp)) ) {
-                        setChecked(tempId, directionCast(-i));
+                        setChecked(tempId);
+                        direction = directionCast(-i);
+                        mod = getMod(direction);
+                        while(temp != kingPos) {
+                            m_checkedArr[j] = temp;
+                            j++;
+                            temp[ROW] += mod.first;
+                            temp[COL] += mod.second;
+                        }
                         return;
                     } else {break;}
                 } else if( kingColor == tempColor ) {
@@ -700,7 +719,15 @@ namespace Chess {
                 tempColor = getColor(tempId);
                 if( kingColor != tempColor && tempColor != COLOR::EMPTY ) {
                     if( set->contains(getTypeAt(temp)) ) {
-                        setChecked(tempId, directionCast(-i));
+                        setChecked(tempId);
+                        direction = directionCast(-i);
+                        mod = getMod(direction);
+                        while(temp != kingPos) {
+                            m_checkedArr[j] = temp;
+                            j++;
+                            temp[ROW] += mod.first;
+                            temp[COL] += mod.second;
+                        }
                         return;
                     } else {break;}
                 } else if( kingColor == tempColor ) {
@@ -708,7 +735,6 @@ namespace Chess {
                 }
             }
         }
-        //std::cout << "HERE" << std::endl;
     }
 
     void Board::genPinned() {
@@ -1133,42 +1159,40 @@ namespace Chess {
         setMovesIdx(initialId, i);
     }
 
+    void Board::addMoves(const ID& id) {
+        const Type type = m_pieceArr[(int)id-1].type;
+        switch( type ) {
+            case(Type::W_QUEEN):
+            case(Type::B_QUEEN):
+                addQueenMoves(getPos(id));
+                break;
+            case(Type::W_KING):
+            case(Type::B_KING):
+                addKingMoves(getPos(id));
+                break;
+            case(Type::W_ROOK):
+            case(Type::B_ROOK):
+                addCardinalMoves(getPos(id));
+                break;
+            case(Type::W_BISHOP):
+            case(Type::B_BISHOP):
+                addDiagonalMoves(getPos(id));
+                break;
+            case(Type::W_KNIGHT):
+            case(Type::B_KNIGHT):
+                addKnightMoves(getPos(id));
+                break;
+            case(Type::W_PAWN):
+            case(Type::B_PAWN):
+                addPawnMoves(getPos(id));
+                break;
+        }
+    }
+
     void Board::genMoves() {
-        addCardinalMoves(getPos(W_ROOK1));
-        addCardinalMoves(getPos(W_ROOK2));
-        addKnightMoves(getPos(W_KNIGHT1)); 
-        addKnightMoves(getPos(W_KNIGHT2));
-        addDiagonalMoves(getPos(W_BISHOP1));
-        addDiagonalMoves(getPos(W_BISHOP2));
-        addQueenMoves(getPos(W_QUEEN));
-        addKingMoves(getPos(W_KING));
-
-        addPawnMoves(getPos(W_PAWN1));
-        addPawnMoves(getPos(W_PAWN2));
-        addPawnMoves(getPos(W_PAWN3));
-        addPawnMoves(getPos(W_PAWN4));
-        addPawnMoves(getPos(W_PAWN5));
-        addPawnMoves(getPos(W_PAWN6));
-        addPawnMoves(getPos(W_PAWN7));
-        addPawnMoves(getPos(W_PAWN8));
-
-        addCardinalMoves(getPos(B_ROOK1));
-        addCardinalMoves(getPos(B_ROOK2));
-        addKnightMoves(getPos(B_KNIGHT1));
-        addKnightMoves(getPos(B_KNIGHT2));
-        addDiagonalMoves(getPos(B_BISHOP1));
-        addDiagonalMoves(getPos(B_BISHOP2));
-        addQueenMoves(getPos(B_QUEEN));
-        addKingMoves(getPos(B_KING));
-
-        addPawnMoves(getPos(B_PAWN1));
-        addPawnMoves(getPos(B_PAWN2));
-        addPawnMoves(getPos(B_PAWN3));
-        addPawnMoves(getPos(B_PAWN4));
-        addPawnMoves(getPos(B_PAWN5));
-        addPawnMoves(getPos(B_PAWN6));
-        addPawnMoves(getPos(B_PAWN7));
-        addPawnMoves(getPos(B_PAWN8));
+        for(int i = 1; i < m_pieceArr.size() + 1; i++) {
+            addMoves(static_cast<ID>(i));
+        }
     }
 
 // ♔♕♖♗♘♙♚♛♜♝♞♟
@@ -1435,7 +1459,7 @@ namespace Chess {
     }
 
     void Board::printCheckedPiece() {
-        std::cout << "Checking Piece: " << idToString(m_checked.id) << std::endl;
+        std::cout << "Checking Piece: " << idToString(m_checkedId) << std::endl;
     }
 
 
