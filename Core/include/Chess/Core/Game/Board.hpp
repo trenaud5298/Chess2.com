@@ -116,7 +116,7 @@ namespace Chess {
             Direction directionCast(const int& i);
             std::vector<bool>& getAttackedVec();
             std::vector<bool>& getAttackedVec(const COLOR& color);
-            bool isAttackedAt(const Pos& pos, const COLOR& color);
+            bool isAttackedAt(const Pos& pos);
             bool isDefendedAt(const Pos& pos);
             bool isValidMod(const int& val, const int& mod);
             bool isPawnPromotable();
@@ -155,6 +155,7 @@ namespace Chess {
             void addMoves(const ID& id);
             void filterPinned();
             void filterChecked();
+            void filterKingMoves();
 
             char32_t getGlyphUnicode(const ID& id);
             char getGlyph(const ID& id);

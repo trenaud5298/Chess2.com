@@ -474,7 +474,7 @@ namespace Chess {
         return static_cast<std::uint8_t>((int)dim + mod);
     }
 
-    /*
+    /* Returns the opposite color m_attacked[] relative to current player turn */
     std::vector<bool>& Board::getAttackedVec() {
         if( m_isWhiteTurn ) {
             return m_attackedBlack;
@@ -482,9 +482,8 @@ namespace Chess {
             return m_attackedWhite;
         }
     }
-    */
 
-    /* Returns the opposite color m_attacked[] for color parameter */
+    /* Returns the same color m_attacked[] for color parameter (used when setting) */
     std::vector<bool>& Board::getAttackedVec(const COLOR& color) {
         if( color == COLOR::WHITE ) {
             return m_attackedWhite;
@@ -497,8 +496,8 @@ namespace Chess {
         getAttackedVec(color)[posTranslate(pos)] = true;
     }
 
-    bool Board::isAttackedAt(const Pos& pos, const COLOR& color) {
-        return getAttackedVec(color)[posTranslate(pos)];
+    bool Board::isAttackedAt(const Pos& pos) {
+        return getAttackedVec()[posTranslate(pos)];
     }
 
     void Board::setDefendedAt(const Pos& pos) {
@@ -974,7 +973,6 @@ namespace Chess {
             }
         } 
     }
-    
 
     void Board::addCardinalMoves(const Pos& initial) {
         if( posTranslate(initial) > 63 ) {
@@ -1274,6 +1272,22 @@ namespace Chess {
         }
     }
 
+    void Board::filterKingMoves() {
+        const ID kingId = getKingId();
+        const int castedId = (int)kingId-1;
+        const int offset = m_moveOffset[castedId];
+        const std::vector<bool> attacked = getAttackedVec(), defended = m_defended;
+        int movesIdx = m_pieceArr[castedId].movesIdx;
+        int i = 0;
+        while( i < movesIdx ) {
+            Pos temp = m_moves[offset+i];
+            if( isAttackedAt(temp) || isDefendedAt(temp) ) {
+                m_moves[offset+i] = m_moves[offset+movesIdx];
+                m_moves[offset+movesIdx--] = Pos{8,8};
+            } else {i++;}
+        }
+    }
+
     void Board::genMoves() {
         genChecked();
         genPinned();
@@ -1285,6 +1299,7 @@ namespace Chess {
         if( isInCheck() ) {
             filterChecked();
         }
+        filterKingMoves();
     }
 
     COLOR Board::getTurnColor() const {
