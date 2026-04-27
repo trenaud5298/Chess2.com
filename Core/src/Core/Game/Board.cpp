@@ -1189,12 +1189,7 @@ namespace Chess {
         }
     }
 
-    void Board::genMoves() {
-        genChecked();
-        genPinned();
-        for(int i = 1; i < m_pieceArr.size() + 1; i++) {
-            addMoves(static_cast<ID>(i));
-        }
+    void Board::filterPinned() {
         if( !m_pinnedIdSet.empty() ) {
             for( const ID& pinnedId : m_pinnedIdSet ) {
                 const int castedId = (int)pinnedId-1;
@@ -1203,12 +1198,12 @@ namespace Chess {
                 Pos temp2 = m_pinnedArr[offset];
                 while( temp2 != Pos{8,8} ) {
                     pinnedMovesSize++;
-                    if( offset + pinnedMovesSize < m_pinnedArr.size() ) {
+                    if( offset + pinnedMovesSize < m_pinnedArr.size() && pinnedMovesSize < 6 ) {
                         temp2 = m_pinnedArr[offset + pinnedMovesSize];
                     } else {break;}
                 }
 
-                int tempOffset = m_moveOffset[castedId];
+                const int tempOffset = m_moveOffset[castedId];
                 Pos temp = m_moves[tempOffset];
                 int movesIdx = m_pieceArr[castedId].movesIdx;
                 int i = 0;
@@ -1228,14 +1223,112 @@ namespace Chess {
                     if( !contains ) {
                         temp2 = m_moves[tempOffset + movesIdx];
                         m_moves[tempOffset + i] = temp2;
-                        m_moves[tempOffset + movesIdx--] = {8,8};
+                        m_moves[tempOffset + movesIdx--] = Pos{8,8};
                     } else {i++;}
-                    if( tempOffset+i < m_moves.size() ) {
+                    if( tempOffset+i < m_moves.size() && i < m_pieceArr[i].reserved ) {
                         temp = m_moves[tempOffset+i];
                     } else {break;}
                 }
+                setMovesIdx(pinnedId, movesIdx);
             }
         }
+    }
+
+    void Board::filterChecked() {
+        int checkedSize = 0;
+        Pos temp = m_checkedArr[checkedSize];
+        while( temp != Pos{8,8} ) {
+            checkedSize++;
+            if( checkedSize < m_checkedArr.size() ) {
+                temp = m_checkedArr[checkedSize];
+            }
+        }
+
+        for( int i = 0; i < m_pieceArr.size(); i++ ) {
+            const ID id = static_cast<ID>(i+1);
+            if( id == ID::W_KING || id == ID::B_KING ) {
+                continue;
+            }
+            const int offset = m_moveOffset[i];
+            int movesIdx = m_pieceArr[i].movesIdx;
+            temp = m_moves[offset];
+            int j = 0;
+            while( temp != Pos{8,8} ) {
+                bool contains = false;
+                int k = 0;
+                while( k < checkedSize ) {
+                    if( temp == m_checkedArr[k] ) {
+                        contains = true;
+                    }
+                    k++;
+                }
+                if( !contains ) {
+                    Pos temp2 = m_moves[offset+movesIdx];
+                    m_moves[offset+movesIdx--] = Pos{8,8};
+                    m_moves[offset+j] = temp2;
+                } else{j++;}
+                if( j < m_pieceArr[i].reserved )
+                    temp = m_moves[offset+j];
+            }
+            setMovesIdx(id, movesIdx);
+        }
+    }
+
+    void Board::genMoves() {
+        genChecked();
+        genPinned();
+        /* generate possible moves and generate attacked and defended vectors */
+        for(int i = 1; i < m_pieceArr.size() + 1; i++) {
+            addMoves(static_cast<ID>(i));
+        }
+        filterPinned();
+        if( isInCheck() ) {
+            filterChecked();
+        }
+    }
+
+    COLOR Board::getTurnColor() const {
+        COLOR color;
+        if( getTurn() ) {
+            color = COLOR::WHITE;
+        } else {
+            color = COLOR::BLACK;
+        }
+        return color;
+    }
+
+    bool Board::colorHasMoves() const {
+        const COLOR color = getTurnColor();
+        bool flag = false;
+        const int idx = 15; // the offset for black pieces in moveOffsets[]
+        const int offset = m_moveOffset[idx];
+
+        if( color == COLOR::WHITE ) {
+            for( int i = 0; i < offset; i++ ) {
+                if( m_moves[i] != Pos{8,8} ) {
+                    return true;
+                }
+            }
+        } else {
+            for( int i = offset; i < m_moves.size(); i++ ) {
+                if( m_moves[i] != Pos{8,8} ) {
+                    return true;
+                }
+            }
+        }
+        return flag;
+    }
+
+    bool Board::isInCheck() const {
+        return m_checkedId != EMPTY;
+    }
+
+    bool Board::isStalemate() const {
+        return !isInCheck() && !colorHasMoves();
+    }
+
+    bool Board::isCheckmate() const {
+        return isInCheck() && !colorHasMoves();
     }
 
 // ♔♕♖♗♘♙♚♛♜♝♞♟
