@@ -125,6 +125,11 @@ namespace Chess {
             const std::set<Type>* getMatchingSet(const Direction& direction);
             bool isFiftyMoves();
             bool isThreefoldRepetition(); // may not even implement
+            bool isStalemate() const;
+            bool isCheckmate() const;
+            bool isInCheck() const;
+            COLOR getTurnColor() const;
+            bool colorHasMoves() const;
 
             void setIdAt(const Pos& pos, const ID& id);
             void setMoveAt(const ID& id, const Pos& pos, const int& i);
@@ -148,10 +153,11 @@ namespace Chess {
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
             void addMoves(const ID& id);
+            void filterPinned();
+            void filterChecked();
 
             char32_t getGlyphUnicode(const ID& id);
             char getGlyph(const ID& id);
-
     };
 }
 #endif
