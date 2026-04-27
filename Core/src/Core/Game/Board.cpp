@@ -348,10 +348,14 @@ namespace Chess {
         TypeMoves res;
         int choice;
         const std::array<Type, 4>* promotionArr = getPromotionArr(color);
-        do {
-            std::cout << "Enter [1-4] to promote pawn:\n1 for Rook\n2 for Knight\n3 for Bishop\n4 for Queen" << std::endl;
-            std::cin >> choice;
-        } while( choice < 1 || choice > 4 );
+        // do {
+        //     std::cout << "Enter [1-4] to promote pawn:\n1 for Rook\n2 for Knight\n3 for Bishop\n4 for Queen" << std::endl;
+        //     std::cin >> choice;
+        // } while( choice < 1 || choice > 4 );
+        choice = m_promotionPiece;
+        if (choice < 1 || choice > 4) {
+            choice = 4;
+        }
         const int idx = choice-1;
         res.type = promotionArr->at(idx);
         res.maxMoves = m_promotionMoves[idx];
@@ -395,6 +399,9 @@ namespace Chess {
 
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
+    }
+
+    void Board::resetGen() {
         std::fill(m_moves.begin(), m_moves.end(), Pos{8,8});
         m_pinnedArr.fill(Pos{8,8});
         m_checkedArr.fill(Pos{8,8});
@@ -1321,6 +1328,10 @@ namespace Chess {
 
     bool Board::isInCheck() const {
         return m_checkedId != EMPTY;
+    }
+
+    void Board::setPromotionPiece(int promotionPiece) {
+        m_promotionPiece = promotionPiece;
     }
 
     bool Board::isStalemate() const {

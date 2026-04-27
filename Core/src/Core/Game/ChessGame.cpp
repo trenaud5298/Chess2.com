@@ -194,6 +194,7 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
     }
 
     m_board.setTurn(side == COLOR::WHITE);
+    m_board.resetGen();
     m_board.genMoves();
 
     Pos target = posFromSquare(to);
@@ -208,20 +209,9 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
         };
     }
 
-    if (requiresPromotion(piece, side, target)) {
-        if (promotion == PromotionPiece::None) {
-            return {
-                .status = ChessGameMoveStatus::PromotionRequired,
-                .stateChanged = (m_state != preState || m_version != preVersion),
-                .turnAdvanced = false,
-                .gameFinished = (m_state == ChessGameState::Finished),
-                .winner = m_winner,
-                .endReason = m_endReason
-            };
-        }
-
+    if (requiresPromotion(piece, side, target) && promotion == PromotionPiece::None) {
         return {
-            .status = ChessGameMoveStatus::PromotionNotSupported,
+            .status = ChessGameMoveStatus::PromotionRequired,
             .stateChanged = (m_state != preState || m_version != preVersion),
             .turnAdvanced = false,
             .gameFinished = (m_state == ChessGameState::Finished),
@@ -232,6 +222,11 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
 
     m_board.move(piece, target);
     ++m_version;
+
+    if (requiresPromotion(piece, side, target)) {
+        m_board.setPromotionPiece(toBoardConvention(promotion));
+        m_board.promotePawn();
+    }
 
     advanceTurn(now);
     refreshTerminalStateFromBoard(now);
@@ -360,6 +355,7 @@ void ChessGame::rebuildBoardFromRaw(const std::array<ID, 64> &boardRaw) {
 
 void ChessGame::refreshBoardDerivedState() {
     m_board.setTurn(m_currentTurn == COLOR::WHITE);
+    m_board.resetGen();
     m_board.genMoves();
 }
 
@@ -375,11 +371,17 @@ void ChessGame::refreshTerminalStateFromBoard(std::chrono::steady_clock::time_po
         return;
     }
 
-    // TODO: Need winner() function here
-    // COLOR checkMateWinner = m_board.winner();
-    // if (isPlayableSide(checkMateWinner)) {
-    //     finish(checkMateWinner, ChessGameEndReason::Checkmate, now);
-    // }
+    refreshBoardDerivedState();
+
+    if (m_board.isCheckmate()) {
+        finish(oppositeColor(m_currentTurn), ChessGameEndReason::Checkmate, now);
+        return;
+    }
+
+    if (m_board.isStalemate()) {
+        finish(COLOR::EMPTY, ChessGameEndReason::Draw, now);
+        return;
+    }
 }
 
 void ChessGame::finish(COLOR winner, ChessGameEndReason reason, std::chrono::steady_clock::time_point now) {

@@ -122,7 +122,7 @@ MultiplayerGameScreen::MultiplayerGameScreen(ClientPanel& clientPanel)
         }
 
         ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
-            squareFromPos(from), squareFromPos(to), PromotionPiece::None
+            squareFromPos(from), squareFromPos(to), PromotionPiece::Queen
         );
 
         m_clientPanel.handleStatus(

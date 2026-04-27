@@ -41,13 +41,19 @@ namespace Chess {
 
             void setTurn(bool isWhite);
             void nextTurn();
+            void resetGen();
             void genMoves();
             void genChecked();
             void genPinned();
+            bool isStalemate() const;
+            bool isCheckmate() const;
+            bool isInCheck() const;
 
+
+            void setPromotionPiece(int promotionPiece);
+            void promotePawn();
             std::ios &(* isValidMove())(std::ios &);
 
-            COLOR winner();
             /* Testing functions */
             void printMoveOffset();
             void printMoves();
@@ -97,6 +103,8 @@ namespace Chess {
             const std::array<std::uint8_t, 4> m_promotionMoves;
             const std::set<Type> m_lanePieceSet;
 
+            int m_promotionPiece{0};
+
             bool m_isWhiteTurn;
             bool m_isWhiteChecked;
             bool m_isBlackChecked;
@@ -125,9 +133,6 @@ namespace Chess {
             const std::set<Type>* getMatchingSet(const Direction& direction);
             bool isFiftyMoves();
             bool isThreefoldRepetition(); // may not even implement
-            bool isStalemate() const;
-            bool isCheckmate() const;
-            bool isInCheck() const;
             COLOR getTurnColor() const;
             bool colorHasMoves() const;
 
@@ -137,7 +142,6 @@ namespace Chess {
             void setAttackedAt(const Pos& pos, const COLOR& color);
             void setDefendedAt(const Pos& pos);
             void setChecked(const ID& checked);
-            void promotePawn();
             void updateMoveLog(const LogEntry& entry);
             COLOR getInvertedColor(const COLOR& color);
             TypeMoves getPromotionChoice(const COLOR& color);

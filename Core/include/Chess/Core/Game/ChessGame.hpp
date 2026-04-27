@@ -44,6 +44,17 @@ enum class PromotionPiece : std::uint8_t {
     Knight = 4,
 };
 
+inline constexpr int toBoardConvention(PromotionPiece promotion) {
+    switch (promotion) {
+        case PromotionPiece::None: return 0;
+        case PromotionPiece::Queen: return 4;
+        case PromotionPiece::Rook: return 1;
+        case PromotionPiece::Bishop: return 3;
+        case PromotionPiece::Knight: return 2;
+    }
+    return 4;
+}
+
 enum class ChessGameMoveStatus : std::uint8_t {
     Success = 0,
     GameNotStarted = 1,
