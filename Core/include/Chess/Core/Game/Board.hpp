@@ -121,6 +121,7 @@ namespace Chess {
             bool isValidMod(const int& val, const int& mod);
             bool isPawnPromotable();
             bool isPawnId(const ID& id);
+            bool isInSameSet(const Pos&, const Pos&, const Direction&);
             std::uint8_t castHelper(const std::uint8_t dim, const int& mod);
             const std::set<Type>* getMatchingSet(const Direction& direction);
             bool isFiftyMoves();

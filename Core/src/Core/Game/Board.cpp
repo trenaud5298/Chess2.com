@@ -10,19 +10,15 @@
 // TODO 
 //      * implement a way to castle
 //          - m_hasCastled boolean private members
-//      * implement a way to promote pawns
+//          - canCastle() function
 //      * implement a way to en passant
 //          - if last move was a pawn and it moved from its starting position
 //              to be adjacent to a pawn of opposite color on an adjacent lane, then the
 //              pawn of opposite color on the adjacent lane may en passant
-//      * implement checking logic fully
 //      * Fix the indexing mismatch in most of the functions
-//      * Add "full" king movement logic with isAttacked() and isDefended()
 //      * Gamestates
-//          - implement a 50 move long move history array which contains entries describing
-//              the moving piece, the old square, the new square, and if a "take" took place
-//          - for the 50 move no take rule its self explanatory
-//          - for threefold repetition rule it is also self explanatory
+//          - threefold repetition rule 
+//          - dead positions
 //
 //      *   Testing TODO
 //
@@ -260,6 +256,7 @@ namespace Chess {
         updateMoveLog(entry);
     }
 
+    /* m_moveLog can grow up to size 50, FIFO type behavior */
     void Board::updateMoveLog(const LogEntry& entry) {
         const int size = m_moveLog.size();
         if( size != 0 && size == 50) {
@@ -290,10 +287,10 @@ namespace Chess {
 
     /* Returns true if the 50 move no take rule applies to the game state */
     bool Board::isFiftyMoves() {
-        if( m_moveLog.size() != 50 ) {
-            return false;
-        }
         bool res = false;
+        if( m_moveLog.size() != 50 ) {
+            return res;
+        }
         for(const LogEntry& entry : m_moveLog) {
             if( entry.taken == true ) {
                 res = true;
@@ -694,12 +691,12 @@ namespace Chess {
                     if( set->contains(getTypeAt(temp)) ) {
                         setChecked(tempId);
                         direction = directionCast(-i);
-                        mod = getMod(direction);
+                        const std::pair<int,int> tempMod = getMod(direction);
                         while(temp != kingPos) {
                             m_checkedArr[j] = temp;
                             j++;
-                            temp[ROW] += mod.first;
-                            temp[COL] += mod.second;
+                            temp[ROW] += tempMod.first;
+                            temp[COL] += tempMod.second;
                         }
                         return;
                     } else {break;}
@@ -720,12 +717,12 @@ namespace Chess {
                     if( set->contains(getTypeAt(temp)) ) {
                         setChecked(tempId);
                         direction = directionCast(-i);
-                        mod = getMod(direction);
+                        const std::pair<int,int> tempMod = getMod(direction);
                         while(temp != kingPos) {
                             m_checkedArr[j] = temp;
                             j++;
-                            temp[ROW] += mod.first;
-                            temp[COL] += mod.second;
+                            temp[ROW] += tempMod.first;
+                            temp[COL] += tempMod.second;
                         }
                         return;
                     } else {break;}
@@ -768,14 +765,16 @@ namespace Chess {
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
-                        Direction tempDirection = directionCast(-i);
-                        mod = getMod(tempDirection);
-                        int j = 0;
-                        while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
-                            pinningPos[ROW] += mod.first;
-                            pinningPos[COL] += mod.second;
-                            j++;
+                        if( isInSameSet(pinningPos, pinnedPos, direction) ) {
+                            Direction tempDirection = directionCast(-i);
+                            mod = getMod(tempDirection);
+                            int j = 0;
+                            while( pinnedPos != pinningPos ) {
+                                m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
+                                pinningPos[ROW] += mod.first;
+                                pinningPos[COL] += mod.second;
+                                j++;
+                            }
                         }
                         break;
                     }
@@ -815,14 +814,16 @@ namespace Chess {
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp)) ) {
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
-                        Direction tempDirection = directionCast(i);
-                        mod = getMod(tempDirection);
-                        int j = 0;
-                        while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
-                            pinningPos[ROW] += mod.first;
-                            pinningPos[COL] += mod.second;
-                            j++;
+                        if( isInSameSet(pinningPos, pinnedPos, direction) ) {
+                            Direction tempDirection = directionCast(i);
+                            mod = getMod(tempDirection);
+                            int j = 0;
+                            while( pinnedPos != pinningPos ) {
+                                m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
+                                pinningPos[ROW] += mod.first;
+                                pinningPos[COL] += mod.second;
+                                j++;
+                            }
                         }
                         break;
                     }
@@ -841,6 +842,16 @@ namespace Chess {
                 }
             }
         }
+    }
+
+    bool Board::isInSameSet(const Pos& to, const Pos& compare, const Direction& direction) {
+        bool res = false;
+        const Type t1 = getTypeAt(to), t2 = getTypeAt(compare);
+        const std::set<Type>* set = getMatchingSet(direction);
+        if( set->contains(t1) && set->contains(t2) ) {
+            res = true;
+        }
+        return res;
     }
 
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
@@ -1214,14 +1225,14 @@ namespace Chess {
                             contains = true;
                         }
                         j++;
-                        if( offset+j < m_pinnedArr.size() ) {
+                        if( j < pinnedMovesSize ) {
                             temp2 = m_pinnedArr[offset+j];
                         } else {break;} 
                     }
                     if( !contains ) {
-                        temp2 = m_moves[tempOffset + movesIdx];
+                        temp2 = m_moves[tempOffset + movesIdx - 1];
+                        m_moves[tempOffset + --movesIdx] = Pos{8,8};
                         m_moves[tempOffset + i] = temp2;
-                        m_moves[tempOffset + movesIdx--] = Pos{8,8};
                     } else {i++;}
                     if( tempOffset+i < m_moves.size() && i < m_pieceArr[i].reserved ) {
                         temp = m_moves[tempOffset+i];
@@ -1297,9 +1308,9 @@ namespace Chess {
         }
         filterPinned();
         if( isInCheck() ) {
-            filterChecked();
+            filterChecked(); //infinite loop in this function
         }
-        filterKingMoves();
+        //filterKingMoves();
     }
 
     COLOR Board::getTurnColor() const {
