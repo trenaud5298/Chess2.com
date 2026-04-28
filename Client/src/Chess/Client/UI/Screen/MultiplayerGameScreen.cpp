@@ -14,6 +14,7 @@
 #include <Chess/Core/UI/ChessBoardDisplay.hpp>
 #include <Chess/Core/Common/TimeFormat.hpp>
 #include <Chess/Client/UI/Modal/ConfirmModal.hpp>
+#include <Chess/Client/UI/Modal/PromotionModal.hpp>
 
 // FTXUI Includes
 
@@ -116,19 +117,23 @@ MultiplayerGameScreen::MultiplayerGameScreen(ClientPanel& clientPanel)
         .inputPlaceholder = "Send a game chat..."
     });
 
-    m_boardDisplay->onMove = [this](Pos from, Pos to) {
+    m_boardDisplay->onMove = [this](Pos from, Pos to, bool promotion) {
         if (!canSubmitMoves()) {
             return;
         }
 
-        ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
-            squareFromPos(from), squareFromPos(to), PromotionPiece::Queen
-        );
+        if (promotion) {
+            m_clientPanel.pushModal(std::make_unique<PromotionModal>(m_clientPanel, squareFromPos(from), squareFromPos(to), localColor() == COLOR::WHITE));
+        } else {
+            ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
+                squareFromPos(from), squareFromPos(to), PromotionPiece::Queen
+            );
+            m_clientPanel.handleStatus(
+                status,
+                "Failed To Make Move", ResultPolicy::Modal
+            );
+        }
 
-        m_clientPanel.handleStatus(
-            status,
-            "Failed To Make Move", ResultPolicy::Modal
-        );
     };
 
     m_component = buildComponent();

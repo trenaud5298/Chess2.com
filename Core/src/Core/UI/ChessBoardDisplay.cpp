@@ -108,7 +108,8 @@ void ChessBoardDisplay::handleSelect(int displayRow, int displayCol) {
     } else {
         Pos from = m_selected.value();
         if (from != boardPos && onMove) {
-            onMove(from, boardPos);
+            // TODO: Pass in if promotion is required here
+            onMove(from, boardPos, false);
         }
         m_selected.reset();
     }

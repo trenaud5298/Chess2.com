@@ -37,7 +37,7 @@ public:
     void setFlipped(bool flipped);
     void setTheme(const BoardTheme& theme);
 
-    std::function<void(Pos from, Pos to)> onMove;
+    std::function<void(Pos from, Pos to, bool promotion)> onMove;
 
     ftxui::Element OnRender() override;
     bool OnEvent(ftxui::Event e) override;

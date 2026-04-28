@@ -23,7 +23,7 @@
 namespace Chess {
 
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
-    m_boardDisplay->onMove = [this](Pos from, Pos to) {
+    m_boardDisplay->onMove = [this](Pos from, Pos to, bool promotion) {
         SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
         const std::array<ID, 64>& board = view.board->getBoard();
 
