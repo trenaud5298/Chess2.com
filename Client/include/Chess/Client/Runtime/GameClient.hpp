@@ -128,6 +128,13 @@ public:
     [[nodiscard]] ClientStatus requestMultiplayerDisconnect();
     [[nodiscard]] ClientStatus submitMultiplayerGlobalChat(std::string text);
     [[nodiscard]] ClientStatus submitMultiplayerGameChat(std::string text);
+    [[nodiscard]] ClientStatus requestMultiplayerCreateRoom(RoomCreateConfig config);
+    [[nodiscard]] ClientStatus requestMultiplayerRefreshRooms();
+    [[nodiscard]] ClientStatus requestMultiplayerJoinRoomAsPlayer(RoomID roomID, std::string password = {});
+    [[nodiscard]] ClientStatus requestMultiplayerJoinRoomAsSpectator(RoomID roomID, std::string password = {});
+    [[nodiscard]] ClientStatus requestMultiplayerLeaveRoom();
+    [[nodiscard]] ClientStatus submitMultiplayerMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
+
 
     // Multiplayer Info
     [[nodiscard]] MultiplayerState multiplayerState() const noexcept {return m_multiplayerClient.state();}

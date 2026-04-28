@@ -22,6 +22,7 @@
 #include <system_error>
 #include <utility>
 #include <chrono>
+#include <filesystem>
 #include <format>
 
 namespace {
@@ -108,6 +109,67 @@ ClientStatus MultiplayerClient::requestSendGameChat(std::string text) {
     return ClientStatus::Success();
 }
 
+ClientStatus MultiplayerClient::requestCreateRoom(RoomCreateConfig config) {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestCreateRoom, this, config
+    ));
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestRefreshRooms() {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestRefreshRooms, this
+    ));
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestJoinRoomAsPlayer(RoomID roomID, std::string password) {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestJoinRoomAsPlayer, this, roomID, std::move(password)
+    ));
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestJoinRoomAsSpectator(RoomID roomID, std::string password) {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestJoinRoomAsSpectator, this, roomID, std::move(password)
+    ));
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestLeaveRoom() {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestLeaveRoom, this
+    ));
+    return ClientStatus::Success();
+}
+
+ClientStatus MultiplayerClient::requestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion) {
+    if (state() != MultiplayerState::Connected) {
+        return ClientStatus::Error(StatusCode::InvalidState, "Multiplayer client is not connected");
+    }
+    asio::post(m_strand, std::bind_front(
+        &MultiplayerClient::doRequestSubmitMove, this, from, to, promotion
+    ));
+    return ClientStatus::Success();
+}
+
+
 // View
 MultiplayerView MultiplayerClient::view() const {
     std::lock_guard lock(m_viewMutex);
@@ -154,13 +216,56 @@ void MultiplayerClient::emitResult(EventType type, ClientStatus status) {
 // All Of The Following Functions Are Strand Only And Will Always Be
 // Called On An ASIO Thread Protected By The Strand
 
+void MultiplayerClient::resetLobbyState() {
+    m_rooms.clear();
+    m_refreshRoomsInProgress = false;
+}
+
+void MultiplayerClient::resetRoomState() {
+    m_joinedRoom = false;
+    m_joinedRoomID = 0;
+    m_memberType = RoomMemberType::None;
+    m_memberColor = COLOR::EMPTY;
+    m_latestGameUpdate.reset();
+    resetChatsForGame();
+}
+
+void MultiplayerClient::applyRoomJoined(RoomID roomID, RoomMemberType memberType, COLOR color) {
+    m_joinedRoom = true;
+    m_joinedRoomID = roomID;
+    m_memberType = memberType;
+    m_memberColor = color;
+}
+
+void MultiplayerClient::applyGameUpdate(const GameUpdate& gameUpdate) {
+    m_latestGameUpdate = gameUpdate;
+}
+
 void MultiplayerClient::refreshViewSnapshot() {
     std::lock_guard lock(m_viewMutex);
     m_viewSnapshot = {
         .state = m_state,
         .serverInfo = m_serverInfo,
         .socketConnected = m_socketConnected,
-        .loginAccepted = m_loginAccepted
+        .loginAccepted = m_loginAccepted,
+        .lobby = MultiplayerLobbyView{
+            .rooms = m_rooms,
+            .refreshInProgress = m_refreshRoomsInProgress
+        },
+        .room = MultiplayerRoomView{
+            .joined = m_joinedRoom,
+            .roomID = m_joinedRoomID,
+            .memberType = m_memberType,
+            .color = m_memberColor,
+            .whitePlayerName = m_latestGameUpdate ? m_latestGameUpdate->whitePlayerName : "",
+            .blackPlayerName = m_latestGameUpdate ? m_latestGameUpdate->blackPlayerName : "",
+            .spectatorCount = static_cast<std::uint16_t>(m_latestGameUpdate ? m_latestGameUpdate->spectatorCount : 0),
+            .roomVersion = m_latestGameUpdate ? m_latestGameUpdate->roomVersion : 0,
+        },
+        .game = MultiplayerGameView{
+            .hasSnapshot = m_latestGameUpdate.has_value(),
+            .latestUpdate = m_latestGameUpdate
+        }
     };
 }
 
@@ -175,6 +280,8 @@ void MultiplayerClient::clearConnectionState() {
     m_username.clear();
     m_socketConnected = false;
     m_loginAccepted = false;
+    resetLobbyState();
+    resetRoomState();
 }
 
 void MultiplayerClient::closeTransport() {
@@ -301,6 +408,112 @@ void MultiplayerClient::doRequestSendGameChat(std::string text) {
     ClientStatus status = queueSend(chat.toSharedMessage());
     if (!status) {
         emitResult(EventType::MultiplayerTransport, std::move(status));
+    }
+}
+
+
+void MultiplayerClient::doRequestCreateRoom(RoomCreateConfig config) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerRoomCreate, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+    if (m_joinedRoom) {
+        emitResult(EventType::MultiplayerRoomCreate, ClientStatus::Error(StatusCode::InvalidState, "Already In A Room"));
+        return;
+    }
+
+    ClientStatus status = queueSend(CreateRoomRequest{.config = std::move(config)}.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerRoomCreate, std::move(status));
+    }
+}
+
+void MultiplayerClient::doRequestRefreshRooms() {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerRoomsRefresh, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+
+    m_refreshRoomsInProgress = true;
+    refreshViewSnapshot();
+
+    ClientStatus status = queueSend(ListRoomsRequest{}.toSharedMessage());
+    if (!status) {
+        m_refreshRoomsInProgress = false;
+        refreshViewSnapshot();
+        emitResult(EventType::MultiplayerRoomsRefresh, std::move(status));
+    }
+}
+
+
+void MultiplayerClient::doRequestJoinRoomAsPlayer(RoomID roomID, std::string password) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+
+    if (m_joinedRoom) {
+        emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Already In A Room"));
+        return;
+    }
+
+    JoinRoomRequest request{.roomID = roomID, .spectator = false, .password = std::move(password)};
+    ClientStatus status = queueSend(request.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerRoomJoin, std::move(status));
+    }
+}
+
+void MultiplayerClient::doRequestJoinRoomAsSpectator(RoomID roomID, std::string password) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+
+    if (m_joinedRoom) {
+        emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, "Already In A Room"));
+        return;
+    }
+
+    JoinRoomRequest request{.roomID = roomID, .spectator = true, .password = std::move(password)};
+    ClientStatus status = queueSend(request.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerRoomJoin, std::move(status));
+    }
+}
+
+void MultiplayerClient::doRequestLeaveRoom() {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerRoomLeave, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+
+    if (!m_joinedRoom) {
+        emitResult(EventType::MultiplayerRoomLeave, ClientStatus::Error(StatusCode::InvalidState, "Not In A Room"));
+        return;
+    }
+
+    ClientStatus status = queueSend(LeaveRoomRequest{}.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerRoomLeave, std::move(status));
+    }
+}
+
+void MultiplayerClient::doRequestSubmitMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion) {
+    if (m_state != MultiplayerState::Connected) {
+        emitResult(EventType::MultiplayerMove, ClientStatus::Error(StatusCode::InvalidState, "Not Connected to Multiplayer Server"));
+        return;
+    }
+
+    if (!m_joinedRoom) {
+        emitResult(EventType::MultiplayerMove, ClientStatus::Error(StatusCode::InvalidState, "Not In A Room"));
+        return;
+    }
+
+    MakeMove request = {.from=from, .to=to, .promotion=promotion};
+    ClientStatus status = queueSend(request.toSharedMessage());
+    if (!status) {
+        emitResult(EventType::MultiplayerMove, std::move(status));
     }
 }
 
@@ -469,10 +682,28 @@ void MultiplayerClient::onIncomingMessage(Message message) {
         case MessageType::Chat:
             onChatMessage(message);
             break;
+        case MessageType::CreateRoomResponse:
+            onCreateRoomResponse(message);
+            break;
+        case MessageType::ListRoomsResponse:
+            onListRoomsResponse(message);
+            break;
+        case MessageType::JoinRoomResponse:
+            onJoinRoomResponse(message);
+            break;
+        case MessageType::LeaveRoomResponse:
+            onLeaveRoomResponse(message);
+            break;
+        case MessageType::GameUpdate:
+            onGameUpdate(message);
+            break;
+        case MessageType::ErrorMessage:
+            onErrorMessage(message);
+            break;
         default:
             terminateSession(
                 EventType::MultiplayerDisconnect,
-                ClientStatus::Error(StatusCode::ProtocolError, "Unexpected Message Type Received")
+                ClientStatus::Error(StatusCode::ProtocolError, "Unsupported Message Type Received")
             );
             break;
     }
@@ -498,14 +729,15 @@ void MultiplayerClient::onLoginResponse(Message& message) {
 
     if (loginResponse->accepted) {
         m_loginAccepted = true;
-        transitionTo(MultiplayerState::Connected);
-
         resetChatsForConnection();
-
+        resetLobbyState();
+        resetRoomState();
+        transitionTo(MultiplayerState::Connected);
         emitResult(
             EventType::MultiplayerLogin,
             ClientStatus::Success("Login Accepted")
         );
+        doRequestRefreshRooms();
         return;
     }
 
@@ -549,10 +781,167 @@ void MultiplayerClient::onChatMessage(Message& message) {
             m_gameChatLog.append(std::move(chatEntry));
             break;
     }
-
-
 }
 
+void MultiplayerClient::onCreateRoomResponse(Message &message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received CreateRoomResponse Message when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<CreateRoomResponse> response = CreateRoomResponse::fromMessage(message);
+    if (!response.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse CreateRoomResponse Message")
+        );
+        return;
+    }
+
+    if (!response->success) {
+        emitResult(EventType::MultiplayerRoomCreate, ClientStatus::Error(StatusCode::InvalidState, response->reason.empty() ? "Create Room Rejected" : response->reason));
+        return;
+    }
+
+    resetChatsForGame();
+    applyRoomJoined(response->roomID, response->memberType, response->color);
+    refreshViewSnapshot();
+    emitResult(EventType::MultiplayerRoomCreate, ClientStatus::Success("Room Created"));
+    doRequestRefreshRooms();
+}
+
+void MultiplayerClient::onListRoomsResponse(Message &message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received ListRoomsResponse Message when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<ListRoomsResponse> response = ListRoomsResponse::fromMessage(message);
+    if (!response.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse ListRoomsResponse Message")
+        );
+        return;
+    }
+
+    m_rooms = std::move(response->rooms);
+    m_refreshRoomsInProgress = false;
+    refreshViewSnapshot();
+    emitResult(EventType::MultiplayerRoomsRefresh, ClientStatus::Success("Lobby room list updated"));
+}
+
+void MultiplayerClient::onJoinRoomResponse(Message &message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received JoinRoomResponse Message when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<JoinRoomResponse> response = JoinRoomResponse::fromMessage(message);
+    if (!response.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse JoinRoomResponse Message")
+        );
+        return;
+    }
+
+    if (!response->success) {
+        emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Error(StatusCode::InvalidState, response->reason.empty() ? "Join Room Rejected" : response->reason));
+        return;
+    }
+
+    resetChatsForGame();
+    applyRoomJoined(response->roomID, response->memberType, response->color);
+    refreshViewSnapshot();
+    emitResult(EventType::MultiplayerRoomJoin, ClientStatus::Success("Room Joined"));
+    doRequestRefreshRooms();
+}
+
+void MultiplayerClient::onLeaveRoomResponse(Message &message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received LeaveRoomResponse Message when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<LeaveRoomResponse> response = LeaveRoomResponse::fromMessage(message);
+    if (!response.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse LeaveRoomResponse Message")
+        );
+        return;
+    }
+
+    if (!response->success) {
+        emitResult(EventType::MultiplayerRoomLeave, ClientStatus::Error(StatusCode::InvalidState, response->reason.empty() ? "Leave Room Rejected" : response->reason));
+        return;
+    }
+
+    resetRoomState();
+    refreshViewSnapshot();
+    emitResult(EventType::MultiplayerRoomLeave, ClientStatus::Success("Room Left"));
+    doRequestRefreshRooms();
+}
+
+void MultiplayerClient::onGameUpdate(Message &message) {
+    if (m_state != MultiplayerState::Connected) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Received GameUpdate Message when Not Connected")
+        );
+        return;
+    }
+
+    std::optional<GameUpdate> update = GameUpdate::fromMessage(message);
+    if (!update.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse GameUpdate Message")
+        );
+        return;
+    }
+
+    if (!m_joinedRoom || m_joinedRoomID != update->roomID) {
+        terminateSession(EventType::MultiplayerDisconnect, ClientStatus::Error(StatusCode::ProtocolError, "Received GameUpdate For Unexpected Room"));
+        return;
+    }
+
+    applyGameUpdate(*update);
+    refreshViewSnapshot();
+
+    emitInfo(
+        EventType::MultiplayerGameSync,
+        "Applied GameUpdate room=" + std::to_string(update->roomID) +
+        " roomVersion=" + std::to_string(update->roomVersion) +
+        " gameVersion=" + std::to_string(update->snapshot.version)
+    );
+}
+
+void MultiplayerClient::onErrorMessage(Message &message) {
+    std::optional<ErrorMessage> error = ErrorMessage::fromMessage(message);
+    if (!error.has_value()) {
+        terminateSession(
+            EventType::MultiplayerDisconnect,
+            ClientStatus::Error(StatusCode::ProtocolError, "Failed To Parse ErrorMessage Message")
+        );
+        return;
+    }
+
+    emitResult(EventType::MultiplayerServerError, ClientStatus::Error(StatusCode::UnknownError, error->message.empty() ? "Server Reported An Error" : error->message));
+}
 
 void MultiplayerClient::resetChatsForConnection() {
     m_globalChatLog.clear();

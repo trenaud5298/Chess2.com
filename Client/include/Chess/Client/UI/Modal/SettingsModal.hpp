@@ -11,14 +11,13 @@
 
 // Chess Includes
 #include <Chess/Client/UI/Modal/ModalInterface.hpp>
-
-// ASIO Includes
+#include <Chess/Core/UI/Form/TextField.hpp>
+#include <Chess/Core/UI/Form/RGBField.hpp>
+#include <Chess/Core/UI/BoardTheme.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
-
-
-// C++ Includes
+#include <ftxui/dom/elements.hpp>
 
 
 namespace Chess {
@@ -34,7 +33,29 @@ public:
     void onLeave() override;
 
     [[nodiscard]] ftxui::Component getComponent() override;
+
 private:
+    [[nodiscard]] bool canApply() const;
+    [[nodiscard]] BoardTheme buildBoardTheme() const;
+    void apply();
+    void saveAndClose();
+
+private:
+    TextField m_usernameField;
+
+    RGBField m_lightSquareField;
+    RGBField m_darkSquareField;
+    RGBField m_whitePieceField;
+    RGBField m_blackPieceField;
+    RGBField m_cursorSquareField;
+    RGBField m_selectedSquareField;
+
+    ftxui::Component m_applyButton;
+    ftxui::Component m_saveButton;
+    ftxui::Component m_cancelButton;
+
+    ftxui::Component m_form;
+    ftxui::Box m_formBox{};
     ftxui::Component m_component;
 };
 

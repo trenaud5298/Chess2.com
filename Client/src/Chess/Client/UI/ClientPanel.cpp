@@ -267,8 +267,9 @@ Screen ClientPanel::screenForState(ClientState state) const {
         case ClientState::MultiplayerLobby:
             return Screen::Multiplayer_Lobby;
         case ClientState::MultiplayerInGame:
-        case ClientState::MultiplayerResult:
             return Screen::Multiplayer_Game;
+        case ClientState::MultiplayerResult:
+            return Screen::Multiplayer_Result;
         case ClientState::Error:
             return Screen::MainMenu;
     }

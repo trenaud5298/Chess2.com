@@ -23,8 +23,17 @@
 namespace Chess {
 
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
-    m_boardDisplay->onMove = [this](ID from, Pos to) {
-        ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(from, to);
+    m_boardDisplay->onMove = [this](Pos from, Pos to) {
+        SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
+        const std::array<ID, 64>& board = view.board->getBoard();
+
+        std::size_t fromIndex = static_cast<std::size_t>(from[0]*8 + from[1]);
+        ID pieceID = board[fromIndex];
+        if (pieceID == ID::EMPTY) {
+            return;
+        }
+
+        ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(pieceID, to);
         if (!m_clientPanel.handleStatus(result, "Failed To Make Move")) {
             return;
         }
@@ -42,6 +51,9 @@ ftxui::Component SingleplayerGameScreen::getComponent() {
 
 void SingleplayerGameScreen::onEnter() {
     SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
+
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+
     m_boardDisplay->setFlipped(view.playerColor == COLOR::BLACK);
     m_boardDisplay->updateBoard(view.board->getBoard());
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
@@ -60,6 +72,8 @@ void SingleplayerGameScreen::onPause() {
 }
 
 void SingleplayerGameScreen::onResume() {
+    m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
+
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
     m_clientPanel.handleStatus(
         m_clientPanel.gameClient().resumeSingleplayer(),
@@ -108,10 +122,6 @@ ftxui::Component SingleplayerGameScreen::buildComponent() {
 }
 
 void SingleplayerGameScreen::onTick() {
-    m_clientPanel.handleStatus(
-        m_clientPanel.gameClient().tick(),
-        "Tick Failed"
-    );
 }
 
 ftxui::Element SingleplayerGameScreen::renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const {

@@ -12,6 +12,8 @@
 
 // Chess Includes
 #include <Chess/Client/UI/Screen/ScreenInterface.hpp>
+#include <Chess/Core/Common/Types.hpp>
+#include <Chess/Client/Runtime/MultiplayerClient.hpp>
 
 // ASIO Includes
 
@@ -36,18 +38,42 @@ public:
 
     void onEnter() override;
     void onLeave() override;
+    void onTick() override;
 
     bool canRequestExit() const override {return true;}
     std::string exitLabel() const override { return "Disconnect";}
     void requestExit() override;
 
 private:
+    void refreshSnapshot();
+    void rebuildRoomEntries();
+
+    bool hasHoveredRoom() const;
+    RoomID hoveredRoomID() const;
+
+    void selectHoveredRoom();
+
+    std::optional<RoomSummary> hoveredRoom() const;
+    std::optional<RoomSummary> selectedRoom() const;
+
+    bool canRefreshRooms() const;
+    bool canCreateRoom() const;
+    bool canJoinAsPlayer() const;
+    bool canJoinAsSpectator() const;
+
+    ftxui::Element renderRoomEntry(const ftxui::EntryState& state);
     ftxui::Component buildComponent();
 
 private:
     std::unique_ptr<ChatPane> m_globalChatPane;
-    ftxui::Component m_component;
+    MultiplayerView m_view{};
 
+    std::vector<RoomID> m_roomIDs;
+    std::vector<std::string> m_roomEntries;
+    int m_roomCursor{0};
+    std::optional<RoomID> m_selectedRoom;
+
+    ftxui::Component m_component;
     static constexpr Screen SCREEN_TYPE = Screen::Multiplayer_Lobby;
 };
 

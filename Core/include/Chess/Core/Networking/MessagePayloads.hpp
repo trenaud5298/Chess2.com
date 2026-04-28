@@ -11,6 +11,8 @@
 
 // Chess Includes
 #include <Chess/Core/Networking/Message.hpp>
+#include <Chess/Core/Common/Types.hpp>
+#include <Chess/Core/Game/ChessGame.hpp>
 
 // ASIO Includes
 
@@ -21,6 +23,63 @@
 #include <memory>
 
 namespace Chess {
+
+enum class RoomMemberType : std::uint8_t {
+    None = 0,
+    Player = 1,
+    Spectator = 2
+};
+
+struct RoomSpectatorConfig {
+    bool allowSpectators{true};
+    bool spectatorsCanChat{false};
+    std::uint16_t maxSpectators{0}; // 0 is unlimited
+    bool allowMidgameJoin{true};
+};
+
+struct RoomGameConfig {
+    ChessClockConfig clock{};
+};
+
+struct RoomPresentationConfig {
+    std::string name;
+};
+
+struct RoomAccessConfig {
+    std::string password; // Empty is No Password (Public)
+    bool visibleInLobby{true};
+};
+
+struct RoomCreateConfig {
+    RoomSpectatorConfig spectator{};
+    RoomGameConfig game{};
+    RoomPresentationConfig presentation{};
+    RoomAccessConfig access{};
+};
+
+struct PublicRoomConfig {
+    RoomSpectatorConfig spectator{};
+    RoomGameConfig game{};
+    RoomPresentationConfig presentation{};
+    bool passwordProtected{false};
+    bool visibleInLobby{true};
+
+    PublicRoomConfig() = default;
+    explicit PublicRoomConfig(const RoomCreateConfig& config)
+    : spectator(config.spectator), game(config.game), presentation(config.presentation),
+    passwordProtected(!config.access.password.empty()), visibleInLobby(config.access.visibleInLobby) {}
+};
+
+struct RoomSummary {
+    RoomID roomID{0};
+    PublicRoomConfig config{};
+    std::string whitePlayerName;
+    std::string blackPlayerName;
+    std::uint16_t spectatorCount{0};
+    bool hasOpenPlayerSeat{false};
+    bool inProgress{false};
+};
+
 
 struct LoginRequest {
     static constexpr MessageType type = MessageType::LoginRequest;
@@ -66,11 +125,11 @@ struct Command {
     static std::optional<Command> fromMessage(Message& msg);
 };
 
+
 struct CreateRoomRequest {
     static constexpr MessageType type = MessageType::CreateRoomRequest;
 
-    std::uint64_t roomID;
-    std::string password;
+    RoomCreateConfig config{};
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -80,8 +139,10 @@ struct CreateRoomRequest {
 struct CreateRoomResponse {
     static constexpr MessageType type = MessageType::CreateRoomResponse;
 
-    bool success;
-    std::uint64_t roomID;
+    bool success{false};
+    RoomID roomID;
+    RoomMemberType memberType{RoomMemberType::None};
+    COLOR color{COLOR::EMPTY};
     std::string reason;
 
     Message toMessage() const;
@@ -89,10 +150,29 @@ struct CreateRoomResponse {
     static std::optional<CreateRoomResponse> fromMessage(Message& msg);
 };
 
+struct ListRoomsRequest {
+    static constexpr MessageType type = MessageType::ListRoomsRequest;
+
+    Message toMessage() const;
+    std::shared_ptr<Message> toSharedMessage() const;
+    static std::optional<ListRoomsRequest> fromMessage(Message& msg);
+};
+
+struct ListRoomsResponse {
+    static constexpr MessageType type = MessageType::ListRoomsResponse;
+
+    std::vector<RoomSummary> rooms;
+
+    Message toMessage() const;
+    std::shared_ptr<Message> toSharedMessage() const;
+    static std::optional<ListRoomsResponse> fromMessage(Message& msg);
+};
+
 struct JoinRoomRequest {
     static constexpr MessageType type = MessageType::JoinRoomRequest;
 
-    std::uint64_t roomID;
+    RoomID roomID;
+    bool spectator{false};
     std::string password;
 
     Message toMessage() const;
@@ -103,7 +183,10 @@ struct JoinRoomRequest {
 struct JoinRoomResponse {
     static constexpr MessageType type = MessageType::JoinRoomResponse;
 
-    bool success;
+    bool success{false};
+    RoomID roomID{0};
+    RoomMemberType memberType{RoomMemberType::None};
+    COLOR color{COLOR::EMPTY};
     std::string reason;
 
     Message toMessage() const;
@@ -111,12 +194,24 @@ struct JoinRoomResponse {
     static std::optional<JoinRoomResponse> fromMessage(Message& msg);
 };
 
-struct LeaveRoom {
-    static constexpr MessageType type = MessageType::LeaveRoom;
+struct LeaveRoomRequest {
+    static constexpr MessageType type = MessageType::LeaveRoomRequest;
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
-    static std::optional<LeaveRoom> fromMessage(Message& msg);
+    static std::optional<LeaveRoomRequest> fromMessage(Message& msg);
+};
+
+struct LeaveRoomResponse {
+    static constexpr MessageType type = MessageType::LeaveRoomResponse;
+
+    bool success{false};
+    RoomID roomID;
+    std::string reason;
+
+    Message toMessage() const;
+    std::shared_ptr<Message> toSharedMessage() const;
+    static std::optional<LeaveRoomResponse> fromMessage(Message& msg);
 };
 
 struct MakeMove {
@@ -124,6 +219,7 @@ struct MakeMove {
 
     std::uint8_t from;
     std::uint8_t to;
+    PromotionPiece promotion{PromotionPiece::None};
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -134,6 +230,13 @@ struct GameUpdate {
     static constexpr MessageType type = MessageType::GameUpdate;
 
     // define later
+    RoomID roomID{0};
+    PublicRoomConfig config{};
+    std::uint64_t roomVersion{0};
+    std::string whitePlayerName;
+    std::string blackPlayerName;
+    std::uint16_t spectatorCount{0};
+    ChessGameSnapshot snapshot{};
 
     Message toMessage() const;
     std::shared_ptr<Message> toSharedMessage() const;
@@ -156,8 +259,9 @@ using ClientToServerPayloads = std::tuple<
     Chat,
     Command,
     CreateRoomRequest,
+    ListRoomsRequest,
     JoinRoomRequest,
-    LeaveRoom,
+    LeaveRoomRequest,
     MakeMove,
     ErrorMessage
 >;
@@ -167,7 +271,9 @@ using ServerToClientPayloads = std::tuple<
     Chat,
     Command,
     CreateRoomResponse,
+    ListRoomsResponse,
     JoinRoomResponse,
+    LeaveRoomResponse,
     GameUpdate,
     ErrorMessage
 >;

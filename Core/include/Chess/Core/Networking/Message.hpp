@@ -23,6 +23,9 @@
 
 namespace Chess {
 
+// Note: I used AI to assist with generating the below summary
+// for MessageType and refined it to match my protocol.
+
 /**
  * @enum MessageType
  * @brief Defines all message types exchanged between client and server.
@@ -34,9 +37,13 @@ namespace Chess {
  * ---------------------------------------------------------------------------
  * Payload Conventions:
  * ---------------------------------------------------------------------------
- * - std::string  -> [uint32_t length][char data...]
- * - Integers     -> Raw byte form (Little-Endian)
- * - All fields   -> Tightly packed and ordered (no padding)
+ * - std::string    -> [uint32_t length][char data...]
+ * - std::vector<T> -> [uint32_t count][T item1][T item2]...[T itemN]
+ * - bool / enums   -> Raw byte form of the underlying type
+ * - Integers       -> Raw byte form (Little-Endian)
+ * - Durations      -> int64_t millisecond count
+ * - Arrays         -> Serialized element-by-element in fixed order
+ * - All fields     -> Tightly packed and ordered (no padding)
  *
  * ---------------------------------------------------------------------------
  * Message Definitions:
@@ -47,59 +54,96 @@ namespace Chess {
  *
  * @c MessageType::LoginRequest         (1)  | Direction: Client -> Server
  *   - std::string username
- *   - std::string serverPassword
+ *   - std::string password
  *
  * @c MessageType::LoginResponse        (2)  | Direction: Server -> Client
  *   - bool accepted
  *   - std::string reason
  *
  * @c MessageType::Chat                 (3)  | Direction: Both
- *   - ChatScope scope  // (Global or Game)
- *   - std::string message // ([<Timestamp>][<Sender>] <Message>)
+ *   - ChatScope scope
+ *   - std::string message
  *
  * @c MessageType::Command              (4)  | Direction: Client -> Server
  *   - std::string command
  *
  * @c MessageType::CreateRoomRequest    (5)  | Direction: Client -> Server
- *   - std::uint64_t roomID
- *   - std::string roomPassword
+ *   - No payload
  *
  * @c MessageType::CreateRoomResponse   (6)  | Direction: Server -> Client
  *   - bool success
- *   - std::uint64_t roomID
+ *   - RoomID roomID
+ *   - RoomMemberType memberType
+ *   - COLOR color
  *   - std::string reason
  *
- * @c MessageType::JoinRoomRequest      (7)  | Direction: Client -> Server
- *   - std::uint64_t roomID
- *   - std::string roomPassword
- *
- * @c MessageType::JoinRoomResponse     (8)  | Direction: Server -> Client
- *   - bool success
- *   - std::string reason
- *
- * @c MessageType::LeaveRoom            (9)  | Direction: Both
+ * @c MessageType::ListRoomsRequest     (7)  | Direction: Client -> Server
  *   - No payload
  *
- * @c MessageType::MakeMove            (10)  | Direction: Both
- *   - std::uint8_t from  // (row * 8 + col)
- *   - std::uint8_t to    // (row * 8 + col)
+ * @c MessageType::ListRoomsResponse    (8)  | Direction: Server -> Client
+ *   - uint32_t roomCount
+ *   - Repeated RoomSummary:
+ *     - RoomID roomID
+ *     - std::string whitePlayerName
+ *     - std::string blackPlayerName
+ *     - std::uint16_t spectatorCount
+ *     - bool hasOpenPlayerSeat
+ *     - bool inProgress
  *
- * @c MessageType::GameUpdate          (11)  | Direction: Server -> Client (typically)
- *   - Implementation-defined (board state, turn, clocks, etc.)
+ * @c MessageType::JoinRoomRequest      (9)  | Direction: Client -> Server
+ *   - RoomID roomID
+ *   - bool spectator
  *
- * @c MessageType::ErrorMessage        (12)  | Direction: Both
+ * @c MessageType::JoinRoomResponse     (10) | Direction: Server -> Client
+ *   - bool success
+ *   - RoomID roomID
+ *   - RoomMemberType memberType
+ *   - COLOR color
+ *   - std::string reason
+ *
+ * @c MessageType::LeaveRoomRequest     (11) | Direction: Client -> Server
+ *   - No payload
+ *
+ * @c MessageType::LeaveRoomResponse    (12) | Direction: Server -> Client
+ *   - bool success
+ *   - RoomID roomID
+ *   - std::string reason
+ *
+ * @c MessageType::MakeMove             (13) | Direction: Client -> Server
+ *   - std::uint8_t from
+ *   - std::uint8_t to
+ *   - PromotionPiece promotion
+ *
+ * @c MessageType::GameUpdate           (14) | Direction: Server -> Client
+ *   - RoomID roomID
+ *   - std::uint64_t roomVersion
+ *   - std::string whitePlayerName
+ *   - std::string blackPlayerName
+ *   - std::uint16_t spectatorCount
+ *   - ChessGameSnapshot snapshot:
+ *     - ID board[64]
+ *     - ChessGameState state
+ *     - COLOR currentTurn
+ *     - COLOR winner
+ *     - ChessGameEndReason endReason
+ *     - bool clockEnabled
+ *     - int64_t initialTimeMs
+ *     - int64_t incrementMs
+ *     - int64_t whiteTimeRemainingMs
+ *     - int64_t blackTimeRemainingMs
+ *     - std::uint64_t version
+ *
+ * @c MessageType::ErrorMessage         (15) | Direction: Both
  *   - std::uint32_t errorCode
  *   - std::string message
  *
  * ---------------------------------------------------------------------------
  *
- * @warning Any mismatch in ordering or type will result in undefined behavior.
+ * @warning Any mismatch in ordering or type will result in protocol failure.
  *
- * @remark - The receiver MUST deserialize fields in the exact order listed.
- *
- * @remark - This enum is tightly coupled with the serialization/deserialization logic.
- *
- * @remark - Request/Response pairs should be handled together at the application level.
+ * @remark The receiver MUST deserialize fields in the exact order listed.
+ * @remark This enum is tightly coupled with MessagePayloads serialization logic.
+ * @remark Request/response pairs should be handled together at the application level.
  */
 enum class MessageType : std::uint16_t {
     None,
@@ -109,9 +153,12 @@ enum class MessageType : std::uint16_t {
     Command,
     CreateRoomRequest,
     CreateRoomResponse,
+    ListRoomsRequest,
+    ListRoomsResponse,
     JoinRoomRequest,
     JoinRoomResponse,
-    LeaveRoom,
+    LeaveRoomRequest,
+    LeaveRoomResponse,
     MakeMove,
     GameUpdate,
     ErrorMessage
@@ -128,7 +175,10 @@ constexpr std::string_view toString(MessageType type) {
         case MessageType::CreateRoomResponse: return "CreateRoomResponse";
         case MessageType::JoinRoomRequest: return "JoinRoomRequest";
         case MessageType::JoinRoomResponse: return "JoinRoomResponse";
-        case MessageType::LeaveRoom: return "LeaveRoom";
+        case MessageType::ListRoomsRequest: return "ListRoomsRequest";
+        case MessageType::ListRoomsResponse: return "ListRoomsResponse";
+        case MessageType::LeaveRoomRequest: return "LeaveRoomRequest";
+        case MessageType::LeaveRoomResponse: return "LeaveRoomResponse";
         case MessageType::MakeMove: return "MakeMove";
         case MessageType::GameUpdate: return "GameUpdate";
         case MessageType::ErrorMessage: return "ErrorMessage";

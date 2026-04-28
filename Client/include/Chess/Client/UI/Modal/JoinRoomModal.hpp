@@ -1,5 +1,5 @@
-#ifndef CHESS_CLIENT_UI_MODAL_ADDSERVERMODAL_HPP
-#define CHESS_CLIENT_UI_MODAL_ADDSERVERMODAL_HPP
+#ifndef CHESS_CLIENT_UI_MODAL_JOINROOMMODAL_HPP
+#define CHESS_CLIENT_UI_MODAL_JOINROOMMODAL_HPP
 
 /*
  * Chess
@@ -11,26 +11,22 @@
 
 // Chess Includes
 #include <Chess/Client/UI/Modal/ModalInterface.hpp>
-#include <Chess/Client/Common/ServerInfo.hpp>
 #include <Chess/Core/UI/Form/TextField.hpp>
 #include <Chess/Core/UI/ConditionalButton.hpp>
+#include <Chess/Core/Networking/MessagePayloads.hpp>
 
 // FTXUI Includes
 #include <ftxui/component/component.hpp>
-#include <ftxui/dom/elements.hpp>
-
-// C++ Includes
-#include <functional>
 
 
 namespace Chess {
 
 class ClientPanel;
 
-class AddServerModal : public ModalInterface {
+class JoinRoomModal : public ModalInterface {
 public:
-    AddServerModal(ClientPanel& clientPanel, const std::function<void(ServerInfo)>& onAdd);
-    ~AddServerModal() override;
+    JoinRoomModal(ClientPanel& clientPanel, RoomSummary room, bool joinAsSpectator);
+    ~JoinRoomModal() override;
 
     [[nodiscard]] ftxui::Component getComponent() override;
 
@@ -39,15 +35,13 @@ private:
     void submit();
 
 private:
-    std::function<void(ServerInfo)> m_onAdd;
+    RoomSummary m_room;
+    bool m_joinAsSpectator{false};
 
-    TextField m_serverNameField;
-    TextField m_ipField;
     TextField m_passwordField;
 
-    ftxui::Component m_confirmButton;
+    ftxui::Component m_joinButton;
     ftxui::Component m_cancelButton;
-
     ftxui::Component m_form;
     ftxui::Component m_component;
 };

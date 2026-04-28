@@ -16,7 +16,139 @@
 #include <fstream>
 #include <utility>
 
+#include "Chess/Core/Game/Board.hpp"
+
 namespace Chess {
+
+namespace {
+
+toml::array rgbToTomlArray(const RGBColor & color) {
+    toml::array arr;
+    arr.push_back(color.red);
+    arr.push_back(color.green);
+    arr.push_back(color.blue);
+    return arr;
+}
+
+// Toml differentiates const toml::node from toml::node and does not
+// convert the non const one to const. Thus there are two versions
+// of this function to support both during load time and during runtime
+std::optional<RGBColor> rgbFromTomlArray(const toml::node_view<const toml::node>& node) {
+    const auto* arr = node.as_array();
+    if (!arr || arr->size() != 3) {
+        return std::nullopt;
+    }
+
+    auto red = (*arr)[0].value<std::uint8_t>();
+    auto green = (*arr)[1].value<std::uint8_t>();
+    auto blue = (*arr)[2].value<std::uint8_t>();
+
+    if (!red || !green || !blue) {
+        return std::nullopt;
+    }
+
+    return RGBColor{
+        .red = *red,
+        .green = *green,
+        .blue = *blue
+    };
+}
+
+std::optional<RGBColor> rgbFromTomlArray(const toml::node_view<toml::node>& node) {
+    const auto* arr = node.as_array();
+    if (!arr || arr->size() != 3) {
+        return std::nullopt;
+    }
+
+    auto red = (*arr)[0].value<std::uint8_t>();
+    auto green = (*arr)[1].value<std::uint8_t>();
+    auto blue = (*arr)[2].value<std::uint8_t>();
+
+    if (!red || !green || !blue) {
+        return std::nullopt;
+    }
+
+    return RGBColor{
+        .red = *red,
+        .green = *green,
+        .blue = *blue
+    };
+}
+
+toml::table boardThemeToToml(const BoardTheme& theme) {
+    return toml::table{
+        {"lightSquare", rgbToTomlArray(theme.lightSquare)},
+        {"darkSquare", rgbToTomlArray(theme.darkSquare)},
+        {"whitePiece", rgbToTomlArray(theme.whitePiece)},
+        {"blackPiece", rgbToTomlArray(theme.blackPiece)},
+        {"cursorSquare", rgbToTomlArray(theme.cursorSquare)},
+        {"selectedSquare", rgbToTomlArray(theme.selectedSquare)}
+    };
+}
+
+// Toml differentiates const toml::node from toml::node and does not
+// convert the non const one to const. Thus there are two versions
+// of this function to support both during load time and during runtime
+std::optional<BoardTheme> boardThemeFromToml(const toml::node_view<const toml::node>& node) {
+    const auto* table = node.as_table();
+    if (!table) {
+        return std::nullopt;
+    }
+
+    auto lightSquare = rgbFromTomlArray((*table)["lightSquare"]);
+    auto darkSquare = rgbFromTomlArray((*table)["darkSquare"]);
+    auto whitePiece = rgbFromTomlArray((*table)["whitePiece"]);
+    auto blackPiece = rgbFromTomlArray((*table)["blackPiece"]);
+    auto cursorSquare = rgbFromTomlArray((*table)["cursorSquare"]);
+    auto selectedSquare = rgbFromTomlArray((*table)["selectedSquare"]);
+
+    if (!lightSquare || !darkSquare || !whitePiece || !blackPiece || !cursorSquare || !selectedSquare) {
+        return std::nullopt;
+    }
+
+    return BoardTheme{
+        .lightSquare = *lightSquare,
+        .darkSquare = *darkSquare,
+        .whitePiece = *whitePiece,
+        .blackPiece = *blackPiece,
+        .cursorSquare = *cursorSquare,
+        .selectedSquare = *selectedSquare
+    };
+}
+
+std::optional<BoardTheme> boardThemeFromToml(const toml::node_view<toml::node>& node) {
+    const auto* table = node.as_table();
+    if (!table) {
+        return std::nullopt;
+    }
+
+    auto lightSquare = rgbFromTomlArray((*table)["lightSquare"]);
+    auto darkSquare = rgbFromTomlArray((*table)["darkSquare"]);
+    auto whitePiece = rgbFromTomlArray((*table)["whitePiece"]);
+    auto blackPiece = rgbFromTomlArray((*table)["blackPiece"]);
+    auto cursorSquare = rgbFromTomlArray((*table)["cursorSquare"]);
+    auto selectedSquare = rgbFromTomlArray((*table)["selectedSquare"]);
+
+    if (!lightSquare || !darkSquare || !whitePiece || !blackPiece || !cursorSquare || !selectedSquare) {
+        return std::nullopt;
+    }
+
+    return BoardTheme{
+        .lightSquare = *lightSquare,
+        .darkSquare = *darkSquare,
+        .whitePiece = *whitePiece,
+        .blackPiece = *blackPiece,
+        .cursorSquare = *cursorSquare,
+        .selectedSquare = *selectedSquare
+    };
+}
+
+}
+
+
+
+
+
 
 Settings::Settings() : m_path(std::filesystem::current_path() / "Client" / "Settings.toml"),
 m_table(makeDefaultTable()), m_generalTable(*m_table["General"].as_table()), m_displayTable(*m_table["Display"].as_table()), m_networkTable(*m_table["Network"].as_table()){
@@ -37,15 +169,20 @@ void Settings::setUsername(const std::string& value) {
     if (m_batchCount.load(std::memory_order_relaxed) == 0) save();
 }
 
-std::uint8_t Settings::getBoardScale() const {
+BoardTheme Settings::getBoardTheme() const {
     std::shared_lock lock(m_mutex);
-    return m_displayTable["board_scale"].value<std::uint8_t>().value();
+
+    if (auto theme = boardThemeFromToml(m_displayTable["board_theme"])) {
+        return *theme;
+    }
+
+    return BoardTheme{};
 }
 
-void Settings::setBoardScale(std::uint8_t value) {
+void Settings::setBoardTheme(const BoardTheme& value) {
     {
         std::unique_lock lock(m_mutex);
-        m_displayTable.insert_or_assign("board_scale", static_cast<int64_t>(value));
+        m_displayTable.insert_or_assign("board_theme", boardThemeToToml(value));
     }
     if (m_batchCount.load(std::memory_order_relaxed) == 0) save();
 }
@@ -85,7 +222,7 @@ toml::table Settings::makeDefaultTable() {
 
     // Display Settings
     toml::table displayTable{
-        {"board_scale", int64_t{3}}
+        {"board_theme", boardThemeToToml(BoardTheme{})}
     };
 
     // Network Settings
@@ -114,8 +251,8 @@ void Settings::load() {
         m_generalTable.insert_or_assign("username", *v);
 
     // Display
-    if (auto v = file["Display"]["board_scale"].value<int64_t>())
-        m_displayTable.insert_or_assign("board_scale", *v);
+    if (auto theme = boardThemeFromToml(file["Display"]["board_theme"]))
+        m_displayTable.insert_or_assign("board_theme", boardThemeToToml(*theme));
 
     // Network
     if (const auto* arr = file["Network"]["servers"].as_array()) {

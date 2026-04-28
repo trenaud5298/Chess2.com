@@ -96,7 +96,10 @@ SingleplayerClient::~SingleplayerClient() {
         return ClientStatus::Warning(StatusCode::InvalidArgument, "SingleplayerClient Cannot Move An Empty Piece");
     }
     if (timeRemaining(m_currentTurn, now) <= std::chrono::milliseconds{0}) {
-        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Current Side Has No Time Remainign");
+        return ClientStatus::Warning(StatusCode::InvalidState, "SingleplayerClient Current Side Has No Time Remaining");
+    }
+    if (!isColor(from, m_currentTurn)) {
+        return ClientStatus::Warning(StatusCode::InvalidMove, "SingleplayerClient Wrong Piece Color For Current Turn");
     }
     if (!m_board.isValidMove(from, to)) {
         return ClientStatus::Warning(StatusCode::InvalidMove, "SingleplayerClient Invalid Move");

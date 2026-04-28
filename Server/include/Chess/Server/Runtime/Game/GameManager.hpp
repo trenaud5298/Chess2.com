@@ -12,42 +12,29 @@
 // Chess Includes
 #include <Chess/Core/Common/LifecycleState.hpp>
 #include <Chess/Core/Common/Types.hpp>
+#include <Chess/Core/Game/ChessGame.hpp>
 #include <Chess/Server/Runtime/Game/GameRoom.hpp>
 
 // ASIO Includes
 #include <asio/strand.hpp>
 #include <asio/any_io_executor.hpp>
+#include <asio/steady_timer.hpp>
 
 // C++ Includes
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-
+#include "Chess/Core/Networking/MessagePayloads.hpp"
 
 namespace Chess {
 
 class GameServer;
 class Message;
-
-enum class GameManagerEventKind : std::uint8_t {
-    RoomJoined,
-    RoomLeft,
-    GameStarted,
-    GameEnded
-};
-
-struct GameManagerEvent {
-    GameManagerEventKind kind;
-    SessionID sessionID;
-    RoomID roomID;
-};
-
-using SessionNotifyCallback = std::function<void(const GameManagerEvent&)>;
 
 class GameManager {
 public:
@@ -64,19 +51,25 @@ public:
     void stop();
 
     // Thread Safe Request Functions
-    void requestCreateRoom(SessionID sessionID, SessionNotifyCallback callback = {});
-    void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, SessionNotifyCallback callback = {});
-    void requestLeaveRoom(SessionID sessionID, SessionNotifyCallback callback = {});
-    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, SessionNotifyCallback callback = {});
-    void requestGameChat(SessionID sessionID, std::string message, SessionNotifyCallback callback = {});
+    void requestCreateRoom(SessionID sessionID, RoomCreateConfig config);
+    void requestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password);
+    void requestListRooms(SessionID sessionID);
+    void requestLeaveRoom(SessionID sessionID);
+    void requestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
+    void requestGameChat(SessionID sessionID, std::shared_ptr<const Message> message);
 
 private:
     // Strand Version Of Public Request Functions
-    void doRequestCreateRoom(SessionID sessionID, SessionNotifyCallback callback = {});
-    void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, SessionNotifyCallback callback = {});
-    void doRequestLeaveRoom(SessionID sessionID, SessionNotifyCallback callback = {});
-    void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, SessionNotifyCallback callback = {});
-    void doRequestGameChat(SessionID sessionID, std::string message, SessionNotifyCallback callback = {});
+    void doRequestCreateRoom(SessionID sessionID, RoomCreateConfig config);
+    void doRequestJoinRoom(SessionID sessionID, RoomID roomID, bool spectator, std::string password);
+    void doRequestListRooms(SessionID sessionID);
+    void doRequestLeaveRoom(SessionID sessionID);
+    void doRequestMove(SessionID sessionID, std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
+    void doRequestGameChat(SessionID sessionID, std::shared_ptr<const Message> message);
+
+    // Timer Based Ticks
+    void scheduleTick();
+    void onTick();
 
     // Strand Only Helpers
     void sendToSession(SessionID sessionID, std::shared_ptr<const Message> message);
@@ -84,15 +77,31 @@ private:
     void sendToRoomPlayers(const GameRoom& room, std::shared_ptr<const Message> message);
     void sendToRoomAll(const GameRoom& room, std::shared_ptr<const Message> message);
 
-    void sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
-    void sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
+    void sendCreateRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason);
+    void sendJoinRoomResponse(SessionID sessionID, bool success, RoomID roomID, RoomMemberType memberType, COLOR color, std::string reason);
+    void sendListRoomsResponse(SessionID sessionID, std::vector<RoomSummary> rooms);
+    void sendLeaveRoomResponse(SessionID sessionID, bool success, RoomID roomID, std::string reason);
     void sendRoomError(SessionID sessionID, std::string reason);
     void sendGameUpdate(const GameRoom& room);
+
+    // Response Helpers
+    [[nodiscard]] RoomSummary makeRoomSummary(const GameRoom& room) const;
+    [[nodiscard]] GameUpdate makeGameUpdate(const GameRoom& room) const;
+    [[nodiscard]] std::string sessionName(SessionID sessionID) const;
+
+    // Room and ID Helpers
+    [[nodiscard]] std::shared_ptr<GameRoom> roomByID(RoomID roomID);
+    [[nodiscard]] std::shared_ptr<GameRoom> roomBySession(SessionID sessionID);
+    [[nodiscard]] bool sessionAlreadyInRoom(SessionID sessionID) const noexcept;
+    void bindSessionToRoom(SessionID sessionID, RoomID roomID);
+    void unbindSessionFromRoom(SessionID sessionID);
+    void removeRoomIfEmpty(RoomID roomID);
 
 private:
     GameServer& m_gameServer;
     std::atomic<LifecycleState> m_state{LifecycleState::STOPPED};
     asio::strand<asio::any_io_executor> m_strand;
+    asio::steady_timer m_tickTimer;
 
     std::atomic<RoomID> m_nextRoomID{1};
 
@@ -102,6 +111,8 @@ private:
 
     // Future If I Have Time After Gettings Rooms Working (Should Be Pretty Easy)
     // std::dequeu<SessionID> m_matchmakingQueue
+
+    static constexpr std::chrono::milliseconds TICK_INTERVAL{250};
 };
 }
 
