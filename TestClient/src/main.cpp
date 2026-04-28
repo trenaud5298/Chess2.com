@@ -30,7 +30,6 @@ int main() {
                                 IdPos({ID::B_PAWN1, Pos{4,4}}),
                                 IdPos({ID::W_PAWN1, Pos{4,5}}),
                                 };
-    */
     // pinned and checked
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{1,1}}),
@@ -41,8 +40,15 @@ int main() {
                                 IdPos({ID::B_ROOK1, Pos{7,1}}),
                                 IdPos({ID::W_BISHOP1, Pos{2,2}}),
                                 IdPos({ID::B_QUEEN, Pos{1,7}}),
-                                IdPos({ID::W_QUEEN, Pos{0,6}}),
+                                IdPos({ID::W_QUEEN, Pos{0,5}}),
                                 IdPos({ID::W_ROOK1, Pos{2,6}}),
+                                };
+    */
+    std::vector<IdPos> state = { 
+                                IdPos({ID::W_KING, Pos{3,3}}),
+                                IdPos({ID::B_QUEEN, Pos{4,5}}),
+                                IdPos({ID::B_ROOK1, Pos{4,2}}),
+                                IdPos({ID::B_ROOK2, Pos{2,2}}),
                                 };
 
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
@@ -56,6 +62,8 @@ int main() {
 
     board.displayBoard();
     board.genMoves();
+    board.displayAttacked();
+    board.displayDefended();
     board.printMoves();
     board.printMovesIdxs();
     board.printPinnedArr();
@@ -63,6 +71,7 @@ int main() {
     if( board.isInCheck() ) {
         board.filterChecked();
     }
+    board.filterKingMoves();
     board.printMovesIdxs();
     board.printCheckedPiece();
     board.printPinnedSet();
@@ -70,6 +79,7 @@ int main() {
     board.printMoves();
     board.printCheckedArr();
 
+    std::cout << "isStalemate: " << (board.isStalemate() ? "true" : "false");
 
     return 0;
 }

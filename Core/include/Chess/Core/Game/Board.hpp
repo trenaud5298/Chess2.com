@@ -52,6 +52,8 @@ namespace Chess {
             void printMoveOffset();
             void printMoves();
             void displayBoard();
+            void displayAttacked();
+            void displayDefended();
             static void printBoard(const std::array<ID, 64>&);
             void displayBoardUnicode();
             void printPieceIdxs();
@@ -74,6 +76,8 @@ namespace Chess {
             void filterChecked();
             void filterKingMoves();
             bool isInCheck() const;
+            bool isStalemate() const;
+            bool isCheckmate() const;
 
 
         private:
@@ -132,8 +136,6 @@ namespace Chess {
             const std::set<Type>* getMatchingSet(const Direction& direction);
             bool isFiftyMoves();
             bool isThreefoldRepetition(); // may not even implement
-            bool isStalemate() const;
-            bool isCheckmate() const;
             COLOR getTurnColor() const;
             bool colorHasMoves() const;
 

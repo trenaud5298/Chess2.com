@@ -1148,6 +1148,8 @@ namespace Chess {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
+                } else if( tempColor == COLOR::EMPTY ) {
+                    setAttackedAt(temp, color);
                 } else {
                     setDefendedAt(temp);
                 }
@@ -1164,6 +1166,8 @@ namespace Chess {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
+                } else if( tempColor == COLOR::EMPTY ) {
+                    setAttackedAt(temp, color);
                 } else {
                     setDefendedAt(temp);
                 }
@@ -1319,11 +1323,14 @@ namespace Chess {
         int movesIdx = m_pieceArr[castedId].movesIdx;
         int i = 0;
         while( i < movesIdx ) {
+            std::cout << "HERE" << std::endl;
             Pos temp = m_moves[offset+i];
+            printPosition(temp);
             if( isAttackedAt(temp) || isDefendedAt(temp) ) {
-                m_moves[offset+i] = m_moves[offset+movesIdx];
-                m_moves[offset+movesIdx--] = Pos{8,8};
+                m_moves[offset+i] = m_moves[offset+movesIdx-1];
+                m_moves[offset+movesIdx-- -1] = Pos{8,8};
             } else {i++;}
+            setMovesIdx(kingId, i);
         }
     }
 
@@ -1501,6 +1508,35 @@ namespace Chess {
                 str.append("\n------------------------\n");
         }
         std::cout << str << std::endl; 
+    }
+
+    void Board::displayAttacked() {
+        const std::vector<bool> attacked = getAttackedVec();
+        std::cout << "Attacked:: \n";
+        std::string str;
+        str.append("------------------------\n");
+        for( int i = 0; i < m_attackedBlack.size(); i++ ) {
+            str += '|';
+            str += (attacked[i] ? 'A' : ' ');; 
+            str += '|';
+            if( (i+1)%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl; 
+    }
+
+    void Board::displayDefended() {
+        std::cout << "Defended: \n";
+        std::string str;
+        str.append("------------------------\n");
+        for( int i = 0; i < m_defended.size(); i++ ) {
+            str += '|';
+            str += (m_defended[i] ? 'D' : ' ');; 
+            str += '|';
+            if( (i+1)%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl;
     }
 
     void Board::printBoard(const std::array<ID, 64>& board) {
