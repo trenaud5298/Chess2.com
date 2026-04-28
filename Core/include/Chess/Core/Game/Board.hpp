@@ -68,6 +68,12 @@ namespace Chess {
             static void sortByPos(std::vector<IdPos>& in);
             static void printIdPosVec(std::vector<IdPos>& in);
             bool isMatchingType(const ID& id, const Type type);
+            void printCheckedArr();
+            void printMovesIdxs();
+            void filterPinned();
+            void filterChecked();
+            void filterKingMoves();
+            bool isInCheck() const;
 
 
         private:
@@ -128,7 +134,6 @@ namespace Chess {
             bool isThreefoldRepetition(); // may not even implement
             bool isStalemate() const;
             bool isCheckmate() const;
-            bool isInCheck() const;
             COLOR getTurnColor() const;
             bool colorHasMoves() const;
 
@@ -154,9 +159,12 @@ namespace Chess {
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
             void addMoves(const ID& id);
+
+            /* make private again
             void filterPinned();
             void filterChecked();
             void filterKingMoves();
+            */
 
             char32_t getGlyphUnicode(const ID& id);
             char getGlyph(const ID& id);

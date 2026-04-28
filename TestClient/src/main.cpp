@@ -22,6 +22,7 @@ int main() {
     board.genMoves();
     board.printMoves();
 
+    // checked
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{3,3}}),
                                 IdPos({ID::B_KING, Pos{5,4}}),
@@ -30,15 +31,18 @@ int main() {
                                 IdPos({ID::W_PAWN1, Pos{4,5}}),
                                 };
     */
+    // pinned and checked
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{1,1}}),
-                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                //IdPos({ID::W_BISHOP1, Pos{2,2}}),
                                 IdPos({ID::B_PAWN1, Pos{6,7}}),
                                 IdPos({ID::B_BISHOP1, Pos{7,7}}),
                                 IdPos({ID::W_BISHOP2, Pos{2,1}}),
                                 IdPos({ID::B_ROOK1, Pos{7,1}}),
-                                IdPos({ID::W_ROOK1, Pos{0,2}}),
-                                IdPos({ID::B_QUEEN, Pos{1,4}}),
+                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_QUEEN, Pos{1,7}}),
+                                IdPos({ID::W_QUEEN, Pos{0,6}}),
+                                IdPos({ID::W_ROOK1, Pos{2,6}}),
                                 };
 
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
@@ -46,17 +50,25 @@ int main() {
     board = Chess::Board(boardLiteral, piecesLiteral);
     
     board.genPinned();
-    board.printPinnedArr();
+    //board.printPinnedArr();
     //board.printPiecesPos(piecesLiteral);
     //Chess::Board::printBoard(boardLiteral);
 
     board.displayBoard();
-    board.printPinnedSet();
-    board.genChecked();
-    board.printCheckedPiece();
     board.genMoves();
+    board.printMoves();
+    board.printMovesIdxs();
+    board.printPinnedArr();
+    board.filterPinned();
+    if( board.isInCheck() ) {
+        board.filterChecked();
+    }
+    board.printMovesIdxs();
+    board.printCheckedPiece();
+    board.printPinnedSet();
     //std::cout << "HERE" << std::endl;
     board.printMoves();
+    board.printCheckedArr();
 
 
     return 0;
