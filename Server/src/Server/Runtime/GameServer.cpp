@@ -18,7 +18,7 @@
 namespace Chess {
 
 GameServer::GameServer()
-: m_initializationStartTime(std::chrono::steady_clock::now()), m_loggingManager(*this), m_persistenceManager(*this), m_loginManager(*this), /*m_gameManager(*this),*/ m_sessionManager(*this) {
+: m_initializationStartTime(std::chrono::steady_clock::now()), m_loggingManager(*this), m_persistenceManager(*this), m_loginManager(*this), m_gameManager(*this), m_sessionManager(*this) {
 }
 
 GameServer::~GameServer() {
@@ -32,7 +32,7 @@ void GameServer::start() {
     }
 
     m_loginManager.start();
-    // m_gameManager.start();
+    m_gameManager.start();
     m_sessionManager.start();
 
     m_startTime = std::chrono::steady_clock::now();
@@ -59,7 +59,7 @@ void GameServer::stop() {
     }
 
     m_sessionManager.stop();
-    // m_gameManager.stop();
+    m_gameManager.stop();
     m_loginManager.stop();
 
     m_stopTime = std::chrono::steady_clock::now();
