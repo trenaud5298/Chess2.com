@@ -45,10 +45,6 @@ namespace Chess {
             void genMoves();
             void genChecked();
             void genPinned();
-            bool isStalemate() const;
-            bool isCheckmate() const;
-            bool isInCheck() const;
-
 
             void setPromotionPiece(int promotionPiece);
             void promotePawn();

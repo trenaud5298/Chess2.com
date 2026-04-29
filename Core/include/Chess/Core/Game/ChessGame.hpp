@@ -160,6 +160,8 @@ private:
     [[nodiscard]] static bool isPromotionRank(COLOR side, const Pos& target) noexcept;
 private:
 
+
+
     Board m_board{};
     ChessClockConfig m_clockConfig{};
 

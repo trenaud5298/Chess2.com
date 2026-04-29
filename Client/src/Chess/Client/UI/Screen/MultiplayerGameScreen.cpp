@@ -123,15 +123,17 @@ MultiplayerGameScreen::MultiplayerGameScreen(ClientPanel& clientPanel)
         }
 
         if (promotion) {
-            m_clientPanel.pushModal(std::make_unique<PromotionModal>(m_clientPanel, squareFromPos(from), squareFromPos(to), localColor() == COLOR::WHITE));
+            m_clientPanel.pushModal(std::make_unique<PromotionModal>(m_clientPanel, localColor() == COLOR::WHITE, [this, from, to](PromotionPiece promotion) {
+                ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
+                    squareFromPos(from), squareFromPos(to), promotion
+                );
+                m_clientPanel.handleStatus(status, "Failed To Make Move", ResultPolicy::Modal);
+            }));
         } else {
             ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
-                squareFromPos(from), squareFromPos(to), PromotionPiece::Queen
-            );
-            m_clientPanel.handleStatus(
-                status,
-                "Failed To Make Move", ResultPolicy::Modal
-            );
+                    squareFromPos(from), squareFromPos(to), PromotionPiece::Queen
+                );
+            m_clientPanel.handleStatus(status, "Failed To Make Move", ResultPolicy::Modal);
         }
 
     };
@@ -279,6 +281,22 @@ bool MultiplayerGameScreen::localPlayerIsSpectator() const noexcept {
     return m_view.room.memberType == RoomMemberType::Spectator;
 }
 
+bool MultiplayerGameScreen::currentSideInCheck() const noexcept {
+    if (!hasGameUpdate()) {
+        return false;
+    }
+
+    if (latestSnapshot().state != ChessGameState::InProgress) {
+        return false;
+    }
+
+    if (!m_projectedGame.has_value()) {
+        return false;
+    }
+
+    return m_projectedGame->board().isInCheck();
+}
+
 ftxui::Element MultiplayerGameScreen::renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string &label) const {
     std::string timeStr = formatHHMMSS(remaining);
     bool urgent = (remaining <= std::chrono::seconds{30}) && isActive;
@@ -316,18 +334,19 @@ ftxui::Element MultiplayerGameScreen::renderGameInfo() const {
 
     const GameUpdate& update = latestUpdate();
     const ChessGameSnapshot& snapshot = latestSnapshot();
-
+\
     bool whiteActive = snapshot.currentTurn == COLOR::WHITE;
     bool blackActive = snapshot.currentTurn == COLOR::BLACK;
 
     std::string whiteName = update.whitePlayerName.empty() ? "White" : update.whitePlayerName;
     std::string blackName = update.blackPlayerName.empty() ? "Black" : update.blackPlayerName;
 
+    bool isInCheck = currentSideInCheck();
     std::string turnText = "No Active Turn";
     if (snapshot.currentTurn == COLOR::WHITE) {
-        turnText = "White's Turn";
+        turnText = isInCheck ? "White In Check" : "White's Turn";
     } else if (snapshot.currentTurn == COLOR::BLACK) {
-        turnText = "Black's Turn";
+        turnText = isInCheck ? "Black In Check" : "Black's Turn";
     }
 
     std::string resultText = "Result: In Progress";

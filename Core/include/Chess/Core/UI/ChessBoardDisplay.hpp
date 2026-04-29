@@ -56,6 +56,9 @@ private:
     [[nodiscard]] bool isEmpty(ID id) const;
     [[nodiscard]] bool isWhitePiece(ID id) const;
     [[nodiscard]] static std::string toGlyph(ID id);
+    [[nodiscard]] static bool isWhitePawn(ID id);
+    [[nodiscard]] static bool isBlackPawn(ID id);
+    [[nodiscard]] static bool requiresPromotion(ID id, const Pos& to);
 
     // Event Handling Functions
     void handleSelect(int displayRow, int displayCol);

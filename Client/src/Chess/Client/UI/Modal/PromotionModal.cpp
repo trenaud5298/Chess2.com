@@ -21,43 +21,85 @@
 
 namespace Chess {
 
-PromotionModal::PromotionModal(ClientPanel& clientPanel, std::uint8_t from, std::uint8_t to, bool isWhite)
-: ModalInterface(clientPanel), m_from(from), m_to(to), m_isWhite(isWhite) {
-    auto chessPieceButtonOption = ftxui::ButtonOption::Animated();
-    auto originalTransform = chessPieceButtonOption.transform;
-    chessPieceButtonOption.transform = [this, originalTransform](const ftxui::EntryState& state) {
-        return originalTransform(state) | ftxui::center | ftxui::color(m_isWhite ? ftxui::Color::White : ftxui::Color::Black);
-    };
+namespace {
 
+std::string pieceGlyph(PromotionPiece piece, bool isWhite) {
+    switch (piece) {
+        case PromotionPiece::Rook: return isWhite ? "♖" : "♜";
+        case PromotionPiece::Bishop: return isWhite ? "♗" : "♝";
+        case PromotionPiece::Knight: return isWhite ? "♘" : "♞";
+        case PromotionPiece::Queen: return isWhite ? "♕" : "♛";
+        case PromotionPiece::None: return "";
+    }
+    return "";
+}
+
+std::string pieceLabel(PromotionPiece piece) {
+    switch (piece) {
+        case PromotionPiece::Rook: return "Rook";
+        case PromotionPiece::Bishop: return "Bishop";
+        case PromotionPiece::Knight: return "Knight";
+        case PromotionPiece::Queen: return "Queen";
+        case PromotionPiece::None: return "Unknown";
+    }
+    return "Unknown";
+}
+
+ftxui::ButtonOption makePieceButtonOption(PromotionPiece piece, bool isWhite) {
+    ftxui::ButtonOption option = ftxui::ButtonOption::Animated();
+    auto originalTransform = option.transform;
+    option.transform = [piece, isWhite, originalTransform](const ftxui::EntryState& state) {
+        ftxui::Element glyphElement = ftxui::text(pieceGlyph(piece, isWhite)) | ftxui::center | ftxui::bold;
+        ftxui::Element labelElement = ftxui::text(pieceLabel(piece)) | ftxui::center | ftxui::dim;
+
+        if (isWhite) {
+            glyphElement |= ftxui::color(ftxui::Color::White);
+        } else {
+            glyphElement |= ftxui::color(ftxui::Color::Black);
+        }
+
+        ftxui::Element element = ftxui::vbox({
+            ftxui::filler(),
+            glyphElement,
+            labelElement,
+            ftxui::filler()
+        }) | ftxui::borderRounded | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, 7);
+
+        if (state.focused) {
+            element |= ftxui::inverted;
+        }
+
+        return element;
+    };
+    return option;
+}
+
+}
+
+
+PromotionModal::PromotionModal(ClientPanel& clientPanel, bool isWhite, std::function<void(PromotionPiece)> onChoice)
+: ModalInterface(clientPanel), m_onChoice(std::move(onChoice)), m_isWhite(isWhite) {
     auto cancelPieceButtonOption = ftxui::ButtonOption::Animated();
-    auto originalTransform2 = cancelPieceButtonOption.transform;
-    cancelPieceButtonOption.transform = [this, originalTransform2](const ftxui::EntryState& state) {
-        return originalTransform2(state) | ftxui::center;
+    auto originalTransform = cancelPieceButtonOption.transform;
+    cancelPieceButtonOption.transform = [this, originalTransform](const ftxui::EntryState& state) {
+        return originalTransform(state) | ftxui::center;
     };
 
-    auto rookButton = ftxui::Button("♜", [this]() {
-        m_promotionPiece = PromotionPiece::Rook;
-        submitMove();
-        requestDismiss();
-    }, chessPieceButtonOption);
 
-    auto bishopButton = ftxui::Button("♝", [this]() {
-        m_promotionPiece = PromotionPiece::Bishop;
-        submitMove();
-        requestDismiss();
-    }, chessPieceButtonOption);
+    auto makePieceButton = [this](PromotionPiece piece) {
+        return ftxui::Button("", [this, piece]() {
+            if (m_onChoice) {
+                m_onChoice(piece);
+            }
+            requestDismiss();
+        }, makePieceButtonOption(piece, m_isWhite));
+    };
 
-    auto knightButton = ftxui::Button("♞", [this]() {
-        m_promotionPiece = PromotionPiece::Knight;
-        submitMove();
-        requestDismiss();
-    }, chessPieceButtonOption);
 
-    auto queenButton = ftxui::Button("♛", [this]() {
-        m_promotionPiece = PromotionPiece::Queen;
-        submitMove();
-        requestDismiss();
-    }, chessPieceButtonOption);
+    auto rookButton = makePieceButton(PromotionPiece::Rook);
+    auto bishopButton = makePieceButton(PromotionPiece::Bishop);
+    auto knightButton = makePieceButton(PromotionPiece::Knight);
+    auto queenButton = makePieceButton(PromotionPiece::Queen);
 
     auto cancelButton = ftxui::Button("Cancel", [this]() {
         requestDismiss();
@@ -76,18 +118,24 @@ PromotionModal::PromotionModal(ClientPanel& clientPanel, std::uint8_t from, std:
     m_component = ftxui::Renderer(layout, [rookButton, bishopButton, knightButton, queenButton, cancelButton]() {
         return ftxui::vbox({
             ftxui::text("Pawn Promotion") | ftxui::bold | ftxui::center,
+            ftxui::text("Choose a Piece") | ftxui::dim | ftxui::center,
             ftxui::separator(),
+
             ftxui::hbox({
-                rookButton->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 3) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 3),
+                rookButton->Render(),
                 ftxui::text(" "),
-                bishopButton->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 3) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 3),
+                bishopButton->Render(),
                 ftxui::text(" "),
-                knightButton->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 3) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 3),
+                knightButton->Render(),
                 ftxui::text(" "),
-                queenButton->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 3) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 3)
+                queenButton->Render()
             }) | ftxui::center,
+
+            ftxui::separatorEmpty(),
+
             cancelButton->Render() | ftxui::center,
-        }) | ftxui::center | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 18) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 14);
+
+        }) | ftxui::center | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 62) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 16);
     });
 }
 
@@ -98,16 +146,6 @@ PromotionModal::~PromotionModal() {
 
 ftxui::Component PromotionModal::getComponent() {
     return m_component;
-}
-
-void PromotionModal::submitMove() {
-    ClientStatus status = m_clientPanel.gameClient().submitMultiplayerMove(
-        m_from, m_to, m_promotionPiece
-    );
-    m_clientPanel.handleStatus(
-        status,
-        "Failed To Make Move", ResultPolicy::Modal
-    );
 }
 
 

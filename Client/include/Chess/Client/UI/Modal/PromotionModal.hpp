@@ -25,19 +25,14 @@ class ClientPanel;
 
 class PromotionModal : public ModalInterface {
 public:
-    PromotionModal(ClientPanel& clientPanel, std::uint8_t from, std::uint8_t to, bool isWhite);
+    PromotionModal(ClientPanel& clientPanel, bool isWhite, std::function<void(PromotionPiece)> onChoice);
     ~PromotionModal() override;
 
     [[nodiscard]] ftxui::Component getComponent() override;
 
 private:
-    void submitMove();
-
-private:
-    std::uint8_t m_from{0};
-    std::uint8_t m_to{0};
     bool m_isWhite{true};
-    PromotionPiece m_promotionPiece{PromotionPiece::None};
+    std::function<void(PromotionPiece)> m_onChoice;
     ftxui::Component m_component;
 };
 

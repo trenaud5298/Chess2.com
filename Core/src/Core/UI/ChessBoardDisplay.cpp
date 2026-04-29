@@ -97,6 +97,18 @@ std::string ChessBoardDisplay::toGlyph(ID id) {
     }
 }
 
+bool ChessBoardDisplay::isWhitePawn(ID id) {
+    return id >= ID::W_PAWN1 && id <= ID::W_PAWN8;
+}
+
+bool ChessBoardDisplay::isBlackPawn(ID id) {
+    return id >= ID::B_PAWN1 && id <= ID::B_PAWN8;
+}
+
+bool ChessBoardDisplay::requiresPromotion(ID id, const Pos &to) {
+    return (isWhitePawn(id) && to[ROW] == 7) || (isBlackPawn(id) && to[ROW] == 0);
+}
+
 void ChessBoardDisplay::handleSelect(int displayRow, int displayCol) {
     if (displayRow < 0 || displayRow > 7 || displayCol < 0 || displayCol > 7) {return;}
 
@@ -108,8 +120,8 @@ void ChessBoardDisplay::handleSelect(int displayRow, int displayCol) {
     } else {
         Pos from = m_selected.value();
         if (from != boardPos && onMove) {
-            // TODO: Pass in if promotion is required here
-            onMove(from, boardPos, false);
+            ID movingId = getAt(from[ROW], from[COL]);
+            onMove(from, boardPos, requiresPromotion(movingId, boardPos));
         }
         m_selected.reset();
     }

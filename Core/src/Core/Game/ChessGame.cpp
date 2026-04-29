@@ -221,6 +221,7 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
     }
 
     m_board.move(piece, target);
+    m_board.nextTurn();
     ++m_version;
 
     if (requiresPromotion(piece, side, target)) {
@@ -476,8 +477,8 @@ std::vector<IdPos> ChessGame::collectPieces(const std::array<ID, 64>& boardRaw) 
 
 bool ChessGame::isPawn(ID piece) noexcept {
     int value = static_cast<int>(piece);
-    return (value >= static_cast<int>(ID::W_PAWN1) && value < static_cast<int>(ID::W_PAWN8)) ||
-           (value >= static_cast<int>(ID::B_PAWN1) && value < static_cast<int>(ID::B_PAWN8));
+    return (value >= static_cast<int>(ID::W_PAWN1) && value <= static_cast<int>(ID::W_PAWN8)) ||
+           (value >= static_cast<int>(ID::B_PAWN1) && value <= static_cast<int>(ID::B_PAWN8));
 }
 
 bool ChessGame::isPromotionRank(COLOR side, const Pos &target) noexcept {

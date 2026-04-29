@@ -62,6 +62,7 @@ private:
     [[nodiscard]] bool isLocalPlayersTurn() const;
     [[nodiscard]] COLOR localColor() const noexcept;
     [[nodiscard]] bool localPlayerIsSpectator() const noexcept;
+    [[nodiscard]] bool currentSideInCheck() const noexcept;
 
     [[nodiscard]] ftxui::Element renderClock(std::chrono::milliseconds remaining, bool isActive, const std::string& label) const;
     [[nodiscard]] ftxui::Element renderGameInfo() const;
