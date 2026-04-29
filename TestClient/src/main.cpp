@@ -91,7 +91,9 @@ int main() {
         board.promotePawn();
     }
     board.setGameState();
+    board.printLog();
     board.nextTurn();
+
     board.printState();
     board.genMoves();
     board.printTurn();
@@ -118,7 +120,6 @@ int main() {
     std::cout << "\nisCheckmate: " << (board.isCheckmate() ? "true" : "false");
     std::cout << '\n' << std::endl;
 
-    board.printLog();
     /*
     std::cout << "game result is: ";
     Chess::Board::printColor(board.winner());

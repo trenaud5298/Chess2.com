@@ -100,6 +100,7 @@ namespace Chess {
         m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
         m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
         m_moveLog(),
+        m_inPlay(),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -120,6 +121,7 @@ namespace Chess {
             m_checkedId = EMPTY;
             m_checkedArr.fill({8,8});
             m_moveLog.reserve(50);
+            m_inPlay.reserve(32);
             m_gameState = GameState::VALID;
         }
 
@@ -139,6 +141,7 @@ namespace Chess {
         m_promotionBlack({Type::B_ROOK, Type::B_KNIGHT, Type::B_BISHOP, Type::B_QUEEN}),
         m_promotionMoves({MAX_MOVES_ROOK, MAX_MOVES_KNIGHT, MAX_MOVES_BISHOP, MAX_MOVES_QUEEN}),
         m_moveLog(),
+        m_inPlay(),
         m_mods({
                 std::pair(1,0),
                 std::pair(0,1),
@@ -159,6 +162,7 @@ namespace Chess {
             m_checkedArr.fill({8,8});
             m_pinnedArr.fill({8,8});
             m_moveLog.reserve(50);
+            m_inPlay.reserve(32);
             m_gameState = GameState::VALID;
     }
 
@@ -410,11 +414,14 @@ namespace Chess {
         TypeMoves res;
         int choice;
         const std::array<Type, 4>* promotionArr = getPromotionArr(color);
+        /*
         do {
             std::cout << "Enter [1-4] to promote pawn:\n1 for Rook\n2 for Knight\n3 for Bishop\n4 for Queen" << std::endl;
             std::cin >> choice;
         } while( choice < 1 || choice > 4 );
         const int idx = choice-1;
+        */
+        const int idx = 3;
         res.type = promotionArr->at(idx);
         res.maxMoves = m_promotionMoves[idx];
         return res;
@@ -464,6 +471,7 @@ namespace Chess {
         std::fill(m_defended.begin(), m_defended.end(), false);
         std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
         std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
+        m_inPlay.clear();
     }
 
 
@@ -1995,5 +2003,67 @@ namespace Chess {
 
     void Board::printTurn() {
         std::cout << "Turn: " << (m_isWhiteTurn ? "White" : "Black") << std::endl;
+    }
+
+    bool Board::isInPlay(const Piece& p) {
+        bool flag = false;
+        if( p.position != Pos{8,8} ) {
+            flag = true;
+        }
+        return flag;
+    }
+
+    void Board::setInPlay() {
+        for( int i = 0; i < m_pieceArr.size(); i++ ) {
+            const Piece current = m_pieceArr[i];
+            if( isInPlay(current) ) {
+                m_inPlay.push_back(static_cast<ID>(i+1));
+            }
+        }
+    }
+
+    void Board::showInPlay() {
+        std::cout << "IN PLAY: \n";
+        int i = 0;
+        for( const ID& id : m_inPlay ) {
+            std::cout << "ID: " << idToString(id) << ", i: " << i;
+            i++;
+        }
+        std::cout << std::endl;
+    }
+
+    void Board::showIdMoves(const ID& id) {
+        std::cout << "MOVES FOR: " << idToString(id) << '\n';
+        const int castedId = (int)id-1;
+        const int offset = m_moveOffset[castedId];
+        for( int i = 0; i < m_pieceArr[castedId].movesIdx; i++ ) {
+            std::cout << "Move " << i << ": ";
+            printPosition(m_moves[offset+i]);
+        }
+        std::cout << "Choose index: " << std::endl;
+    }
+
+    Pos Board::getIdMove(const ID& id, const int& idx) {
+        const int castedId = (int)id-1;
+        const int offset = m_moveOffset[castedId];
+        return m_moves[offset+idx];
+    }
+
+    void Board::inputMove(Board& board) {
+        showInPlay();
+        int choice = getChoice();
+        const ID id = m_inPlay[choice];
+        showIdMoves(id);
+        choice = getChoice();
+        const Pos move = getIdMove(id, choice);
+        if( board.isValidMove(id, move) ) {
+            board.move(id, move);
+        } else {std::cout << "INVALID MOVE" << std::endl;}
+    }
+
+    int Board::getChoice() {
+        int res;
+        std::cin >> res;
+        return res;
     }
 }

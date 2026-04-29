@@ -89,6 +89,13 @@ namespace Chess {
             void printState();
             bool isValidState();
             std::string stateToString(const GameState& state);
+            void setInPlay();
+            void showInPlay();
+            int getChoice();
+            bool isInPlay(const Piece& p);
+            void showIdMoves(const ID& id);
+            void inputMove(Board& board);
+            Pos getIdMove(const ID& id, const int& choice);
 
         private:
             std::array<ID, 64> m_board;
@@ -124,6 +131,7 @@ namespace Chess {
             GameState m_gameState;
             std::array<Pos, 7> m_checkedArr;
             std::set<ID> m_promotedPawnSet;
+            std::vector<ID> m_inPlay;
 
             bool isInBoard(const Pos& pos);
             ID& getIdAt(const Pos& pos);
