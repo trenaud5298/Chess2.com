@@ -10,23 +10,21 @@
 // TODO 
 //      * implement a way to castle
 //          - m_hasCastled boolean private members
-//      * implement a way to promote pawns
+//          - canCastle() function
 //      * implement a way to en passant
 //          - if last move was a pawn and it moved from its starting position
 //              to be adjacent to a pawn of opposite color on an adjacent lane, then the
 //              pawn of opposite color on the adjacent lane may en passant
-//      * implement checking logic fully
 //      * Fix the indexing mismatch in most of the functions
-//      * Add "full" king movement logic with isAttacked() and isDefended()
 //      * Gamestates
-//          - implement a 50 move long move history array which contains entries describing
-//              the moving piece, the old square, the new square, and if a "take" took place
-//          - for the 50 move no take rule its self explanatory
-//          - for threefold repetition rule it is also self explanatory
+//          - threefold repetition rule 
+//          - dead positions
 //
 //      *   Testing TODO
-//
-//
+//          - functions that are called by genMoves() 
+//              infinite loop somewhere in filterChecked()
+//          - promotePawn()
+//          - isFiftyMoves
 //
 //      Notes for game loop semantics
 //
@@ -90,7 +88,7 @@ namespace Chess {
         }),
         m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
-        m_checkedArr({8,8}),
+        m_checkedArr(),
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
@@ -120,6 +118,7 @@ namespace Chess {
             m_isBlackChecked = false;
             m_pinnedArr.fill({8,8});
             m_checkedId = EMPTY;
+            m_checkedArr.fill({8,8});
             m_moveLog.reserve(50);
         }
 
@@ -128,7 +127,7 @@ namespace Chess {
         m_pieceArr(pieces),
         m_moves(MAX_MOVES, Pos({8,8})),
         m_moveOffset({0}),
-        m_checkedArr({8,8}),
+        m_checkedArr(),
         m_defended(64, false),
         m_attackedWhite(64, false),
         m_attackedBlack(64, false),
@@ -156,6 +155,7 @@ namespace Chess {
             m_isWhiteChecked = false;
             m_isBlackChecked = false;
             m_checkedId = EMPTY;
+            m_checkedArr.fill({8,8});
             m_pinnedArr.fill({8,8});
             m_moveLog.reserve(50);
     }
@@ -260,6 +260,7 @@ namespace Chess {
         updateMoveLog(entry);
     }
 
+    /* m_moveLog can grow up to size 50, FIFO type behavior */
     void Board::updateMoveLog(const LogEntry& entry) {
         const int size = m_moveLog.size();
         if( size != 0 && size == 50) {
@@ -290,10 +291,10 @@ namespace Chess {
 
     /* Returns true if the 50 move no take rule applies to the game state */
     bool Board::isFiftyMoves() {
-        if( m_moveLog.size() != 50 ) {
-            return false;
-        }
         bool res = false;
+        if( m_moveLog.size() != 50 ) {
+            return res;
+        }
         for(const LogEntry& entry : m_moveLog) {
             if( entry.taken == true ) {
                 res = true;
@@ -481,7 +482,7 @@ namespace Chess {
         return static_cast<std::uint8_t>((int)dim + mod);
     }
 
-    /*
+    /* Returns the opposite color m_attacked[] relative to current player turn */
     std::vector<bool>& Board::getAttackedVec() {
         if( m_isWhiteTurn ) {
             return m_attackedBlack;
@@ -489,9 +490,8 @@ namespace Chess {
             return m_attackedWhite;
         }
     }
-    */
 
-    /* Returns the opposite color m_attacked[] for color parameter */
+    /* Returns the same color m_attacked[] for color parameter (used when setting) */
     std::vector<bool>& Board::getAttackedVec(const COLOR& color) {
         if( color == COLOR::WHITE ) {
             return m_attackedWhite;
@@ -504,8 +504,8 @@ namespace Chess {
         getAttackedVec(color)[posTranslate(pos)] = true;
     }
 
-    bool Board::isAttackedAt(const Pos& pos, const COLOR& color) {
-        return getAttackedVec(color)[posTranslate(pos)];
+    bool Board::isAttackedAt(const Pos& pos) {
+        return getAttackedVec()[posTranslate(pos)];
     }
 
     void Board::setDefendedAt(const Pos& pos) {
@@ -702,12 +702,12 @@ namespace Chess {
                     if( set->contains(getTypeAt(temp)) ) {
                         setChecked(tempId);
                         direction = directionCast(-i);
-                        mod = getMod(direction);
+                        const std::pair<int,int> tempMod = getMod(direction);
                         while(temp != kingPos) {
                             m_checkedArr[j] = temp;
                             j++;
-                            temp[ROW] += mod.first;
-                            temp[COL] += mod.second;
+                            temp[ROW] += tempMod.first;
+                            temp[COL] += tempMod.second;
                         }
                         return;
                     } else {break;}
@@ -728,12 +728,12 @@ namespace Chess {
                     if( set->contains(getTypeAt(temp)) ) {
                         setChecked(tempId);
                         direction = directionCast(-i);
-                        mod = getMod(direction);
+                        const std::pair<int,int> tempMod = getMod(direction);
                         while(temp != kingPos) {
                             m_checkedArr[j] = temp;
                             j++;
-                            temp[ROW] += mod.first;
-                            temp[COL] += mod.second;
+                            temp[ROW] += tempMod.first;
+                            temp[COL] += tempMod.second;
                         }
                         return;
                     } else {break;}
@@ -776,14 +776,16 @@ namespace Chess {
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp))) {
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
-                        Direction tempDirection = directionCast(-i);
-                        mod = getMod(tempDirection);
-                        int j = 0;
-                        while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
-                            pinningPos[ROW] += mod.first;
-                            pinningPos[COL] += mod.second;
-                            j++;
+                        if( isInSameSet(pinningPos, pinnedPos, direction) ) {
+                            Direction tempDirection = directionCast(-i);
+                            mod = getMod(tempDirection);
+                            int j = 0;
+                            while( pinnedPos != pinningPos ) {
+                                m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
+                                pinningPos[ROW] += mod.first;
+                                pinningPos[COL] += mod.second;
+                                j++;
+                            }
                         }
                         break;
                     }
@@ -823,14 +825,16 @@ namespace Chess {
                     } else if( matchingOnLane == 1 && tempColor != COLOR::EMPTY && set->contains(getTypeAt(temp)) ) {
                         m_pinnedIdSet.emplace(pinnedId);
                         Pos pinningPos = temp;
-                        Direction tempDirection = directionCast(i);
-                        mod = getMod(tempDirection);
-                        int j = 0;
-                        while( pinnedPos != pinningPos ) {
-                            m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
-                            pinningPos[ROW] += mod.first;
-                            pinningPos[COL] += mod.second;
-                            j++;
+                        if( isInSameSet(pinningPos, pinnedPos, direction) ) {
+                            Direction tempDirection = directionCast(i);
+                            mod = getMod(tempDirection);
+                            int j = 0;
+                            while( pinnedPos != pinningPos ) {
+                                m_pinnedArr[((int)pinnedId-1)*6 + j] = Pos(pinningPos);
+                                pinningPos[ROW] += mod.first;
+                                pinningPos[COL] += mod.second;
+                                j++;
+                            }
                         }
                         break;
                     }
@@ -849,6 +853,16 @@ namespace Chess {
                 }
             }
         }
+    }
+
+    bool Board::isInSameSet(const Pos& to, const Pos& compare, const Direction& direction) {
+        bool res = false;
+        const Type t1 = getTypeAt(to), t2 = getTypeAt(compare);
+        const std::set<Type>* set = getMatchingSet(direction);
+        if( set->contains(t1) && set->contains(t2) ) {
+            res = true;
+        }
+        return res;
     }
 
     void Board::diagonalHelper(const Pos& initial, const Direction& direction, int& i) {
@@ -981,7 +995,6 @@ namespace Chess {
             }
         } 
     }
-    
 
     void Board::addCardinalMoves(const Pos& initial) {
         if( posTranslate(initial) > 63 ) {
@@ -1142,6 +1155,8 @@ namespace Chess {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
+                } else if( tempColor == COLOR::EMPTY ) {
+                    setAttackedAt(temp, color);
                 } else {
                     setDefendedAt(temp);
                 }
@@ -1158,6 +1173,8 @@ namespace Chess {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
+                } else if( tempColor == COLOR::EMPTY ) {
+                    setAttackedAt(temp, color);
                 } else {
                     setDefendedAt(temp);
                 }
@@ -1199,6 +1216,8 @@ namespace Chess {
     void Board::filterPinned() {
         if( !m_pinnedIdSet.empty() ) {
             for( const ID& pinnedId : m_pinnedIdSet ) {
+                std::cout << "Reserved: " << m_pieceArr[(int)pinnedId-1].reserved;
+                std::cout << idToString(pinnedId);
                 const int castedId = (int)pinnedId-1;
                 const int offset = castedId*6;
                 int pinnedMovesSize = 0;
@@ -1209,34 +1228,50 @@ namespace Chess {
                         temp2 = m_pinnedArr[offset + pinnedMovesSize];
                     } else {break;}
                 }
+                std::cout << "\npinnedMovesSize: " << pinnedMovesSize << '\n';
 
                 const int tempOffset = m_moveOffset[castedId];
                 Pos temp = m_moves[tempOffset];
                 int movesIdx = m_pieceArr[castedId].movesIdx;
                 int i = 0;
-                temp2 = m_pinnedArr[offset];
-                while( temp != Pos{8,8} ) {
+                while( temp != Pos{8,8} && movesIdx >= 0 ) {
+                    std::cout << "i: " << i << ", temp: ";
+                    printPosition(temp);
+                    temp2 = m_pinnedArr[offset];
                     int j = 0;
                     bool contains = false;
                     while( j < pinnedMovesSize ) {
                         if( temp == temp2 ) {
                             contains = true;
+                            break;
                         }
+                        std::cout << "\tcontains: " << (contains ? "true" : "false");
+                        std::cout << " j: " << j << ", temp2: ";
+                        printPosition(temp2);
                         j++;
-                        if( offset+j < m_pinnedArr.size() ) {
+                        if( j < pinnedMovesSize ) {
                             temp2 = m_pinnedArr[offset+j];
                         } else {break;} 
                     }
                     if( !contains ) {
-                        temp2 = m_moves[tempOffset + movesIdx];
-                        m_moves[tempOffset + i] = temp2;
-                        m_moves[tempOffset + movesIdx--] = Pos{8,8};
+                        Pos temp3;
+                        if( i != movesIdx-1) {
+                            temp3 = m_moves[tempOffset + movesIdx - 1];
+                        } else {temp3 = Pos{8,8};}
+                        std::cout << "Swap to i: ";
+                        printPosition(temp3);
+                        std::cout << "To be overwritten: ";
+                        printPosition(m_moves[tempOffset + movesIdx -1]);
+                        m_moves[tempOffset + movesIdx-- -1] = Pos{8,8};
+                        std::cout << "Overwritten: ";
+                        printPosition(m_moves[tempOffset + movesIdx +1]);
+                        m_moves[tempOffset + i] = temp3;
                     } else {i++;}
-                    if( tempOffset+i < m_moves.size() && i < m_pieceArr[i].reserved ) {
+                    if( tempOffset+i < m_moves.size() && i != movesIdx ) {
                         temp = m_moves[tempOffset+i];
                     } else {break;}
                 }
-                setMovesIdx(pinnedId, movesIdx);
+                    setMovesIdx(pinnedId, i);
             }
         }
     }
@@ -1244,16 +1279,13 @@ namespace Chess {
     void Board::filterChecked() {
         int checkedSize = 0;
         Pos temp = m_checkedArr[checkedSize];
-        while( temp != Pos{8,8} ) {
+        while( temp != Pos{8,8} && checkedSize < m_checkedArr.size() ) {
             checkedSize++;
-            if( checkedSize < m_checkedArr.size() ) {
-                temp = m_checkedArr[checkedSize];
-            }
+            temp = m_checkedArr[checkedSize];
         }
-
         for( int i = 0; i < m_pieceArr.size(); i++ ) {
             const ID id = static_cast<ID>(i+1);
-            if( id == ID::W_KING || id == ID::B_KING ) {
+            if( id == ID::W_KING || id == ID::B_KING || id == m_checkedId) {
                 continue;
             }
             const int offset = m_moveOffset[i];
@@ -1270,14 +1302,42 @@ namespace Chess {
                     k++;
                 }
                 if( !contains ) {
-                    Pos temp2 = m_moves[offset+movesIdx];
+                    Pos temp2 = m_moves[offset+movesIdx-1];
                     m_moves[offset+movesIdx--] = Pos{8,8};
                     m_moves[offset+j] = temp2;
                 } else{j++;}
                 if( j < m_pieceArr[i].reserved )
                     temp = m_moves[offset+j];
             }
-            setMovesIdx(id, movesIdx);
+            if( j > 1 ) {
+                m_moves[offset+movesIdx+1] = Pos{8,8};
+            }
+            setMovesIdx(id, j);
+            /*
+            const int reserved = m_pieceArr[i].reserved;
+            for( j = j+1; j < reserved; j++ ) {
+                m_moves[offset+j] = Pos{8,8};
+            }
+            */
+        }
+    }
+
+    void Board::filterKingMoves() {
+        const ID kingId = getKingId();
+        const int castedId = (int)kingId-1;
+        const int offset = m_moveOffset[castedId];
+        const std::vector<bool> attacked = getAttackedVec(), defended = m_defended;
+        int movesIdx = m_pieceArr[castedId].movesIdx;
+        int i = 0;
+        while( i < movesIdx ) {
+            std::cout << "HERE" << std::endl;
+            Pos temp = m_moves[offset+i];
+            printPosition(temp);
+            if( isAttackedAt(temp) || isDefendedAt(temp) ) {
+                m_moves[offset+i] = m_moves[offset+movesIdx-1];
+                m_moves[offset+movesIdx-- -1] = Pos{8,8};
+            } else {i++;}
+            setMovesIdx(kingId, i);
         }
     }
 
@@ -1288,10 +1348,11 @@ namespace Chess {
         for(int i = 1; i < m_pieceArr.size() + 1; i++) {
             addMoves(static_cast<ID>(i));
         }
-        filterPinned();
+        //filterPinned();
         if( isInCheck() ) {
-            filterChecked();
+            //filterChecked(); 
         }
+        //filterKingMoves();
     }
 
     COLOR Board::getTurnColor() const {
@@ -1447,6 +1508,7 @@ namespace Chess {
     }
 
     void Board::displayBoard() {
+        std::cout << "Board: \n";
         std::string str;
         str.append("------------------------\n");
         for(int i = 1; i < m_board.size()+1; i++) {
@@ -1457,6 +1519,35 @@ namespace Chess {
                 str.append("\n------------------------\n");
         }
         std::cout << str << std::endl; 
+    }
+
+    void Board::displayAttacked() {
+        const std::vector<bool> attacked = getAttackedVec();
+        std::cout << "Attacked:: \n";
+        std::string str;
+        str.append("------------------------\n");
+        for( int i = 0; i < m_attackedBlack.size(); i++ ) {
+            str += '|';
+            str += (attacked[i] ? 'A' : ' ');; 
+            str += '|';
+            if( (i+1)%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl; 
+    }
+
+    void Board::displayDefended() {
+        std::cout << "Defended: \n";
+        std::string str;
+        str.append("------------------------\n");
+        for( int i = 0; i < m_defended.size(); i++ ) {
+            str += '|';
+            str += (m_defended[i] ? 'D' : ' ');; 
+            str += '|';
+            if( (i+1)%8 == 0 )
+                str.append("\n------------------------\n");
+        }
+        std::cout << str << std::endl;
     }
 
     void Board::printBoard(const std::array<ID, 64>& board) {
@@ -1612,6 +1703,7 @@ namespace Chess {
 
     void Board::printMoves() {
         int offsetIdx = 0;
+        std::cout << "Moves: \n";
         for(int i = 0; i < m_moves.size(); i++) {
             if( offsetIdx < m_moveOffset.size() ) {
                 if( i == m_moveOffset[offsetIdx] ) {
@@ -1733,6 +1825,7 @@ namespace Chess {
 
     void Board::printPinnedArr() {
         int nextId = 0;
+        std::cout << "Pinned Array: \n";
         for( int i = 0; i < m_pinnedArr.size(); i++ ) {
             if( i % 6 == 0 ) {
                 std::cout << "ID: " << idToString(static_cast<ID>(nextId+1)) << '\n';
@@ -1740,6 +1833,7 @@ namespace Chess {
             }
             printPosition(m_pinnedArr[i]);
         }
+        std::cout << std::endl;
     }
 
     void Board::printPiecesPos(std::array<Piece, 32>& pieceArr) {
@@ -1811,4 +1905,20 @@ namespace Chess {
         }
     }
 
+    void Board::printCheckedArr() {
+        std::cout << "Checked Arr: \n";
+        for( const Pos& p : m_checkedArr ) {
+            printPosition(p);
+        }
+    }
+
+    void Board::printMovesIdxs() {
+        int i = 1;
+        for( const Piece& p : m_pieceArr ) {
+            printId(static_cast<ID>(i));
+            std::cout << "movesIdx: " << p.movesIdx << '\n';
+            i++;
+        }
+        std::cout << std::endl;
+    }
 }

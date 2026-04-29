@@ -22,17 +22,7 @@ int main() {
     board.genMoves();
     board.printMoves();
 
-    std::vector<IdPos> state = { 
-                                IdPos({ID::W_KING, Pos{1,1}}),
-                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
-                                IdPos({ID::B_PAWN1, Pos{6,7}}),
-                                IdPos({ID::B_BISHOP1, Pos{7,7}}),
-                                IdPos({ID::W_BISHOP2, Pos{2,1}}),
-                                IdPos({ID::B_ROOK1, Pos{7,1}}),
-                                IdPos({ID::W_ROOK1, Pos{1,2}}),
-                                IdPos({ID::B_QUEEN, Pos{1,3}}),
-                                };
-                                */
+    // checked
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{3,3}}),
                                 IdPos({ID::B_KING, Pos{5,4}}),
@@ -40,21 +30,56 @@ int main() {
                                 IdPos({ID::B_PAWN1, Pos{4,4}}),
                                 IdPos({ID::W_PAWN1, Pos{4,5}}),
                                 };
+    // pinned and checked
+    std::vector<IdPos> state = { 
+                                IdPos({ID::W_KING, Pos{1,1}}),
+                                //IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_PAWN1, Pos{6,7}}),
+                                IdPos({ID::B_BISHOP1, Pos{7,7}}),
+                                IdPos({ID::W_BISHOP2, Pos{2,1}}),
+                                IdPos({ID::B_ROOK1, Pos{7,1}}),
+                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_QUEEN, Pos{1,7}}),
+                                IdPos({ID::W_QUEEN, Pos{0,5}}),
+                                IdPos({ID::W_ROOK1, Pos{2,6}}),
+                                };
+    */
+    std::vector<IdPos> state = { 
+                                IdPos({ID::W_KING, Pos{3,3}}),
+                                IdPos({ID::B_QUEEN, Pos{4,5}}),
+                                IdPos({ID::B_ROOK1, Pos{4,2}}),
+                                IdPos({ID::B_ROOK2, Pos{2,2}}),
+                                };
+
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
     board = Chess::Board(boardLiteral, piecesLiteral);
     
     board.genPinned();
-    board.printPinnedArr();
+    //board.printPinnedArr();
     //board.printPiecesPos(piecesLiteral);
     //Chess::Board::printBoard(boardLiteral);
 
     board.displayBoard();
-    board.printPinnedSet();
-    board.setTurn(false);
-    board.genChecked();
+    board.genMoves();
+    board.displayAttacked();
+    board.displayDefended();
+    board.printMoves();
+    board.printMovesIdxs();
+    board.printPinnedArr();
+    board.filterPinned();
+    if( board.isInCheck() ) {
+        board.filterChecked();
+    }
+    board.filterKingMoves();
+    board.printMovesIdxs();
     board.printCheckedPiece();
+    board.printPinnedSet();
+    //std::cout << "HERE" << std::endl;
+    board.printMoves();
+    board.printCheckedArr();
 
+    std::cout << "isStalemate: " << (board.isStalemate() ? "true" : "false");
 
     return 0;
 }

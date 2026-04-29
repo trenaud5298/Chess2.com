@@ -58,6 +58,8 @@ namespace Chess {
             void printMoveOffset();
             void printMoves();
             void displayBoard();
+            void displayAttacked();
+            void displayDefended();
             static void printBoard(const std::array<ID, 64>&);
             void displayBoardUnicode();
             void printPieceIdxs();
@@ -74,6 +76,14 @@ namespace Chess {
             static void sortByPos(std::vector<IdPos>& in);
             static void printIdPosVec(std::vector<IdPos>& in);
             bool isMatchingType(const ID& id, const Type type);
+            void printCheckedArr();
+            void printMovesIdxs();
+            void filterPinned();
+            void filterChecked();
+            void filterKingMoves();
+            bool isInCheck() const;
+            bool isStalemate() const;
+            bool isCheckmate() const;
 
 
         private:
@@ -124,11 +134,12 @@ namespace Chess {
             Direction directionCast(const int& i);
             std::vector<bool>& getAttackedVec();
             std::vector<bool>& getAttackedVec(const COLOR& color);
-            bool isAttackedAt(const Pos& pos, const COLOR& color);
+            bool isAttackedAt(const Pos& pos);
             bool isDefendedAt(const Pos& pos);
             bool isValidMod(const int& val, const int& mod);
             bool isPawnPromotable();
             bool isPawnId(const ID& id);
+            bool isInSameSet(const Pos&, const Pos&, const Direction&);
             std::uint8_t castHelper(const std::uint8_t dim, const int& mod);
             const std::set<Type>* getMatchingSet(const Direction& direction);
             bool isFiftyMoves();
@@ -157,8 +168,12 @@ namespace Chess {
             void addQueenMoves(const Pos& initial);
             void addPawnMoves(const Pos& initial);
             void addMoves(const ID& id);
+
+            /* make private again
             void filterPinned();
             void filterChecked();
+            void filterKingMoves();
+            */
 
             char32_t getGlyphUnicode(const ID& id);
             char getGlyph(const ID& id);
