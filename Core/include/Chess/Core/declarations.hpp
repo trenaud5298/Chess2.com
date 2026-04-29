@@ -102,6 +102,13 @@ enum class Direction {
     NORTHWEST = -4
 };
 
+enum class GameState {
+    VALID,
+    STALEMATE,
+    WHITEWIN,
+    BLACKWIN
+};
+
 struct Piece {
     Pos position;
     Type type;

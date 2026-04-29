@@ -60,6 +60,8 @@ namespace Chess {
             void printPinnedArr();
             void printPinnedSet();
             void printCheckedPiece();
+            void printLogEntry(const LogEntry& entry);
+            std::string posToString(const Pos& pos);
             static void printBool(const bool b);
             static void printColor(const COLOR& color);
             static void printPiecesPos(std::array<Piece, 32>& pieceArr);
@@ -78,7 +80,15 @@ namespace Chess {
             bool isInCheck() const;
             bool isStalemate() const;
             bool isCheckmate() const;
-
+            void printLog();
+            void printTurn();
+            //static void testTurn(Board& board, std::istream&);
+            void promotePawn();
+            void setGameState();
+            bool isPawnPromotable();
+            void printState();
+            bool isValidState();
+            std::string stateToString(const GameState& state);
 
         private:
             std::array<ID, 64> m_board;
@@ -111,6 +121,7 @@ namespace Chess {
             bool m_isWhiteChecked;
             bool m_isBlackChecked;
             ID m_checkedId;
+            GameState m_gameState;
             std::array<Pos, 7> m_checkedArr;
             std::set<ID> m_promotedPawnSet;
 
@@ -129,7 +140,6 @@ namespace Chess {
             bool isAttackedAt(const Pos& pos);
             bool isDefendedAt(const Pos& pos);
             bool isValidMod(const int& val, const int& mod);
-            bool isPawnPromotable();
             bool isPawnId(const ID& id);
             bool isInSameSet(const Pos&, const Pos&, const Direction&);
             std::uint8_t castHelper(const std::uint8_t dim, const int& mod);
@@ -145,7 +155,6 @@ namespace Chess {
             void setAttackedAt(const Pos& pos, const COLOR& color);
             void setDefendedAt(const Pos& pos);
             void setChecked(const ID& checked);
-            void promotePawn();
             void updateMoveLog(const LogEntry& entry);
             COLOR getInvertedColor(const COLOR& color);
             TypeMoves getPromotionChoice(const COLOR& color);
