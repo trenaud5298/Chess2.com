@@ -13,6 +13,7 @@
 #include <Chess/Core/Game/Board.hpp>
 #include <Chess/Client/Common/ClientStatus.hpp>
 #include <Chess/Client/Common/ClientEvent.hpp>
+#include <Chess/Core/Game/ChessGame.hpp>
 
 // ASIO Includes
 
@@ -33,6 +34,7 @@ enum class GameOverReason {
     CHECKMATE,
     TIMEOUT,
     RESIGN,
+    DRAW
 };
 
 struct GameResult {
@@ -57,7 +59,6 @@ struct SingleplayerView {
     std::optional<GameResult> result{std::nullopt};
 };
 
-class GameClient;
 
 class SingleplayerClient {
 
@@ -77,7 +78,7 @@ public:
     [[nodiscard]] ClientStatus pause(std::chrono::steady_clock::time_point now);
     [[nodiscard]] ClientStatus resume(std::chrono::steady_clock::time_point now);
 
-    [[nodiscard]] ClientStatus tryMove(ID from, Pos to, std::chrono::steady_clock::time_point now);
+    [[nodiscard]] ClientStatus tryMove(std::uint8_t from, std::uint8_t to, PromotionPiece piece, std::chrono::steady_clock::time_point now);
     [[nodiscard]] ClientStatus resign(std::chrono::steady_clock::time_point now);
 
     void tick(std::chrono::steady_clock::time_point now);
@@ -87,12 +88,9 @@ public:
     [[nodiscard]] const GameResult& result() const noexcept;
 
 private:
-    [[nodiscard]] std::chrono::milliseconds timeRemaining(COLOR side, std::chrono::steady_clock::time_point now) const;
-    [[nodiscard]] bool isColor(ID id, COLOR color) const noexcept;
-    void advanceTurn(std::chrono::steady_clock::time_point now);
-    void commitElapsedToActiveSide(std::chrono::steady_clock::time_point now);
     void recordResult(COLOR winner, GameOverReason reason);
     void emitEvent(ClientEvent event);
+    void recordFinishedGame();
 
 private:
     std::function<void(ClientEvent)> m_emitEvent{nullptr};
@@ -100,12 +98,8 @@ private:
     SingleplayerState m_state{SingleplayerState::IDLE};
     SingleplayerConfig m_config{};
 
-    Board m_board;
-    COLOR m_currentTurn{COLOR::WHITE};
-
-    std::chrono::milliseconds m_whiteTime{0};
-    std::chrono::milliseconds m_blackTime{0};
-    std::chrono::steady_clock::time_point m_turnStart;
+    ChessGame m_game{};
+    std::optional<ChessGameSnapshot> m_pausedSnapshot{std::nullopt};
 
     GameResult m_result{COLOR::EMPTY, GameOverReason::RESIGN};
 };

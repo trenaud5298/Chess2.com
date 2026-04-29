@@ -114,7 +114,7 @@ public:
     [[nodiscard]] ClientStatus startSingleplayer(const SingleplayerConfig& config);
     [[nodiscard]] ClientStatus stopSingleplayer();
     [[nodiscard]] ClientStatus restartSingleplayer();
-    [[nodiscard]] ClientStatus submitSingleplayerMove(ID from, Pos to);
+    [[nodiscard]] ClientStatus submitSingleplayerMove(std::uint8_t from, std::uint8_t to, PromotionPiece promotion);
     [[nodiscard]] ClientStatus resignSingleplayer();
     [[nodiscard]] ClientStatus pauseSingleplayer();
     [[nodiscard]] ClientStatus resumeSingleplayer();

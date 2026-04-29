@@ -15,6 +15,7 @@
 #include <Chess/Client/UI/Modal/ConfirmModal.hpp>
 #include <Chess/Client/UI/Modal/ErrorModal.hpp>
 #include <Chess/Client/UI/Modal/TwoButtonModal.hpp>
+#include <CHess/Client/UI/Modal/PromotionModal.hpp>
 
 // FTXUI Includes
 
@@ -22,22 +23,37 @@
 
 namespace Chess {
 
+namespace {
+
+std::uint8_t squareFromPos(const Pos& pos) {
+    return static_cast<std::uint8_t>(pos[0] * 8 + pos[1]);
+}
+
+
+}
+
 SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : ScreenInterface(clientPanel), m_boardDisplay(std::make_shared<ChessBoardDisplay>()) {
-    m_boardDisplay->onMove = [this](Pos from, Pos to, bool promotion) {
+    m_boardDisplay->onMove = [this](Pos from, Pos to, bool promotionRequired) {
         SingleplayerView view = m_clientPanel.gameClient().singleplayerView();
-        const std::array<ID, 64>& board = view.board->getBoard();
+        bool isWhite = view.currentTurn == COLOR::WHITE;
 
-        std::size_t fromIndex = static_cast<std::size_t>(from[0]*8 + from[1]);
-        ID pieceID = board[fromIndex];
-        if (pieceID == ID::EMPTY) {
-            return;
+        if (promotionRequired) {
+            m_clientPanel.pushModal(std::make_unique<PromotionModal>(m_clientPanel, isWhite, [this, from, to](PromotionPiece promotion) {
+                ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(squareFromPos(from), squareFromPos(to), promotion);
+                if (!m_clientPanel.handleStatus(result, "Failed To Make Move")) {
+                    return;
+                }
+                SingleplayerView updated = m_clientPanel.gameClient().singleplayerView();
+                m_boardDisplay->updateBoard(updated.board->getBoard());
+            }));
+        } else {
+            ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(squareFromPos(from), squareFromPos(to), PromotionPiece::None);
+            if (!m_clientPanel.handleStatus(result, "Failed To Make Move")) {
+                return;
+            }
+            SingleplayerView updated = m_clientPanel.gameClient().singleplayerView();
+            m_boardDisplay->updateBoard(updated.board->getBoard());
         }
-
-        ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(pieceID, to);
-        if (!m_clientPanel.handleStatus(result, "Failed To Make Move")) {
-            return;
-        }
-        m_boardDisplay->updateBoard(m_clientPanel.gameClient().singleplayerView().board->getBoard());
     };
 
     m_component = buildComponent();
