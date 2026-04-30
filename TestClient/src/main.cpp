@@ -49,7 +49,6 @@ int main() {
                                 IdPos({ID::B_ROOK1, Pos{4,2}}),
                                 IdPos({ID::B_ROOK2, Pos{2,2}}),
                                 };
-    */
 
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{3,3}}),
@@ -65,14 +64,16 @@ int main() {
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
     board = Chess::Board(boardLiteral, piecesLiteral);
+    */
     
-    //board.genPinned();
-    //board.printPinnedArr();
-    //board.printPiecesPos(piecesLiteral);
-    //Chess::Board::printBoard(boardLiteral);
+    board.printTurn();
+    board.displayBoards();
+    while( board.isValidState() ) {
+        board.testTurn();
+        board.nextTurn();
+    }
 
-    //board.displayBoard();
-
+    /*
     board.genMoves();
     board.printTurn();
     board.displayBoard();
@@ -119,11 +120,8 @@ int main() {
     std::cout << "isStalemate: " << (board.isStalemate() ? "true" : "false");
     std::cout << "\nisCheckmate: " << (board.isCheckmate() ? "true" : "false");
     std::cout << '\n' << std::endl;
-
-    /*
-    std::cout << "game result is: ";
-    Chess::Board::printColor(board.winner());
     */
+
 
     return 0;
 }

@@ -305,11 +305,8 @@ namespace Chess {
 
         LogEntry entry;
         entry.id = id;
-        std::cout << "IN LOG \n";
         entry.from = old;
-        printPosition(entry.from);
         entry.to = target;
-        printPosition(entry.to);
         if( idToReplace != EMPTY ) {
             const int castedOldId = (int) idToReplace - 1;
             m_pieceArr[castedOldId].position = Pos{8,8};
@@ -1115,7 +1112,7 @@ namespace Chess {
                         setAttackedAt(temp, color);
                         setMoveAt(initialId, temp, idx);
                         idx++;
-                    } else {
+                    } else if( tempColor != COLOR::EMPTY ){
                         setDefendedAt(temp);
                     }
                 }
@@ -1128,7 +1125,7 @@ namespace Chess {
                         setAttackedAt(temp, color);
                         setMoveAt(initialId, temp, idx);
                         idx++;
-                    } else {
+                    } else if( tempColor != COLOR::EMPTY ){
                         setDefendedAt(temp);
                     }
                 }
@@ -1410,11 +1407,11 @@ namespace Chess {
         for(int i = 1; i < m_pieceArr.size() + 1; i++) {
             addMoves(static_cast<ID>(i));
         }
-        //filterPinned();
+        filterPinned();
         if( isInCheck() ) {
             //filterChecked(); 
         }
-        //filterKingMoves();
+        filterKingMoves();
     }
 
     COLOR Board::getTurnColor() const {
@@ -2005,9 +2002,53 @@ namespace Chess {
         std::cout << "Turn: " << (m_isWhiteTurn ? "White" : "Black") << std::endl;
     }
 
+    void Board::printResult() {
+        const COLOR end = winner();
+        std::cout << "Game Result is: ";
+        if( end == COLOR::WHITE ) {
+            std::cout << "WHITE WIN" << std::endl;
+        } else if ( end == COLOR::BLACK ) {
+            std::cout << "BLACK WIN" << std::endl;
+        } else {
+            std::cout << "STALEMATE" << std::endl;
+        }
+    }
+
+    void Board::printGameState() {
+        printTurn();
+        printMoves();
+        printCheckedArr();
+        displayBoards();
+        printLog();
+        std::cout << "isStalemate: " << (isStalemate() ? "true" : "false");
+        std::cout << "\nisCheckmate: " << (isCheckmate() ? "true\n" : "false\n");
+        printState();
+        std::cout << '\n' << std::endl;
+    }
+
+    void Board::displayBoards() {
+        displayBoard();
+        displayAttacked();
+        displayDefended();
+    }
+
+    void Board::testTurn() {
+        genMoves();
+        setInPlay();
+        inputMove();
+        printGameState();
+        if( isPawnPromotable() ) {
+            promotePawn();
+        }
+        setGameState();
+        if( !isValidState() ) {
+            printResult();
+        }
+    }
+
     bool Board::isInPlay(const Piece& p) {
         bool flag = false;
-        if( p.position != Pos{8,8} ) {
+        if( p.position[ROW] != 8 && p.position[COL] != 8 ) {
             flag = true;
         }
         return flag;
@@ -2026,7 +2067,10 @@ namespace Chess {
         std::cout << "IN PLAY: \n";
         int i = 0;
         for( const ID& id : m_inPlay ) {
-            std::cout << "ID: " << idToString(id) << ", i: " << i;
+            const int castedId = (int)id-1;
+            const Pos firstMove = m_moves[m_moveOffset[castedId]];
+            const bool hasMoves = !(firstMove[ROW] == 8 && firstMove[COL] == 8);
+            std::cout << "ID: " << idToString(id) << ", Has Moves: " << (hasMoves ? "yes" : "no") << ", i: " << i << '\n';
             i++;
         }
         std::cout << std::endl;
@@ -2049,16 +2093,20 @@ namespace Chess {
         return m_moves[offset+idx];
     }
 
-    void Board::inputMove(Board& board) {
+    void Board::inputMove() {
+        bool validMove = false;
+        do {
         showInPlay();
         int choice = getChoice();
         const ID id = m_inPlay[choice];
         showIdMoves(id);
         choice = getChoice();
         const Pos move = getIdMove(id, choice);
-        if( board.isValidMove(id, move) ) {
-            board.move(id, move);
+        validMove = isValidMove(id, move);
+        if( validMove ) {
+            this->move(id, move);
         } else {std::cout << "INVALID MOVE" << std::endl;}
+        } while(!validMove);
     }
 
     int Board::getChoice() {

@@ -82,7 +82,7 @@ namespace Chess {
             bool isCheckmate() const;
             void printLog();
             void printTurn();
-            //static void testTurn(Board& board, std::istream&);
+            void testTurn();
             void promotePawn();
             void setGameState();
             bool isPawnPromotable();
@@ -94,8 +94,11 @@ namespace Chess {
             int getChoice();
             bool isInPlay(const Piece& p);
             void showIdMoves(const ID& id);
-            void inputMove(Board& board);
+            void inputMove();
             Pos getIdMove(const ID& id, const int& choice);
+            void printGameState();
+            void printResult();
+            void displayBoards();
 
         private:
             std::array<ID, 64> m_board;
