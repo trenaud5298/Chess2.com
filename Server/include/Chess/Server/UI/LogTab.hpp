@@ -48,7 +48,6 @@ private:
 
     // UI Components
     std::shared_ptr<ScrollableListView> m_logView;
-    ftxui::Component m_logOptions;
     ftxui::Component m_component;
 
     std::uint64_t m_handlerID;

@@ -43,20 +43,9 @@ void LogTab::build() {
         }
     );
 
-    m_logOptions = ftxui::Button("Test", [&]() {
-
-    });
-
-    auto layout = ftxui::Container::Horizontal({
-        m_logView,
-        m_logOptions
-    });
-
-    m_component = ftxui::Renderer(layout, [this]() {
+    m_component = ftxui::Renderer(m_logView, [this]() {
         return ftxui::hbox({
-            m_logView->Render() | ftxui::flex | ftxui::yflex,
-            ftxui::separator(),
-            m_logOptions->Render() | ftxui::yflex,
+            m_logView->Render() | ftxui::flex | ftxui::yflex
         }) | ftxui::flex;
     });
 }
