@@ -99,6 +99,7 @@ namespace Chess {
             void printGameState();
             void printResult();
             void displayBoards();
+            std::string directionToString(const Direction& direction);
 
         private:
             std::array<ID, 64> m_board;

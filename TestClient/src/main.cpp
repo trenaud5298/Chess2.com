@@ -30,19 +30,6 @@ int main() {
                                 IdPos({ID::B_PAWN1, Pos{4,4}}),
                                 IdPos({ID::W_PAWN1, Pos{4,5}}),
                                 };
-    // pinned and checked
-    std::vector<IdPos> state = { 
-                                IdPos({ID::W_KING, Pos{1,1}}),
-                                //IdPos({ID::W_BISHOP1, Pos{2,2}}),
-                                IdPos({ID::B_PAWN1, Pos{6,7}}),
-                                IdPos({ID::B_BISHOP1, Pos{7,7}}),
-                                IdPos({ID::W_BISHOP2, Pos{2,1}}),
-                                IdPos({ID::B_ROOK1, Pos{7,1}}),
-                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
-                                IdPos({ID::B_QUEEN, Pos{1,7}}),
-                                IdPos({ID::W_QUEEN, Pos{0,5}}),
-                                IdPos({ID::W_ROOK1, Pos{2,6}}),
-                                };
     std::vector<IdPos> state = { 
                                 IdPos({ID::W_KING, Pos{3,3}}),
                                 IdPos({ID::B_QUEEN, Pos{0,5}}),
@@ -61,10 +48,25 @@ int main() {
                                 };
 
 
+*/
+    // pinned and checked
+    std::vector<IdPos> state = { 
+                                IdPos({ID::W_KING, Pos{1,1}}),
+                                //IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_PAWN1, Pos{6,7}}),
+                                IdPos({ID::B_BISHOP1, Pos{7,7}}),
+                                IdPos({ID::W_BISHOP2, Pos{2,1}}),
+                                IdPos({ID::B_ROOK1, Pos{7,0}}),
+                                IdPos({ID::W_BISHOP1, Pos{2,2}}),
+                                IdPos({ID::B_QUEEN, Pos{0,7}}),
+                                IdPos({ID::W_QUEEN, Pos{0,5}}),
+                                IdPos({ID::W_ROOK1, Pos{2,6}}),
+                                };
     std::array<ID, 64> boardLiteral = Chess::Board::genBoardLiteral(state);
     std::array<Piece, 32> piecesLiteral = Chess::Board::genPieces(state);
     board = Chess::Board(boardLiteral, piecesLiteral);
-    */
+    const bool BLACK_TURN = false;
+    board.setTurn(BLACK_TURN);
     
     board.printTurn();
     board.displayBoards();

@@ -427,12 +427,16 @@ namespace Chess {
     bool Board::isValidMove(const ID& id, const Pos& target) {
         const int castedId = (int)id -1,
                   idx = m_pieceArr[castedId].movesIdx;
+        bool flag = false;
         if( idx == 0 ) {
-            return false;
+            return flag;
+        }
+
+        if( castedId < WHITE_BOUND && !m_isWhiteTurn  || castedId > WHITE_BOUND && m_isWhiteTurn ) {
+            return flag;
         }
 
         const int offset = m_moveOffset[castedId];
-        bool flag = false;
         Pos temp;
         
         for(int i = 0; i < idx; i++) {
@@ -468,6 +472,7 @@ namespace Chess {
         std::fill(m_defended.begin(), m_defended.end(), false);
         std::fill(m_attackedWhite.begin(), m_attackedWhite.end(), false);
         std::fill(m_attackedBlack.begin(), m_attackedBlack.end(), false);
+        m_pinnedIdSet.clear();
         m_inPlay.clear();
     }
 
@@ -786,7 +791,7 @@ namespace Chess {
                 if( kingColor != tempColor && tempColor != COLOR::EMPTY ) {
                     if( set->contains(getTypeAt(temp)) ) {
                         setChecked(tempId);
-                        direction = directionCast(-i);
+                        direction = directionCast(i);
                         const std::pair<int,int> tempMod = getMod(direction);
                         while(temp != kingPos) {
                             m_checkedArr[j] = temp;
@@ -1409,7 +1414,7 @@ namespace Chess {
         }
         filterPinned();
         if( isInCheck() ) {
-            //filterChecked(); 
+            filterChecked(); 
         }
         filterKingMoves();
     }
@@ -1751,6 +1756,37 @@ namespace Chess {
         return res;
     }
 
+    std::string Board::directionToString(const Direction& direction) {
+        std::string res;
+        switch(direction) {
+            case(Direction::NORTH):
+                res = "NORTH";
+                break;
+            case(Direction::EAST):
+                res = "EAST";
+                break;
+            case(Direction::SOUTH):
+                res = "SOUTH";
+                break;
+            case(Direction::WEST):
+                res = "WEST";
+                break;
+            case(Direction::NORTHEAST):
+                res = "NORTHEAST";
+                break;
+            case(Direction::SOUTHEAST):
+                res = "SOUTHEAST";
+                break;
+            case(Direction::SOUTHWEST):
+                res = "SOUTHWEST";
+                break;
+            case(Direction::NORTHWEST):
+                res = "NORTHWEST";
+                break;
+        }
+        return res;
+    }
+
     void Board::printCheckedPiece() {
         std::cout << "Checking Piece: " << idToString(m_checkedId) << std::endl;
     }
@@ -2027,16 +2063,17 @@ namespace Chess {
     }
 
     void Board::displayBoards() {
-        displayBoard();
         displayAttacked();
         displayDefended();
+        displayBoard();
     }
 
     void Board::testTurn() {
         genMoves();
         setInPlay();
-        inputMove();
         printGameState();
+        printTurn();
+        inputMove();
         if( isPawnPromotable() ) {
             promotePawn();
         }
@@ -2093,6 +2130,7 @@ namespace Chess {
         return m_moves[offset+idx];
     }
 
+    /* Testing function to get an input through std::cin and move a piece that is in play */
     void Board::inputMove() {
         bool validMove = false;
         do {
@@ -2105,7 +2143,7 @@ namespace Chess {
         validMove = isValidMove(id, move);
         if( validMove ) {
             this->move(id, move);
-        } else {std::cout << "INVALID MOVE" << std::endl;}
+        } else {std::cout << "++++++++++++INVALID MOVE++++++++++++" << std::endl;}
         } while(!validMove);
     }
 
