@@ -397,7 +397,7 @@ namespace Chess {
         bool flag = false;
         const LogEntry entry = m_moveLog[0];
         const Type type = m_pieceArr[(int)entry.id-1].type;
-        if( isPawnId(entry.id) && type == Type::W_PAWN || type == Type::B_PAWN) {
+        if( isPawnId(entry.id) && (type == Type::W_PAWN || type == Type::B_PAWN)) {
             if( entry.to[ROW] == 0 || entry.to[ROW] == 7 ) {
                 flag = true;
             }
@@ -714,7 +714,7 @@ namespace Chess {
                 temp[COL] += y;
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
-                if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
+                if( kingColor != tempColor && (isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT)) ) {
                     setChecked(tempId);
                     m_checkedArr[j] = temp;
                     return;
@@ -726,7 +726,7 @@ namespace Chess {
                 temp[COL] += x;
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
-                if( kingColor != tempColor && isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT) ) {
+                if( kingColor != tempColor && )isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT)) ) {
                     setChecked(tempId);
                     m_checkedArr[j] = temp;
                     return;
@@ -764,7 +764,7 @@ namespace Chess {
                 temp[COL] += mod.second;
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
-                if( kingColor != tempColor && isMatchingType(tempId, Type::W_PAWN) || isMatchingType(tempId, Type::B_PAWN) ) {
+                if( kingColor != tempColor && (isMatchingType(tempId, Type::W_PAWN) || isMatchingType(tempId, Type::B_PAWN)) ) {
                     setChecked(tempId);
                     m_checkedArr[j] = temp;
                     return;
