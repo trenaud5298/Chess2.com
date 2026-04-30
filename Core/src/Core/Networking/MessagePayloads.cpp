@@ -132,6 +132,10 @@ void pushChessGameSnapshot(Message& msg, const ChessGameSnapshot& value) {
         msg.push(square);
     }
 
+    for (const std::uint8_t typeCode : value.boardTypeCodes) {
+        msg.push(typeCode);
+    }
+
     msg.push(value.state);
     msg.push(value.currentTurn);
     msg.push(value.winner);
@@ -147,6 +151,10 @@ void pushChessGameSnapshot(Message& msg, const ChessGameSnapshot& value) {
 bool tryReadChessGameSnapshot(Message& msg, ChessGameSnapshot& value) {
     for (ID& square : value.board) {
         if (!msg.tryRead(square)) { return false; }
+    }
+
+    for (std::uint8_t& typeCode : value.boardTypeCodes) {
+        if (!msg.tryRead(typeCode)) { return false; }
     }
 
     if (!msg.tryRead(value.state) ||

@@ -324,6 +324,26 @@ namespace Chess {
         updateMoveLog(entry);
     }
 
+    void Board::setPromotionPiece(int promotionPiece) {
+        m_promotionPiece = promotionPiece;
+    }
+
+    std::array<std::uint8_t, 64> Board::getBoardTypeCodes() const {
+        std::array<std::uint8_t, 64> out{};
+        out.fill(0);
+
+        for (std::size_t i = 0; i < m_board.size(); i++) {
+            ID id = m_board[i];
+            if (id == ID::EMPTY) {
+                continue;
+            }
+
+            out[i] = static_cast<std::uint8_t>(m_pieceArr[static_cast<int>(id) - 1].type);
+        }
+
+        return out;
+    }
+
     /* m_moveLog can grow up to size 50, FIFO type behavior */
     void Board::updateMoveLog(const LogEntry& entry) {
         const int size = m_moveLog.size();
@@ -421,7 +441,7 @@ namespace Chess {
         } while( choice < 1 || choice > 4 );
         const int idx = choice-1;
         */
-        const int idx = 3;
+        const int idx = m_promotionPiece;
         res.type = promotionArr->at(idx);
         res.maxMoves = m_promotionMoves[idx];
         return res;
@@ -464,6 +484,9 @@ namespace Chess {
 
     void Board::nextTurn() {
         m_isWhiteTurn = !m_isWhiteTurn;
+    }
+
+    void Board::resetGen() {
         std::fill(m_moves.begin(), m_moves.end(), Pos{8,8});
         m_pinnedArr.fill(Pos{8,8});
         m_checkedArr.fill(Pos{8,8});

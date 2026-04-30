@@ -27,8 +27,9 @@ ChessBoardDisplay::ChessBoardDisplay() {
     m_board.fill(ID::EMPTY);
 }
 
-void ChessBoardDisplay::updateBoard(const std::array<ID, 64> &board) {
+void ChessBoardDisplay::updateBoard(const std::array<ID, 64>& board, const std::array<std::uint8_t, 64>& boardTypeCodes) {
     m_board = board;
+    m_boardTypeCodes = boardTypeCodes;
     m_selected.reset();
 }
 
@@ -46,8 +47,12 @@ Pos ChessBoardDisplay::screenToBoard(int displayRow, int displayCol) const {
     return { boardRow, boardCol };
 }
 
-ID ChessBoardDisplay::getAt(int boardRow, int boardCol) const {
-    return m_board[static_cast<std::size_t>(boardRow * 8 + boardCol)];
+ID ChessBoardDisplay::getIDAt(int boardRow, int boardCol) const {
+    return m_board[boardRow * 8 + boardCol];
+}
+
+std::uint8_t ChessBoardDisplay::getTypeCodeAt(int boardRow, int boardCol) const {
+    return m_boardTypeCodes[boardRow * 8 + boardCol];
 }
 
 bool ChessBoardDisplay::isEmpty(ID id) const {
@@ -58,8 +63,28 @@ bool ChessBoardDisplay::isWhitePiece(ID id) const {
     return static_cast<std::uint8_t>(id) >= 1 && static_cast<std::uint8_t>(id) <= WHITE_BOUND;
 }
 
-std::string ChessBoardDisplay::toGlyph(ID id) {
-    switch (id) {
+std::string ChessBoardDisplay::toGlyph(std::uint8_t typeCode, ID fallbackId) {
+    if (typeCode != 0) {
+        switch (static_cast<Type>(typeCode)) {
+            case Type::W_ROOK: return "♖";
+            case Type::W_KNIGHT: return "♘";
+            case Type::W_BISHOP: return "♗";
+            case Type::W_QUEEN: return "♕";
+            case Type::W_KING: return "♔";
+            case Type::W_PAWN: return "♙";
+            case Type::B_ROOK: return "♜";
+            case Type::B_KNIGHT: return "♞";
+            case Type::B_BISHOP: return "♝";
+            case Type::B_QUEEN: return "♛";
+            case Type::B_KING: return "♚";
+            case Type::B_PAWN: return "♟";
+        }
+    }
+    return toGlyphFallback(fallbackId);
+}
+
+std::string ChessBoardDisplay::toGlyphFallback(ID fallbackId) {
+    switch (fallbackId) {
         case ID::W_KING:
             return "♔";
         case ID::B_KING:
@@ -113,14 +138,14 @@ void ChessBoardDisplay::handleSelect(int displayRow, int displayCol) {
     if (displayRow < 0 || displayRow > 7 || displayCol < 0 || displayCol > 7) {return;}
 
     Pos boardPos = screenToBoard(displayRow, displayCol);
-    ID id = getAt(boardPos[ROW], boardPos[COL]);
+    ID id = getIDAt(boardPos[ROW], boardPos[COL]);
 
     if (!m_selected) {
         if (!isEmpty(id)) { m_selected = boardPos;}
     } else {
         Pos from = m_selected.value();
         if (from != boardPos && onMove) {
-            ID movingId = getAt(from[ROW], from[COL]);
+            ID movingId = getIDAt(from[ROW], from[COL]);
             onMove(from, boardPos, requiresPromotion(movingId, boardPos));
         }
         m_selected.reset();
@@ -197,7 +222,8 @@ ftxui::Element ChessBoardDisplay::renderCell(int displayRow, int displayCol, con
     std::uint8_t boardRow = boardPos[ROW];
     std::uint8_t boardCol = boardPos[COL];
 
-    ID id = getAt(boardRow, boardCol);
+    ID id = getIDAt(boardRow, boardCol);
+    std::uint8_t typeCode = getTypeCodeAt(boardRow, boardCol);
 
     bool isLight = (boardRow + boardCol) % 2 == 0;
     bool isCursor = (displayRow == m_cursorRow && displayCol == m_cursorCol);
@@ -209,7 +235,7 @@ ftxui::Element ChessBoardDisplay::renderCell(int displayRow, int displayCol, con
     if (isCursor) {backgroundColor = m_theme.cursorSquare.toFTXUIColor();}
     if (isSelected) {backgroundColor = m_theme.selectedSquare.toFTXUIColor();}
 
-    std::string glyph = toGlyph(id);
+    std::string glyph = toGlyph(typeCode, id);
     ftxui::Color glyphColor = isWhitePiece(id) ? m_theme.whitePiece.toFTXUIColor() : m_theme.blackPiece.toFTXUIColor();
 
     auto cell = ftxui::text(glyph) | ftxui::hcenter | ftxui::vcenter | ftxui::color(glyphColor) | ftxui::bold

@@ -44,7 +44,7 @@ SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : Scree
                     return;
                 }
                 SingleplayerView updated = m_clientPanel.gameClient().singleplayerView();
-                m_boardDisplay->updateBoard(updated.board->getBoard());
+                m_boardDisplay->updateBoard(updated.board->getBoard(), updated.board->getBoardTypeCodes());
             }));
         } else {
             ClientStatus result = m_clientPanel.gameClient().submitSingleplayerMove(squareFromPos(from), squareFromPos(to), PromotionPiece::None);
@@ -52,7 +52,7 @@ SingleplayerGameScreen::SingleplayerGameScreen(ClientPanel& clientPanel) : Scree
                 return;
             }
             SingleplayerView updated = m_clientPanel.gameClient().singleplayerView();
-            m_boardDisplay->updateBoard(updated.board->getBoard());
+            m_boardDisplay->updateBoard(updated.board->getBoard(), updated.board->getBoardTypeCodes());
         }
     };
 
@@ -71,7 +71,7 @@ void SingleplayerGameScreen::onEnter() {
     m_boardDisplay->setTheme(m_clientPanel.gameClient().persistenceManager().settings().getBoardTheme());
 
     m_boardDisplay->setFlipped(view.playerColor == COLOR::BLACK);
-    m_boardDisplay->updateBoard(view.board->getBoard());
+    m_boardDisplay->updateBoard(view.board->getBoard(), view.board->getBoardTypeCodes());
     m_clientPanel.setTickRate(std::chrono::milliseconds(100));
 }
 

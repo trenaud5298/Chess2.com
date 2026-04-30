@@ -33,7 +33,7 @@ class ChessBoardDisplay : public ftxui::ComponentBase {
 public:
     ChessBoardDisplay();
 
-    void updateBoard(const std::array<ID, 64>& board);
+    void updateBoard(const std::array<ID, 64>& board, const std::array<std::uint8_t, 64>& boardTypeCodes);
     void setFlipped(bool flipped);
     void setTheme(const BoardTheme& theme);
 
@@ -52,10 +52,12 @@ private:
 private:
     // Helpers
     [[nodiscard]] Pos screenToBoard(int displayRow, int displayCol) const;
-    [[nodiscard]] ID getAt(int boardRow, int boardCol) const;
+    [[nodiscard]] ID getIDAt(int boardRow, int boardCol) const;
+    [[nodiscard]] std::uint8_t getTypeCodeAt(int boardRow, int boardCol) const;
     [[nodiscard]] bool isEmpty(ID id) const;
     [[nodiscard]] bool isWhitePiece(ID id) const;
-    [[nodiscard]] static std::string toGlyph(ID id);
+    [[nodiscard]] static std::string toGlyph(std::uint8_t typeCode, ID fallbackId);
+    [[nodiscard]] static std::string toGlyphFallback(ID fallbackId);
     [[nodiscard]] static bool isWhitePawn(ID id);
     [[nodiscard]] static bool isBlackPawn(ID id);
     [[nodiscard]] static bool requiresPromotion(ID id, const Pos& to);
@@ -75,6 +77,8 @@ private:
 
 private:
     std::array<ID, 64> m_board{};
+    std::array<std::uint8_t, 64> m_boardTypeCodes{};
+
     int m_cursorRow{0};
     int m_cursorCol{0};
     std::optional<Pos> m_selected;

@@ -19,7 +19,12 @@ namespace Chess {
 
             Pos& getPos(const ID& id);
 
+            COLOR winner();
             void move(const ID& id, const Pos& pos);
+            void setPromotionPiece(int promotionPiece);
+
+            // Since Promotion No Longer Uses Just ID, I need Types
+            std::array<std::uint8_t, 64> getBoardTypeCodes() const;
 
             // Public Method Integration
             // These Methods Are Called By The Singleplayer
@@ -46,8 +51,7 @@ namespace Chess {
             void genChecked();
             void genPinned();
 
-            void setPromotionPiece(int promotionPiece);
-            void promotePawn();
+
             std::ios &(* isValidMove())(std::ios &);
 
             /* Testing functions */

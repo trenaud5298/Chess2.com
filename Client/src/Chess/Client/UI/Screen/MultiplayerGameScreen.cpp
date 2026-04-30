@@ -212,7 +212,7 @@ void MultiplayerGameScreen::syncBoardFromSnapshot() {
     }
     m_appliedGameVersion = snapshot.version;
     m_boardDisplay->setFlipped(localColor() == COLOR::BLACK);
-    m_boardDisplay->updateBoard(latestSnapshot().board);
+    m_boardDisplay->updateBoard(latestSnapshot().board, latestSnapshot().boardTypeCodes);
 }
 
 void MultiplayerGameScreen::syncProjectedGameFromSnapshot() {

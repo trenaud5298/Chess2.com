@@ -31,6 +31,31 @@ namespace {
     return COLOR::EMPTY;
 }
 
+
+int reservedForType(Type type) {
+    switch (type) {
+        case Type::W_ROOK:
+        case Type::B_ROOK:
+            return MAX_MOVES_ROOK;
+        case Type::W_KNIGHT:
+        case Type::B_KNIGHT:
+            return MAX_MOVES_KNIGHT;
+        case Type::W_BISHOP:
+        case Type::B_BISHOP:
+            return MAX_MOVES_BISHOP;
+        case Type::W_QUEEN:
+        case Type::B_QUEEN:
+            return MAX_MOVES_QUEEN;
+        case Type::W_KING:
+        case Type::B_KING:
+            return MAX_MOVES_KING;
+        case Type::W_PAWN:
+        case Type::B_PAWN:
+            return MAX_MOVES_PAWN;
+    }
+    return MAX_MOVES_PAWN;
+}
+
 }
 
 namespace Chess {
@@ -105,7 +130,7 @@ void ChessGame::applySnapshot(const ChessGameSnapshot &snapshot, std::chrono::st
     m_version = snapshot.version;
     m_turnStart = (snapshot.state == ChessGameState::InProgress) ? now : std::chrono::steady_clock::time_point{};
 
-    rebuildBoardFromRaw(snapshot.board);
+    rebuildBoardFromRaw(snapshot.board, snapshot.boardTypeCodes);
     refreshBoardDerivedState();
 }
 
@@ -221,13 +246,13 @@ ChessGameMoveResult ChessGame::submitMove(COLOR side, std::uint8_t from, std::ui
     }
 
     m_board.move(piece, target);
-    m_board.nextTurn();
-    ++m_version;
-
-    if (requiresPromotion(piece, side, target)) {
+    if (m_board.isPawnPromotable()) {
         m_board.setPromotionPiece(toBoardConvention(promotion));
         m_board.promotePawn();
     }
+
+    m_board.nextTurn();
+    ++m_version;
 
     advanceTurn(now);
     refreshTerminalStateFromBoard(now);
@@ -336,6 +361,7 @@ std::chrono::milliseconds ChessGame::timeRemaining(COLOR side, std::chrono::stea
 ChessGameSnapshot ChessGame::snapshot(std::chrono::steady_clock::time_point now) const {
     return {
         .board = m_board.getBoard(),
+        .boardTypeCodes = m_board.getBoardTypeCodes(),
         .state = m_state,
         .currentTurn = m_currentTurn,
         .winner = m_winner,
@@ -347,9 +373,27 @@ ChessGameSnapshot ChessGame::snapshot(std::chrono::steady_clock::time_point now)
     };
 }
 
-void ChessGame::rebuildBoardFromRaw(const std::array<ID, 64> &boardRaw) {
+void ChessGame::rebuildBoardFromRaw(const std::array<ID, 64>& boardRaw, const std::array<std::uint8_t, 64>& boardTypeCodes) {
     std::vector<IdPos> pieces = collectPieces(boardRaw);
     std::array<Piece, 32> pieceArray = Board::genPieces(pieces);
+
+    for (std::size_t square = 0; square < boardRaw.size(); ++square) {
+        ID id = boardRaw[square];
+        if (id == ID::EMPTY) {
+            continue;
+        }
+
+        std::uint8_t code = boardTypeCodes[square];
+        if (code == 0) {
+            continue;
+        }
+
+        Piece& piece = pieceArray[static_cast<int>(id)-1];
+        piece.type = static_cast<Type>(code);
+        piece.reserved = reservedForType(piece.type);
+        piece.movesIdx = 0;
+    }
+
     m_board = Board(boardRaw, pieceArray);
 }
 
