@@ -726,7 +726,7 @@ namespace Chess {
                 temp[COL] += x;
                 tempColor = getColor(getIdAt(temp));
                 tempId = getIdAt(temp);
-                if( kingColor != tempColor && )isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT)) ) {
+                if( kingColor != tempColor && (isMatchingType(tempId, Type::W_KNIGHT) || isMatchingType(tempId, Type::B_KNIGHT)) ) {
                     setChecked(tempId);
                     m_checkedArr[j] = temp;
                     return;
@@ -1236,7 +1236,7 @@ namespace Chess {
             if( isInBoard(temp) ) { // this is redundant but im keeping it for now
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
-                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                if( color != tempColor && (tempColor == COLOR::WHITE || tempColor == COLOR::BLACK) ) {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
@@ -1254,7 +1254,7 @@ namespace Chess {
             if( isInBoard(temp) ) {
                 tempId = getIdAt(temp);
                 tempColor = getColor(tempId);
-                if( color != tempColor && tempColor == COLOR::WHITE || tempColor == COLOR::BLACK ) {
+                if( color != tempColor && (tempColor == COLOR::WHITE || tempColor == COLOR::BLACK) ) {
                     setAttackedAt(temp, color);
                     setMoveAt(initialId, temp, i);
                     i++;
