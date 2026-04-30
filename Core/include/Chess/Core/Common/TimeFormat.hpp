@@ -31,7 +31,11 @@ namespace Chess {
     );
 
     std::tm localTime{};
+#ifdef _WIN32
     localtime_s(&localTime, &now);
+#else
+    localtime_r(&now, &localTime);
+#endif
 
     std::ostringstream out;
     out << std::put_time(&localTime, "%H:%M:%S");

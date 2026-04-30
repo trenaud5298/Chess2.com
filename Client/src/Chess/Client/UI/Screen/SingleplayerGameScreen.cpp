@@ -15,7 +15,7 @@
 #include <Chess/Client/UI/Modal/ConfirmModal.hpp>
 #include <Chess/Client/UI/Modal/ErrorModal.hpp>
 #include <Chess/Client/UI/Modal/TwoButtonModal.hpp>
-#include <CHess/Client/UI/Modal/PromotionModal.hpp>
+#include <Chess/Client/UI/Modal/PromotionModal.hpp>
 
 // FTXUI Includes
 
